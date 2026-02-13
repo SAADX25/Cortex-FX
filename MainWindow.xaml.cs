@@ -16,6 +16,8 @@ using Microsoft.Win32;
 using System.Collections.ObjectModel;
 
 using System.Reflection;
+using PdfiumViewer;
+using System.Drawing.Imaging;
 
 namespace CortexFX;
 
@@ -95,6 +97,12 @@ public partial class MainWindow : Window
                 FileName = System.IO.Path.GetFileName(file),
                 FullPath = file
             });
+            
+            // Refresh formats in case a PDF was added and we need to show Office options
+            if (RadioDocument != null && RadioDocument.IsChecked == true)
+            {
+                 PopulateFormats("Document");
+            }
         }
     }
 
@@ -206,7 +214,7 @@ public partial class MainWindow : Window
         if (sender is RadioButton rb && rb.IsChecked == true && FormatComboBox != null)
         {
             if (rb.Content == null) return;
-            string category = rb.Content.ToString()!.Replace("🖼️ ", "").Replace("🎥 ", "").Replace("🎵 ", "");
+            string category = rb.Content.ToString()!.Replace("🖼️ ", "").Replace("🎥 ", "").Replace("🎵 ", "").Replace("📄 ", "");
             PopulateFormats(category);
         }
     }
@@ -229,6 +237,26 @@ public partial class MainWindow : Window
             case "Audio":
                 formats = new[] { "MP3", "WAV", "M4A", "OGG" };
                 break;
+            case "Document":
+                formats = new[] { "PDF" };
+                break;
+        }
+
+        // Handle PDF as input to allow conversion to Office
+        if (_filesToConvert.Any(f => System.IO.Path.GetExtension(f.FullPath).ToLower() == ".pdf"))
+        {
+             // If we are in "Image" or "Document" category (or just contextually), we should allow PDF->Office
+             // But UI is Category-based. 
+             // If user drags a PDF, and selects "Document", they might expect PDF -> Word.
+             // Let's modify "Document" category formats if a PDF is present.
+             
+             // Simple approach: If category is Document, check if PDF is present, then add Office formats.
+             if (category == "Document")
+             {
+                 FormatComboBox.Items.Add(new ComboBoxItem { Content = "DOCX" });
+                 FormatComboBox.Items.Add(new ComboBoxItem { Content = "XLSX" });
+                 FormatComboBox.Items.Add(new ComboBoxItem { Content = "PPTX" });
+             }
         }
 
         foreach (var format in formats)
@@ -372,19 +400,82 @@ public partial class MainWindow : Window
                         // Determine Tool and Arguments
                         string extension = System.IO.Path.GetExtension(file).ToLower();
 
-                        if (extension == ".pdf" && (targetFormat == "png" || targetFormat == "jpg"))
+                        if (targetFormat == "pdf" && (extension == ".docx" || extension == ".doc" || extension == ".xlsx" || extension == ".xls" || extension == ".pptx" || extension == ".ppt"))
                         {
-                            // PDF Conversion using pdftocairo
-                            currentToolPath = pdftocairoPath;
-                            string formatFlag = targetFormat == "png" ? "-png" : "-jpeg";
+                            // Document Conversion (Office -> PDF)
+                            DocumentConverter.ConvertToPdf(file, newFileName);
+                            // No external process to run, manually increment progress and continue
+                            count++;
+                            Dispatcher.Invoke(() => ConversionProgress.Value = count);
+                            continue;
+                        }
+                        else if (extension == ".pdf" && (targetFormat == "docx" || targetFormat == "xlsx" || targetFormat == "pptx"))
+                        {
+                            // PDF to Office Conversion
                             
-                            string qualityArgs = "";
-                            if (qualityLevel == 1) qualityArgs = "-r 72";       // Small
-                            else if (qualityLevel == 2) qualityArgs = "-r 150"; // Balanced
-                            else if (qualityLevel == 3) qualityArgs = "-r 300"; // High
+                            // 1. Create Output Folder: [Output Path]\Cortex FX
+                            string cortexFxDir = System.IO.Path.Combine(finalOutputDir, "Cortex FX");
+                            if (!Directory.Exists(cortexFxDir))
+                            {
+                                Directory.CreateDirectory(cortexFxDir);
+                            }
+                            
+                            string officeFileName = $"{fileNameWithoutExt}.{targetFormat}";
+                            string officeOutputPath = System.IO.Path.Combine(cortexFxDir, officeFileName);
 
-                            // pdftocairo appends extension automatically
-                            arguments = $"{formatFlag} {qualityArgs} -singlefile \"{file}\" \"{outputNoExt}\"";
+                            DocumentConverter.ConvertPdfToOffice(file, officeOutputPath, targetFormat);
+
+                            count++;
+                            Dispatcher.Invoke(() => ConversionProgress.Value = count);
+                            continue;
+                        }
+                        else if (extension == ".pdf" && (targetFormat == "png" || targetFormat == "jpg"))
+                        {
+                            // PDF to Image Conversion (Multi-page with PdfiumViewer)
+                            
+                            // 1. Create Output Folder: [Output Path]\Cortex FX
+                            string cortexFxDir = System.IO.Path.Combine(finalOutputDir, "Cortex FX");
+                            if (!Directory.Exists(cortexFxDir))
+                            {
+                                Directory.CreateDirectory(cortexFxDir);
+                            }
+
+                            // 2. Load PDF
+                            using (var document = PdfiumViewer.PdfDocument.Load(file))
+                            {
+                                int dpiValue = 150; // Default DPI
+                                if (!string.IsNullOrWhiteSpace(dpi) && int.TryParse(dpi, out int customDpi))
+                                {
+                                    dpiValue = customDpi;
+                                }
+                                else if (qualityLevel == 1) dpiValue = 72;
+                                else if (qualityLevel == 3) dpiValue = 300;
+
+                                for (int i = 0; i < document.PageCount; i++)
+                                {
+                                    // 3. Construct File Name: [OriginalName]_Page[Number].png
+                                    string pageFileName = $"{fileNameWithoutExt}_Page{i + 1}.{targetFormat}";
+                                    string pageOutputPath = System.IO.Path.Combine(cortexFxDir, pageFileName);
+
+                                    // Calculate dimensions based on DPI
+                                    var pageSize = document.PageSizes[i];
+                                    int width = (int)(pageSize.Width / 72.0 * dpiValue);
+                                    int height = (int)(pageSize.Height / 72.0 * dpiValue);
+
+                                    // Render page to bitmap
+                                    using (var image = document.Render(i, width, height, dpiValue, dpiValue, false))
+                                    {
+                                        // Save image
+                                        ImageFormat format = targetFormat == "png" ? ImageFormat.Png : ImageFormat.Jpeg;
+                                        image.Save(pageOutputPath, format);
+                                    }
+                                }
+                            }
+                            
+                            // Skip external process
+                            count++;
+                            Dispatcher.Invoke(() => ConversionProgress.Value = count);
+                            continue;
                         }
                         else if (useFFmpeg)
                         {

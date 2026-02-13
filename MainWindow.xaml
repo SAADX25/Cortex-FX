@@ -282,6 +282,7 @@
                     <RadioButton x:Name="RadioImage" Content="🖼️ Image" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" IsChecked="True" Checked="Category_Checked"/>
                     <RadioButton x:Name="RadioVideo" Content="🎥 Video" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Checked="Category_Checked"/>
                     <RadioButton x:Name="RadioAudio" Content="🎵 Audio" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Checked="Category_Checked"/>
+                    <RadioButton x:Name="RadioDocument" Content="📄 Document" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Checked="Category_Checked"/>
                 </StackPanel>
 
                 <!-- Scrollable Content (Row 2) -->

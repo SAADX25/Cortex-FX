@@ -20,6 +20,14 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FreeSpire.Office" Version="8.2.0" />
+    <PackageReference Include="FreeSpire.PDF" Version="11.11.0" />
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.10.2" />
+    <PackageReference Include="PdfiumViewer" Version="2.13.0" />
+    <PackageReference Include="PdfiumViewer.Native.x86_64.v8-xfa" Version="2018.4.8.256" />
+  </ItemGroup>
+
   <PropertyGroup>
     <Version>0.2.5</Version>
     <FileVersion>0.2.5</FileVersion>
