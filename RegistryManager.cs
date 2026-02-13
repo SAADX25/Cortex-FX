@@ -14,7 +14,7 @@ namespace CortexFX
         {
             try
             {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\*\shell\{MenuName}"))
+                using (RegistryKey? key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\*\shell\{MenuName}"))
                 {
                     return key != null;
                 }

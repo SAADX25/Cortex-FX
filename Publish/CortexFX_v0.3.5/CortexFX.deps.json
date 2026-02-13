@@ -1,0 +1,261 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0/win-x64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {},
+    ".NETCoreApp,Version=v8.0/win-x64": {
+      "CortexFX/0.3.5": {
+        "dependencies": {
+          "Magick.NET-Q8-AnyCPU": "14.10.2",
+          "NetOfficeFw.Excel": "1.9.7",
+          "NetOfficeFw.PowerPoint": "1.9.7",
+          "NetOfficeFw.Word": "1.9.7",
+          "PdfiumViewer": "2.13.0",
+          "System.Drawing.Common": "10.0.3"
+        },
+        "runtime": {
+          "CortexFX.dll": {}
+        }
+      },
+      "Magick.NET-Q8-AnyCPU/14.10.2": {
+        "dependencies": {
+          "Magick.NET.Core": "14.10.2"
+        },
+        "runtime": {
+          "lib/net8.0/Magick.NET-Q8-AnyCPU.dll": {
+            "assemblyVersion": "14.10.0.0",
+            "fileVersion": "14.10.2.0"
+          }
+        },
+        "native": {
+          "runtimes/win-x64/native/Magick.Native-Q8-x64.dll": {
+            "fileVersion": "10.2.0.0"
+          }
+        }
+      },
+      "Magick.NET.Core/14.10.2": {
+        "runtime": {
+          "lib/net8.0/Magick.NET.Core.dll": {
+            "assemblyVersion": "14.10.0.0",
+            "fileVersion": "14.10.2.0"
+          }
+        }
+      },
+      "Microsoft.Win32.SystemEvents/10.0.3": {
+        "runtime": {
+          "runtimes/win/lib/net8.0/Microsoft.Win32.SystemEvents.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.326.7603"
+          }
+        }
+      },
+      "NetOfficeFw.Core/1.9.7": {
+        "runtime": {
+          "lib/net462/NetOffice.dll": {
+            "assemblyVersion": "1.9.7.0",
+            "fileVersion": "1.9.7.0"
+          }
+        }
+      },
+      "NetOfficeFw.Excel/1.9.7": {
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7",
+          "NetOfficeFw.VBIDE": "1.9.7"
+        },
+        "runtime": {
+          "lib/net462/ExcelApi.dll": {
+            "assemblyVersion": "1.9.7.0",
+            "fileVersion": "1.9.7.0"
+          }
+        }
+      },
+      "NetOfficeFw.Office/1.9.7": {
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "stdole": "7.0.3300"
+        },
+        "runtime": {
+          "lib/net462/OfficeApi.dll": {
+            "assemblyVersion": "1.9.7.0",
+            "fileVersion": "1.9.7.0"
+          }
+        }
+      },
+      "NetOfficeFw.PowerPoint/1.9.7": {
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7",
+          "NetOfficeFw.VBIDE": "1.9.7",
+          "stdole": "7.0.3300"
+        },
+        "runtime": {
+          "lib/net462/PowerPointApi.dll": {
+            "assemblyVersion": "1.9.7.0",
+            "fileVersion": "1.9.7.0"
+          }
+        }
+      },
+      "NetOfficeFw.VBIDE/1.9.7": {
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7"
+        },
+        "runtime": {
+          "lib/net462/VBIDEApi.dll": {
+            "assemblyVersion": "1.9.7.0",
+            "fileVersion": "1.9.7.0"
+          }
+        }
+      },
+      "NetOfficeFw.Word/1.9.7": {
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7",
+          "NetOfficeFw.VBIDE": "1.9.7",
+          "stdole": "7.0.3300"
+        },
+        "runtime": {
+          "lib/net462/WordApi.dll": {
+            "assemblyVersion": "1.9.7.0",
+            "fileVersion": "1.9.7.0"
+          }
+        }
+      },
+      "PdfiumViewer/2.13.0": {
+        "runtime": {
+          "lib/net20/PdfiumViewer.dll": {
+            "assemblyVersion": "2.13.0.0",
+            "fileVersion": "2.13.0.0"
+          }
+        },
+        "resources": {
+          "lib/net20/nl/PdfiumViewer.resources.dll": {
+            "locale": "nl"
+          }
+        }
+      },
+      "stdole/7.0.3300": {
+        "runtime": {
+          "lib/net10/stdole.dll": {
+            "assemblyVersion": "7.0.3300.0",
+            "fileVersion": "7.0.9466.1"
+          }
+        }
+      },
+      "System.Drawing.Common/10.0.3": {
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "10.0.3"
+        },
+        "runtime": {
+          "lib/net8.0/System.Drawing.Common.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.326.7603"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.326.7603"
+          },
+          "lib/net8.0/System.Private.Windows.GdiPlus.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.326.7603"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CortexFX/0.3.5": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Magick.NET-Q8-AnyCPU/14.10.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-vKhZZ5hmeej2fGQI77IxY4dlcfBFKAWi6sAmiQmKmRZqh4XMGnk+NfxGHyWrkhVDr2oerIonrFmHJ83EkJLcmg==",
+      "path": "magick.net-q8-anycpu/14.10.2",
+      "hashPath": "magick.net-q8-anycpu.14.10.2.nupkg.sha512"
+    },
+    "Magick.NET.Core/14.10.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-22zhy2QO7GrMPFZZEN5X+oAoBi7IWhq8fqH0dQy/d6jzScLeTfZV0a69CRzmf7LbiRPwPSeguHvpfgrNaAGmeQ==",
+      "path": "magick.net.core/14.10.2",
+      "hashPath": "magick.net.core.14.10.2.nupkg.sha512"
+    },
+    "Microsoft.Win32.SystemEvents/10.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-gYpwz5Gl0rs9pEFHBKctLbSi7SUGR4L1uRjXkU488nizWd2hvo2JP2+ATUsv0th7v6LDiXfdlUsnTbvC2MauFA==",
+      "path": "microsoft.win32.systemevents/10.0.3",
+      "hashPath": "microsoft.win32.systemevents.10.0.3.nupkg.sha512"
+    },
+    "NetOfficeFw.Core/1.9.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-H5CgPpCzPcAM1HKiH2HXg5XM9U+0Y+G8JSVNO01aTlrOK1zTMve/u4MfBXdlxrqFoUfaiI4f/cbbULHmmoaJOA==",
+      "path": "netofficefw.core/1.9.7",
+      "hashPath": "netofficefw.core.1.9.7.nupkg.sha512"
+    },
+    "NetOfficeFw.Excel/1.9.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-liH1CpZz4rjwwe9NJH6xuDY+Gu33rtdMNpDc1bJeRV/lYQtDjm3/FMoq/4kEgefFil8js29lqMFrqp+1CY8KeQ==",
+      "path": "netofficefw.excel/1.9.7",
+      "hashPath": "netofficefw.excel.1.9.7.nupkg.sha512"
+    },
+    "NetOfficeFw.Office/1.9.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ehGhe792e1bpGsSuyUAA5xyp+vLEotIL7a74ZomDNkmvvr+3NM4um0x8BD1928jQy2/dD2gcB9Qwip8yA+PY7A==",
+      "path": "netofficefw.office/1.9.7",
+      "hashPath": "netofficefw.office.1.9.7.nupkg.sha512"
+    },
+    "NetOfficeFw.PowerPoint/1.9.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bNaL3p4hiIsgkVjlIM45y/ibR2D/dNKiZhDs02tg7lYmNVBygyOmAFE+Zjk2AHinWbW6YZ/m2mREmiRHfd/xtg==",
+      "path": "netofficefw.powerpoint/1.9.7",
+      "hashPath": "netofficefw.powerpoint.1.9.7.nupkg.sha512"
+    },
+    "NetOfficeFw.VBIDE/1.9.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-zytsGUQSZEUXGo220Vl0TyyZJ/xXmxhlytWVhTcKDDzpMVNe1Sh6YCETA+DOX3z50tscV5/Z8wNf/v79cPniIQ==",
+      "path": "netofficefw.vbide/1.9.7",
+      "hashPath": "netofficefw.vbide.1.9.7.nupkg.sha512"
+    },
+    "NetOfficeFw.Word/1.9.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WXiA0LMCt3iPKebSFp/bjnBJvUYY8y98ROX7lLcTy5/13S9xPexN5ftE/QXg1zJZNfy5vw18fSRdraHKtKSmtg==",
+      "path": "netofficefw.word/1.9.7",
+      "hashPath": "netofficefw.word.1.9.7.nupkg.sha512"
+    },
+    "PdfiumViewer/2.13.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Nw4owBmJzDVXoMRjCnqPbET07CPOawwhcNjt+PyRaSxONN9bsFF+cm9kcMsDLEAEaxsiDJo5jls8bCQjvjidkA==",
+      "path": "pdfiumviewer/2.13.0",
+      "hashPath": "pdfiumviewer.2.13.0.nupkg.sha512"
+    },
+    "stdole/7.0.3300": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-p9WhjNp/gM2z80u+xNA1XXFek57iybUUJaDnQooKfdct3vGIpmDzLdL7Rq4ZmFzZc3LN3SFs5bRIE7j/+gLn5Q==",
+      "path": "stdole/7.0.3300",
+      "hashPath": "stdole.7.0.3300.nupkg.sha512"
+    },
+    "System.Drawing.Common/10.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bJlT89G7EqMpiLCvIPmb7BHpcSxjVeFsahRyQk3/mrUt5YgHKiFcEv88db97gKcpRn5opxfBwI0ohUmJlxuGJg==",
+      "path": "system.drawing.common/10.0.3",
+      "hashPath": "system.drawing.common.10.0.3.nupkg.sha512"
+    }
+  }
+}

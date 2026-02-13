@@ -4,8 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CortexFX"
+        xmlns:ctrl="clr-namespace:CortexFX.Controls"
         mc:Ignorable="d"
-        Title="Cortex FX" Height="650" Width="800"
+        Title="Cortex FX" Height="650" Width="850"
         Background="Transparent" AllowsTransparency="True" WindowStyle="None"
         Foreground="#E0E0E0"
         WindowStartupLocation="CenterScreen"
@@ -213,11 +214,13 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/> <!-- Icon -->
                                     <ColumnDefinition Width="*"/>    <!-- Name -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Status -->
                                     <ColumnDefinition Width="Auto"/> <!-- Remove -->
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="📄" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="16"/>
                                 <TextBlock Text="{Binding FileName}" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Grid.Column="1"/>
-                                <Button Content="✕" Grid.Column="2" Click="RemoveFile_Click" Tag="{Binding FullPath}"
+                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor}" VerticalAlignment="Center" Margin="10,0,10,0" Grid.Column="2" FontSize="12"/>
+                                <Button Content="✕" Grid.Column="3" Click="RemoveFile_Click" Tag="{Binding FullPath}"
                                         Background="Transparent" Foreground="#FF5555" BorderThickness="0" Padding="8,0" Cursor="Hand"
                                         FontSize="14" FontWeight="Bold"/>
                             </Grid>
@@ -279,113 +282,192 @@
 
                 <!-- Category Selector (Row 1) -->
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,15,20,15">
-                    <RadioButton x:Name="RadioImage" Content="🖼️ Image" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" IsChecked="True" Checked="Category_Checked"/>
-                    <RadioButton x:Name="RadioVideo" Content="🎥 Video" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Checked="Category_Checked"/>
-                    <RadioButton x:Name="RadioAudio" Content="🎵 Audio" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Checked="Category_Checked"/>
-                    <RadioButton x:Name="RadioDocument" Content="📄 Document" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Checked="Category_Checked"/>
+                    <RadioButton x:Name="RadioImage" Content="🖼️ Image" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
+                    <RadioButton x:Name="RadioVideo" Content="🎥 Video" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
+                    <RadioButton x:Name="RadioAudio" Content="🎵 Audio" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
+                    <RadioButton x:Name="RadioDocument" Content="📄 Document" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
                 </StackPanel>
 
                 <!-- Scrollable Content (Row 2) -->
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="20,0,10,0" Padding="0,0,10,0">
-                    <StackPanel>
-                        <!-- Drop Zone -->
-                        <Border x:Name="DropZone" 
-                                Height="150"
-                                Background="#1E1E1E" 
-                                BorderBrush="#444444" 
-                                BorderThickness="2" 
-                                CornerRadius="8" 
-                                AllowDrop="True"
-                                Drop="DropZone_Drop"
-                                DragEnter="DropZone_DragEnter"
-                                DragLeave="DropZone_DragLeave"
-                                MouseLeftButtonUp="DropZone_Click"
-                                Cursor="Hand"
-                                Margin="0,0,0,20">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                                <TextBlock Text="☁" FontSize="48" HorizontalAlignment="Center" Foreground="{StaticResource AccentColor}"/>
-                                <TextBlock Text="Drag &amp; Drop Files Here" FontSize="18" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                            </StackPanel>
-                        </Border>
+                <Grid Grid.Row="2" Margin="20,0,10,0">
+                    <!-- Dashboard View -->
+                    <ScrollViewer x:Name="DashboardView" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="Popular Tools" FontSize="18" FontWeight="SemiBold" Foreground="White" Margin="0,10,0,15"/>
+                            <WrapPanel HorizontalAlignment="Center">
+                                <!-- PDF to Word -->
+                                <ctrl:ToolCard Title="PDF to Word" Description="Convert PDF documents to editable Word files" 
+                                               IconBackground="#2B579A" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PDF_DOCX">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,11V13H13V15H16V17H13V19H11V11H16Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
 
-                        <!-- File List Preview -->
-                        <Grid Margin="0,0,0,20">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Selected Files:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
-                            <ListBox x:Name="FilesList" Height="150" Background="#202020" BorderThickness="0" Foreground="#CCCCCC"/>
-                        </Grid>
+                                <!-- Word to PDF -->
+                                <ctrl:ToolCard Title="Word to PDF" Description="Convert Word documents to PDF format" 
+                                               IconBackground="#2B579A" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="DOCX_PDF">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M15,16H13V19H11V16H9V14H11V11H13V14H15V16Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
 
-                        <!-- Output Path Selection -->
-                        <Grid Margin="0,0,0,5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Output Folder:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
-                            <TextBox x:Name="OutputPathBox" Grid.Column="1" Height="30" VerticalContentAlignment="Center" Background="#252525" Foreground="#E0E0E0" BorderBrush="#3E3E42" BorderThickness="1" Padding="5,0"/>
-                            <Button x:Name="BrowseButton" Grid.Column="2" Content="Browse..." Margin="10,0,0,0" Padding="10,5" Click="BrowseButton_Click" Background="#3E3E42"/>
-                        </Grid>
-                        <TextBlock x:Name="OutputWarningText" Text="⚠️ Please select an output folder" Foreground="#FF5555" FontSize="12" Margin="95,0,0,20" Visibility="Collapsed"/>
+                                <!-- PDF to PowerPoint -->
+                                <ctrl:ToolCard Title="PDF to PowerPoint" Description="Convert PDF to editable PowerPoint slides" 
+                                               IconBackground="#D24726" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PDF_PPTX">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,13H13V19H11V13H8V11H16V13Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
 
-                        <!-- Quality Control -->
-                        <Grid Margin="0,0,0,15">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Quality:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
-                            <StackPanel Grid.Column="1">
-                                <Slider x:Name="QualitySlider" Minimum="1" Maximum="3" Value="2" IsSnapToTickEnabled="True" TickFrequency="1"
-                                        Foreground="{StaticResource AccentColor}" Background="#444444" AutoToolTipPlacement="None"/>
-                                <Grid Margin="0,2,0,0">
-                                    <TextBlock Text="Small Size" Foreground="#888888" FontSize="11" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="Balanced" Foreground="#AAAAAA" FontSize="11" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="High Quality" Foreground="#E0E0E0" FontSize="11" HorizontalAlignment="Right"/>
-                                </Grid>
-                            </StackPanel>
-                        </Grid>
+                                <!-- PowerPoint to PDF -->
+                                <ctrl:ToolCard Title="PowerPoint to PDF" Description="Convert PowerPoint presentations to PDF" 
+                                               IconBackground="#D24726" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PPTX_PDF">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,15H13V19H11V15H9V13H11V10H13V13H16V15Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
 
-                        <!-- Advanced Image Settings -->
-                        <Expander Header="Advanced Settings ⚙️" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,20">
-                            <Border Background="#252525" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Padding="10" CornerRadius="4">
-                                <StackPanel>
-                                    <!-- Resize -->
-                                    <TextBlock Text="Resize:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                        <TextBox x:Name="ResizeWidthBox" Width="60" Height="25" VerticalContentAlignment="Center" Background="#333333" Foreground="White" BorderThickness="0" Padding="5,0" Margin="0,0,5,0" PreviewTextInput="NumberValidationTextBox"/>
-                                        <TextBlock Text="x" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <TextBox x:Name="ResizeHeightBox" Width="60" Height="25" VerticalContentAlignment="Center" Background="#333333" Foreground="White" BorderThickness="0" Padding="5,0" Margin="0,0,10,0" PreviewTextInput="NumberValidationTextBox"/>
-                                        <CheckBox x:Name="AspectRatioCheckBox" Content="Maintain Aspect Ratio" Foreground="{StaticResource TextSecondary}" IsChecked="True" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                <!-- Excel to PDF -->
+                                <ctrl:ToolCard Title="Excel to PDF" Description="Convert Excel spreadsheets to PDF" 
+                                               IconBackground="#217346" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="XLSX_PDF">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,17H8V15H16V17M16,13H8V11H16V13M16,9H8V7H16V9Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
 
-                                    <!-- DPI -->
-                                    <TextBlock Text="DPI (Density):" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
-                                    <TextBox x:Name="DpiBox" Width="60" Height="25" HorizontalAlignment="Left" VerticalContentAlignment="Center" Background="#333333" Foreground="White" BorderThickness="0" Padding="5,0" Margin="0,0,0,10" PreviewTextInput="NumberValidationTextBox"/>
+                                <!-- PDF to Image -->
+                                <ctrl:ToolCard Title="PDF to Image" Description="Extract images from PDF files" 
+                                               IconBackground="#FBC02D" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PDF_JPG">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M11,15L13,18L16,14L20,19H4L8,13L11,15Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
 
-                                    <!-- Effects -->
-                                    <TextBlock Text="Effects:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <CheckBox x:Name="SharpenCheckBox" Content="Sharpen" Foreground="{StaticResource TextSecondary}" Margin="0,0,15,0"/>
-                                        <CheckBox x:Name="GrayscaleCheckBox" Content="Grayscale" Foreground="{StaticResource TextSecondary}" Margin="0,0,15,0"/>
-                                        <CheckBox x:Name="AutoEnhanceCheckBox" Content="Auto-Enhance" Foreground="{StaticResource TextSecondary}"/>
-                                    </StackPanel>
+                                <!-- More Tools (+) -->
+                                <ctrl:ToolCard Title="More Tools" Description="Explore advanced PDF &amp; Office utilities" 
+                                               IconBackground="#333333" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="MORE_TOOLS">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+                            </WrapPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Conversion View (Hidden by default) -->
+                    <ScrollViewer x:Name="ConversionView" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0" Visibility="Collapsed">
+                        <StackPanel>
+                            <!-- Back Button Header -->
+                            <Grid Margin="0,0,0,15">
+                                <Button Content="← Back to Tools" HorizontalAlignment="Left" Background="Transparent" Foreground="{StaticResource AccentColor}" 
+                                        BorderThickness="0" Padding="0" Click="BackToHome_Click" Cursor="Hand" FontSize="14"/>
+                                <TextBlock x:Name="CurrentToolTitle" Text="PDF to Word" HorizontalAlignment="Center" FontWeight="Bold" FontSize="16" Foreground="White"/>
+                            </Grid>
+
+                            <!-- Drop Zone -->
+                            <Border x:Name="DropZone" 
+                                    Height="150"
+                                    Background="#1E1E1E" 
+                                    BorderBrush="#444444" 
+                                    BorderThickness="2" 
+                                    CornerRadius="8" 
+                                    AllowDrop="True"
+                                    Drop="DropZone_Drop"
+                                    DragEnter="DropZone_DragEnter"
+                                    DragLeave="DropZone_DragLeave"
+                                    MouseLeftButtonUp="DropZone_Click"
+                                    Cursor="Hand"
+                                    Margin="0,0,0,20">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                    <TextBlock Text="☁" FontSize="48" HorizontalAlignment="Center" Foreground="{StaticResource AccentColor}"/>
+                                    <TextBlock Text="Drag &amp; Drop Files Here" FontSize="18" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                                 </StackPanel>
                             </Border>
-                        </Expander>
-                    </StackPanel>
-                </ScrollViewer>
+    
+                            <!-- File List Preview -->
+                            <Grid Margin="0,0,0,20">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Selected Files:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
+                                <ListBox x:Name="FilesList" Height="150" Background="#202020" BorderThickness="0" Foreground="#CCCCCC"/>
+                            </Grid>
+    
+                            <!-- Output Path Selection -->
+                            <Grid Margin="0,0,0,5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Output Folder:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                <TextBox x:Name="OutputPathBox" Grid.Column="1" Height="30" VerticalContentAlignment="Center" Background="#252525" Foreground="#E0E0E0" BorderBrush="#3E3E42" BorderThickness="1" Padding="5,0"/>
+                                <Button x:Name="BrowseButton" Grid.Column="2" Content="Browse..." Margin="10,0,0,0" Padding="10,5" Click="BrowseButton_Click" Background="#3E3E42"/>
+                            </Grid>
+                            
+                            <!-- Subfolder Checkbox -->
+                        <CheckBox x:Name="chkCreateSubfolder" Content="Create 'Cortex FX' subfolder" Foreground="{StaticResource TextSecondary}" Margin="95,0,0,5" IsChecked="True"/>
+                        <CheckBox x:Name="chkMergePdf" Content="Merge all images into one PDF" Foreground="{StaticResource TextSecondary}" Margin="95,0,0,5" Visibility="Collapsed"/>
+                        
+                        <TextBlock x:Name="OutputWarningText" Text="⚠️ Please select an output folder" Foreground="#FF5555" FontSize="12" Margin="95,0,0,20" Visibility="Collapsed"/>
+    
+                            <!-- Quality Control -->
+                            <Grid Margin="0,0,0,15">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Quality:" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                <StackPanel Grid.Column="1">
+                                    <Slider x:Name="QualitySlider" Minimum="1" Maximum="3" Value="2" IsSnapToTickEnabled="True" TickFrequency="1"
+                                            Foreground="{StaticResource AccentColor}" Background="#444444" AutoToolTipPlacement="None"/>
+                                    <Grid Margin="0,2,0,0">
+                                        <TextBlock Text="Small Size" Foreground="#888888" FontSize="11" HorizontalAlignment="Left"/>
+                                        <TextBlock Text="Balanced" Foreground="#AAAAAA" FontSize="11" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="High Quality" Foreground="#E0E0E0" FontSize="11" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Grid>
+    
+                            <!-- Advanced Image Settings -->
+                            <Expander Header="Advanced Settings ⚙️" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,20">
+                                <Border Background="#252525" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Padding="10" CornerRadius="4">
+                                    <StackPanel>
+                                        <!-- Resize -->
+                                        <TextBlock Text="Resize:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                            <TextBox x:Name="ResizeWidthBox" Width="60" Height="25" VerticalContentAlignment="Center" Background="#333333" Foreground="White" BorderThickness="0" Padding="5,0" Margin="0,0,5,0" PreviewTextInput="NumberValidationTextBox"/>
+                                            <TextBlock Text="x" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                            <TextBox x:Name="ResizeHeightBox" Width="60" Height="25" VerticalContentAlignment="Center" Background="#333333" Foreground="White" BorderThickness="0" Padding="5,0" Margin="0,0,10,0" PreviewTextInput="NumberValidationTextBox"/>
+                                            <CheckBox x:Name="AspectRatioCheckBox" Content="Maintain Aspect Ratio" Foreground="{StaticResource TextSecondary}" IsChecked="True" VerticalAlignment="Center"/>
+                                        </StackPanel>
+    
+                                        <!-- DPI -->
+                                        <TextBlock Text="DPI (Density):" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
+                                        <TextBox x:Name="DpiBox" Width="60" Height="25" HorizontalAlignment="Left" VerticalContentAlignment="Center" Background="#333333" Foreground="White" BorderThickness="0" Padding="5,0" Margin="0,0,0,10" PreviewTextInput="NumberValidationTextBox"/>
+    
+                                        <!-- Effects -->
+                                        <TextBlock Text="Effects:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox x:Name="SharpenCheckBox" Content="Sharpen" Foreground="{StaticResource TextSecondary}" Margin="0,0,15,0"/>
+                                            <CheckBox x:Name="GrayscaleCheckBox" Content="Grayscale" Foreground="{StaticResource TextSecondary}" Margin="0,0,15,0"/>
+                                            <CheckBox x:Name="AutoEnhanceCheckBox" Content="Auto-Enhance" Foreground="{StaticResource TextSecondary}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
 
                 <!-- Fixed Footer (Row 3) -->
-                <Border Grid.Row="3" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Padding="20,15" CornerRadius="0,0,10,10">
+                <Border Grid.Row="3" Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,1,0,0" Padding="20,15" CornerRadius="0,0,10,10">
                     <StackPanel>
                         <!-- Conversion Controls -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,15">
                             <TextBlock Text="Convert to:" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}" Margin="0,0,10,0"/>
-                            <ComboBox x:Name="FormatComboBox" Width="120" SelectedIndex="0">
+                            <ComboBox x:Name="FormatComboBox" Width="120" SelectedIndex="0" SelectionChanged="FormatComboBox_SelectionChanged">
                                 <!-- Items populated dynamically -->
                             </ComboBox>
                             <Button x:Name="ConvertButton" Content="Convert" Margin="20,0,0,0" Width="120" Click="ConvertButton_Click"/>
@@ -395,7 +477,7 @@
                         <StackPanel>
                             <Grid Margin="0,0,0,5">
                                 <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Left"/>
-                                <TextBlock x:Name="VersionText" Text="v1.0.0" Foreground="#666666" HorizontalAlignment="Right" FontSize="10"/>
+                                <TextBlock x:Name="VersionText" Text="v0.3.5" Foreground="#666666" HorizontalAlignment="Right" FontSize="10"/>
                             </Grid>
                             <ProgressBar x:Name="ConversionProgress" Height="10" Background="#333333" BorderThickness="0" Foreground="{StaticResource AccentColor}"/>
                         </StackPanel>

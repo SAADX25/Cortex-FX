@@ -2,25 +2,27 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Cortex FX"
-#define MyAppVersion "0.2.5"
-#define MyAppPublisher "Cortex FX Team"
+#define MyAppVersion "0.3.5"
+#define MyAppPublisher "Saad Developer"
 #define MyAppExeName "CortexFX.exe"
+#define MyBuildPath "E:\Code-Setup\Cortex FX\Publish\CortexFX_v0.3.5"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{CORTEX-FX-GUID-PLACEHOLDER}}
+AppId={{C789B1A2-3D4E-5F6G-7H8I-9J0K1L2M3N4O}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-;AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
+; The [Icons] section below relies on this
+UsedUserAreasWarning=no
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
-OutputDir=E:\Code-Setup\Cortex FX\Release
-OutputBaseFilename=CortexFX_v{#MyAppVersion}_Setup
-SetupIconFile=logo.ico
+OutputDir=E:\Code-Setup\Cortex FX\Publish
+OutputBaseFilename=CortexFX_Setup_v{#MyAppVersion}
+SetupIconFile=E:\Code-Setup\Cortex FX\logo.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -32,11 +34,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Main Executable and published files
-Source: "bin\Release\net8.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-
-; Tools (Resources) - Explicitly copying from project root to ensure they are included even if publish fails to copy them for some reason
-Source: "Resources\*"; DestDir: "{app}\Resources"; Flags: ignoreversion recursesubdirs createallsubdirs
+; The main executable
+Source: "{#MyBuildPath}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Include ALL files and subfolders (recursive)
+Source: "{#MyBuildPath}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

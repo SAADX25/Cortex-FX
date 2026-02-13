@@ -1,85 +1,81 @@
 using System;
+using System.Diagnostics;
 using System.IO;
-using Spire.Doc;
-using Spire.Presentation;
-using Spire.Xls;
+using System.Linq;
 
-using Spire.Pdf;
-using Spire.Pdf.Graphics;
+using CortexFX.Core.Engines;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CortexFX
 {
     public static class DocumentConverter
     {
-        public static void ConvertToPdf(string inputFile, string outputFile)
+        public static async Task ConvertDocumentAsync(string inputFile, string outputFile, string targetFormat, int qualityLevel = 1, CancellationToken cancellationToken = default, IProgress<double> progress = null)
         {
-            string extension = Path.GetExtension(inputFile).ToLower();
-
-            switch (extension)
+            if (targetFormat.ToLower() == "pdf")
             {
-                case ".docx":
-                case ".doc":
-                    ConvertWordToPdf(inputFile, outputFile);
-                    break;
-                case ".xlsx":
-                case ".xls":
-                    ConvertExcelToPdf(inputFile, outputFile);
-                    break;
-                case ".pptx":
-                case ".ppt":
-                    ConvertPptToPdf(inputFile, outputFile);
-                    break;
-                default:
-                    throw new NotSupportedException($"The file format '{extension}' is not supported for document conversion.");
+                await CortexEngine.ConvertToPdfAsync(inputFile, outputFile, qualityLevel, cancellationToken, progress);
+            }
+            else if (targetFormat.ToLower() == "docx")
+            {
+                if (Path.GetExtension(inputFile).ToLower() == ".pdf")
+                {
+                    await CortexEngine.ConvertPdfToWordAsync(inputFile, outputFile, cancellationToken, progress);
+                }
+                else if (Path.GetExtension(inputFile).ToLower() == ".pptx" || Path.GetExtension(inputFile).ToLower() == ".ppt")
+                {
+                    // Bridge: PPT -> PDF -> Word
+                    string tempPdf = Path.Combine(Path.GetDirectoryName(outputFile)!, Guid.NewGuid().ToString() + ".pdf");
+                    try
+                    {
+                        var pdfProgress = new Progress<double>(p => progress?.Report(p * 0.5));
+                        await CortexEngine.ConvertToPdfAsync(inputFile, tempPdf, qualityLevel, cancellationToken, pdfProgress);
+                        
+                        if (cancellationToken.IsCancellationRequested) return;
+                        
+                        var wordProgress = new Progress<double>(p => progress?.Report(50 + (p * 0.5)));
+                        await CortexEngine.ConvertPdfToWordAsync(tempPdf, outputFile, cancellationToken, wordProgress);
+                    }
+                    finally
+                    {
+                        try { if (File.Exists(tempPdf)) File.Delete(tempPdf); } catch { }
+                    }
+                }
+            }
+            else if (targetFormat.ToLower() == "pptx")
+            {
+                if (Path.GetExtension(inputFile).ToLower() == ".docx" || Path.GetExtension(inputFile).ToLower() == ".doc")
+                {
+                     // Native Engine Bridge: Word -> PowerPoint
+                     await CortexEngine.ConvertWordToPowerPointAsync(inputFile, outputFile, cancellationToken, progress);
+                }
+                else if (Path.GetExtension(inputFile).ToLower() == ".pdf")
+                {
+                     // Smart Bridge: PDF -> Word -> PowerPoint
+                     await CortexEngine.ConvertPdfToPowerPointAsync(inputFile, outputFile, cancellationToken, progress);
+                }
             }
         }
 
-        public static void ConvertPdfToOffice(string inputFile, string outputFile, string targetFormat)
+        public static async Task ConvertToPdfAsync(string inputFile, string outputFile, IProgress<double> progress = null)
         {
-            PdfDocument document = new PdfDocument();
-            document.LoadFromFile(inputFile);
-
-            switch (targetFormat.ToLower())
-            {
-                case "docx":
-                    document.SaveToFile(outputFile, Spire.Pdf.FileFormat.DOCX);
-                    break;
-                case "xlsx":
-                    document.SaveToFile(outputFile, Spire.Pdf.FileFormat.XLSX);
-                    break;
-                case "pptx":
-                    document.SaveToFile(outputFile, Spire.Pdf.FileFormat.PPTX);
-                    break;
-                default:
-                    throw new NotSupportedException($"The target format '{targetFormat}' is not supported for PDF conversion.");
-            }
-            
-            document.Close();
+            await ConvertDocumentAsync(inputFile, outputFile, "pdf", 1, default, progress);
         }
 
-        private static void ConvertWordToPdf(string inputFile, string outputFile)
+        public static async Task ConvertPdfToOfficeAsync(string inputFile, string outputFile, string targetFormat, IProgress<double> progress = null)
         {
-            Document document = new Document();
-            document.LoadFromFile(inputFile);
-            document.SaveToFile(outputFile, Spire.Doc.FileFormat.PDF);
-            document.Close();
+            await ConvertDocumentAsync(inputFile, outputFile, targetFormat, 1, default, progress);
         }
 
-        private static void ConvertExcelToPdf(string inputFile, string outputFile)
+        public static async Task ConvertWordToPowerPointAsync(string inputFile, string outputFile, IProgress<double> progress = null)
         {
-            Workbook workbook = new Workbook();
-            workbook.LoadFromFile(inputFile);
-            workbook.ConverterSetting.SheetFitToPage = true;
-            workbook.SaveToFile(outputFile, Spire.Xls.FileFormat.PDF);
-            workbook.Dispose();
+            await ConvertDocumentAsync(inputFile, outputFile, "pptx", 1, default, progress);
         }
 
-        private static void ConvertPptToPdf(string inputFile, string outputFile)
+        public static async Task ConvertPowerPointToWordAsync(string inputFile, string outputFile, IProgress<double> progress = null)
         {
-            Presentation presentation = new Presentation();
-            presentation.LoadFromFile(inputFile);
-            presentation.SaveToFile(outputFile, Spire.Presentation.FileFormat.PDF);
-            presentation.Dispose();
+            await ConvertDocumentAsync(inputFile, outputFile, "docx", 1, default, progress);
         }
     }
 }
