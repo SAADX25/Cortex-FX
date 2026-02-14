@@ -162,8 +162,8 @@ public partial class MainWindow : Window
     {
         if (sender is RadioButton rb && rb.IsChecked == true)
         {
-            if (rb.Content == null) return;
-            string category = rb.Content.ToString()!.Replace("🖼️ ", "").Replace("🎥 ", "").Replace("🎵 ", "").Replace("📄 ", "");
+            if (rb.Tag == null) return;
+            string category = rb.Tag.ToString()!;
             
             // Switch to Universal Mode with Filter
             _universalFilterMode = category;

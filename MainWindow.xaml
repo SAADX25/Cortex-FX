@@ -65,35 +65,88 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Category Toggle Button Style (Pills) -->
-        <Style x:Key="CategoryToggleStyle" TargetType="RadioButton">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
+        <!-- Premium Nav Button Base Style -->
+        <Style x:Key="PremiumNavBaseStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="20,10"/>
-            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="0,0,15,0"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="PillBorder" Background="{TemplateBinding Background}" 
-                                CornerRadius="20">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Glow" Background="{TemplateBinding Background}" CornerRadius="20" Opacity="0" Margin="-2">
+                                <Border.Effect>
+                                    <BlurEffect Radius="15"/>
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="PillBorder" Background="{TemplateBinding Background}" 
+                                    CornerRadius="20" BorderBrush="White" BorderThickness="0">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="PillBorder" Property="Background" Value="#33007ACC"/> <!-- Semi-transparent Accent -->
-                                <Setter Property="Foreground" Value="{StaticResource AccentColor}"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter TargetName="PillBorder" Property="Background" Value="#1AFFFFFF"/>
+                                <Setter TargetName="PillBorder" Property="Opacity" Value="0.9"/>
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="PillBorder" Property="BorderThickness" Value="2"/>
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.6"/>
+                                <Setter TargetName="PillBorder" Property="Opacity" Value="1.0"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter TargetName="PillBorder" Property="Opacity" Value="0.6"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ImageNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#0288D1" Offset="0"/>
+                        <GradientStop Color="#29B6F6" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VideoNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#D32F2F" Offset="0"/>
+                        <GradientStop Color="#9C27B0" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AudioNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#388E3C" Offset="0"/>
+                        <GradientStop Color="#00796B" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DocumentNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#FF8F00" Offset="0"/>
+                        <GradientStop Color="#FF6F00" Offset="1"/>
+                    </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -288,10 +341,33 @@
 
                 <!-- Category Selector (Row 1) -->
                 <StackPanel x:Name="TopNavPanel" Grid.Row="1" Orientation="Horizontal" Margin="20,15,20,15" Visibility="Collapsed">
-                    <RadioButton x:Name="RadioImage" Content="🖼️ Image" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
-                    <RadioButton x:Name="RadioVideo" Content="🎥 Video" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
-                    <RadioButton x:Name="RadioAudio" Content="🎵 Audio" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
-                    <RadioButton x:Name="RadioDocument" Content="📄 Document" Style="{StaticResource CategoryToggleStyle}" GroupName="Category" Click="Category_Click"/>
+                    <RadioButton x:Name="RadioImage" Style="{StaticResource ImageNavStyle}" GroupName="Category" Click="Category_Click" Tag="Image">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE91B;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Image" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    
+                    <RadioButton x:Name="RadioVideo" Style="{StaticResource VideoNavStyle}" GroupName="Category" Click="Category_Click" Tag="Video">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Video" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    
+                    <RadioButton x:Name="RadioAudio" Style="{StaticResource AudioNavStyle}" GroupName="Category" Click="Category_Click" Tag="Audio">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Audio" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    
+                    <RadioButton x:Name="RadioDocument" Style="{StaticResource DocumentNavStyle}" GroupName="Category" Click="Category_Click" Tag="Document">
+                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Document" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
                 </StackPanel>
 
                 <!-- Scrollable Content (Row 2) -->
@@ -479,20 +555,37 @@
                                         </TextBlock.Style>
                                     </TextBlock>
 
-                                    <Button x:Name="BrowseButton" Grid.Column="1" Content="📂 Browse" Click="BrowseButton_Click" 
-                                            Height="35" Padding="15,0" Background="#333333" Foreground="#CCCCCC" BorderThickness="0" Cursor="Hand">
+                                    <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" 
+                                            Height="35" Padding="15,0" Cursor="Hand" BorderThickness="0">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="8">
-                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Border x:Name="ButtonBorder" CornerRadius="8" BorderBrush="#FFA000" BorderThickness="1">
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FFD54F" Offset="0"/>
+                                                            <GradientStop Color="#FFC107" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                                                 </Border>
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#444444"/>
+                                                        <Setter TargetName="ButtonBorder" Property="Background">
+                                                            <Setter.Value>
+                                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                                    <GradientStop Color="#FFE082" Offset="0"/>
+                                                                    <GradientStop Color="#FFC107" Offset="1"/>
+                                                                </LinearGradientBrush>
+                                                            </Setter.Value>
+                                                        </Setter>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
                                         </Button.Template>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xED25;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#3E2723" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Browse" FontSize="14" FontWeight="SemiBold" Foreground="#3E2723" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                        </StackPanel>
                                     </Button>
                                     
                                     <TextBlock x:Name="OutputWarningText" Text="⚠️ Select output folder" Foreground="#FF5555" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,100,0" Visibility="Collapsed"/>
