@@ -4,29 +4,44 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             Height="140" Width="200" Cursor="Hand">
+             Height="150" Width="150">
+
     <UserControl.Resources>
-        <Style TargetType="Border" x:Key="CardStyle">
-            <Setter Property="Background" Value="#252525"/>
-            <Setter Property="BorderBrush" Value="#3E3E42"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#2D2D30" Offset="0.0"/>
+                        <GradientStop Color="#252526" Offset="1.0"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="4" Opacity="0.2" Color="Black"/>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#2D2D30"/>
+                    <Setter Property="Background">
+                        <Setter.Value>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#3E3E42" Offset="0.0"/>
+                                <GradientStop Color="#2D2D30" Offset="1.0"/>
+                            </LinearGradientBrush>
+                        </Setter.Value>
+                    </Setter>
                     <Setter Property="Effect">
                         <Setter.Value>
-                            <DropShadowEffect Color="Black" BlurRadius="15" ShadowDepth="4" Opacity="0.5"/>
+                            <DropShadowEffect BlurRadius="20" ShadowDepth="6" Opacity="0.4" Color="Black"/>
                         </Setter.Value>
                     </Setter>
                     <Setter Property="RenderTransform">
                         <Setter.Value>
-                            <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                            <TranslateTransform Y="-2"/>
                         </Setter.Value>
                     </Setter>
                 </Trigger>
@@ -37,15 +52,18 @@
     <Border Style="{StaticResource CardStyle}" RenderTransformOrigin="0.5,0.5">
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="15">
             <!-- Icon Container -->
-            <Border Width="50" Height="50" CornerRadius="25" HorizontalAlignment="Center" Margin="0,0,0,10"
+            <Border Width="50" Height="50" CornerRadius="25" HorizontalAlignment="Center" Margin="0,0,0,12"
                     Background="{Binding IconBackground, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
+                </Border.Effect>
                 <Path Data="{Binding IconData, RelativeSource={RelativeSource AncestorType=UserControl}}"
                       Fill="White" Stretch="Uniform" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
 
             <!-- Title -->
             <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                       Foreground="White" FontWeight="Bold" FontSize="16" TextAlignment="Center" TextWrapping="Wrap"/>
+                       Foreground="#E0E0E0" FontWeight="SemiBold" FontSize="15" TextAlignment="Center" TextWrapping="Wrap"/>
         </StackPanel>
     </Border>
 </UserControl>

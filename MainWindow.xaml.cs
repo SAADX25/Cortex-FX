@@ -87,6 +87,9 @@ public partial class MainWindow : Window
             {
                 ContextMenuCheckBox.IsChecked = RegistryManager.IsRegistered();
             }
+
+            // Explicitly hide TopNav on startup
+            if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
         }
         catch (Exception ex)
         {
@@ -200,6 +203,9 @@ public partial class MainWindow : Window
             CurrentToolTitle.Text = "Select Tool";
             FormatComboBox.IsEnabled = true;
             
+            // Hide Top Nav
+            if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+
             // Uncheck categories
             if(RadioImage != null) RadioImage.IsChecked = false;
             if(RadioVideo != null) RadioVideo.IsChecked = false;
@@ -211,6 +217,9 @@ public partial class MainWindow : Window
             DashboardView.Visibility = Visibility.Collapsed;
             ConversionView.Visibility = Visibility.Visible;
             
+            // Show Top Nav for Universal Mode
+            if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Visible;
+
             if (_universalFilterMode == null)
             {
                 CurrentToolTitle.Text = "Universal Smart Converter";
@@ -227,6 +236,9 @@ public partial class MainWindow : Window
             DashboardView.Visibility = Visibility.Collapsed;
             ConversionView.Visibility = Visibility.Visible;
             
+            // Hide Top Nav for specific single-purpose tools (keep it clean)
+            if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+
             // Configure UI based on mode
             string from = "Unknown", to = "Unknown";
             string category = "Document";
@@ -908,8 +920,7 @@ public partial class MainWindow : Window
                              // ... (Document Logic)
                              if (targetFormat == "pdf")
                              {
-                                 int engineQuality = 1;
-                                 if (qualityLevel == 1) engineQuality = 0;
+                                 int engineQuality = qualityLevel < 30 ? 0 : 1;
                                  await DocumentConverter.ConvertDocumentAsync(file, newFileName, "pdf", engineQuality, token, fileProgress);
                              }
                              else if (targetFormat == "pptx" && (extension == ".docx" || extension == ".doc"))
@@ -961,8 +972,7 @@ public partial class MainWindow : Window
                              {
                                  int dpiValue = 150; 
                                  if (!string.IsNullOrWhiteSpace(dpi) && int.TryParse(dpi, out int customDpi)) dpiValue = customDpi;
-                                 else if (qualityLevel == 1) dpiValue = 72;
-                                 else if (qualityLevel == 3) dpiValue = 300;
+                                 else dpiValue = 72 + (int)((qualityLevel / 100.0) * (300 - 72));
 
                                  for (int i = 0; i < document.PageCount; i++)
                                  {
@@ -998,8 +1008,7 @@ public partial class MainWindow : Window
                              {
                                  int dpiValue = 150; 
                                  if (!string.IsNullOrWhiteSpace(dpi) && int.TryParse(dpi, out int customDpi)) dpiValue = customDpi;
-                                 else if (qualityLevel == 1) dpiValue = 72;
-                                 else if (qualityLevel == 3) dpiValue = 300;
+                                 else dpiValue = 72 + (int)((qualityLevel / 100.0) * (300 - 72));
 
                                  for (int i = 0; i < document.PageCount; i++)
                                  {
@@ -1030,10 +1039,9 @@ public partial class MainWindow : Window
                         {
                             // FFmpeg Logic (Video/Audio)
                             string arguments = "";
-                            string qualityArgs = "";
-                            if (qualityLevel == 1) qualityArgs = "-crf 28 -preset fast";      
-                            else if (qualityLevel == 2) qualityArgs = "-crf 23 -preset medium"; 
-                            else if (qualityLevel == 3) qualityArgs = "-crf 18 -preset slow";   
+                            int crf = 28 - (int)((qualityLevel / 100.0) * 10);
+                            string preset = qualityLevel < 40 ? "fast" : (qualityLevel < 80 ? "medium" : "slow");
+                            string qualityArgs = $"-crf {crf} -preset {preset}";   
 
                             if (targetFormat == "gif")
                                 arguments = $"-i \"{file}\" -vf \"fps=10,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 -y \"{newFileName}\"";
@@ -1050,10 +1058,9 @@ public partial class MainWindow : Window
                         else if (useMagick)
                         {
                             // Magick Logic (Image to Image AND Image to PDF)
-                            string qualityArgs = "";
-                            if (qualityLevel == 1) qualityArgs = "-quality 40 -resize 80%"; 
-                            else if (qualityLevel == 2) qualityArgs = "-quality 75";        
-                            else if (qualityLevel == 3) qualityArgs = "-quality 100";       
+                            int q = Math.Max(40, (int)qualityLevel);
+                            string qualityArgs = $"-quality {q}";
+                            if (qualityLevel < 30) qualityArgs += " -resize 80%";       
 
                             StringBuilder advancedArgs = new StringBuilder();
                             // ... existing args logic ...
@@ -1062,7 +1069,7 @@ public partial class MainWindow : Window
                                 advancedArgs.Append($" -resize {resizeW}x{resizeH}");
                                 if (!maintainAspect) advancedArgs.Append("!");
                                 advancedArgs.Append(" ");
-                                if (qualityLevel == 1) qualityArgs = qualityArgs.Replace("-resize 80%", "");
+                                if (qualityLevel < 30) qualityArgs = qualityArgs.Replace("-resize 80%", "");
                             }
                             if (!string.IsNullOrWhiteSpace(dpi)) advancedArgs.Append($" -density {dpi} -units PixelsPerInch ");
                             if (sharpen) advancedArgs.Append("-sharpen 0x1 ");
