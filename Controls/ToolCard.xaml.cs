@@ -20,15 +20,6 @@ namespace CortexFX.Controls
             set { SetValue(TitleProperty, value); }
         }
 
-        public static readonly DependencyProperty DescriptionProperty =
-            DependencyProperty.Register("Description", typeof(string), typeof(ToolCard), new PropertyMetadata(string.Empty));
-
-        public string Description
-        {
-            get { return (string)GetValue(DescriptionProperty); }
-            set { SetValue(DescriptionProperty, value); }
-        }
-
         public static readonly DependencyProperty IconDataProperty =
             DependencyProperty.Register("IconData", typeof(Geometry), typeof(ToolCard), new PropertyMetadata(null));
 

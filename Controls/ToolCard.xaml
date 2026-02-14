@@ -35,27 +35,17 @@
     </UserControl.Resources>
 
     <Border Style="{StaticResource CardStyle}" RenderTransformOrigin="0.5,0.5">
-        <Grid Margin="15">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="15">
             <!-- Icon Container -->
-            <Border Width="40" Height="40" CornerRadius="20" HorizontalAlignment="Left" Margin="0,0,0,15"
+            <Border Width="50" Height="50" CornerRadius="25" HorizontalAlignment="Center" Margin="0,0,0,10"
                     Background="{Binding IconBackground, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <Path Data="{Binding IconData, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                      Fill="White" Stretch="Uniform" Margin="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      Fill="White" Stretch="Uniform" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
 
             <!-- Title -->
-            <TextBlock Grid.Row="1" Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                       Foreground="White" FontWeight="Bold" FontSize="16" TextWrapping="Wrap"/>
-
-            <!-- Description -->
-            <TextBlock Grid.Row="2" Text="{Binding Description, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                       Foreground="#AAAAAA" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0" VerticalAlignment="Top"/>
-        </Grid>
+            <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       Foreground="White" FontWeight="Bold" FontSize="16" TextAlignment="Center" TextWrapping="Wrap"/>
+        </StackPanel>
     </Border>
 </UserControl>

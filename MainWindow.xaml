@@ -296,7 +296,7 @@
                             <TextBlock Text="Popular Tools" FontSize="18" FontWeight="SemiBold" Foreground="White" Margin="0,10,0,15"/>
                             <WrapPanel HorizontalAlignment="Center">
                                 <!-- PDF to Word -->
-                                <ctrl:ToolCard Title="PDF to Word" Description="Convert PDF documents to editable Word files" 
+                                <ctrl:ToolCard Title="PDF to Word" 
                                                IconBackground="#2B579A" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PDF_DOCX">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,11V13H13V15H16V17H13V19H11V11H16Z"/>
@@ -304,7 +304,7 @@
                                 </ctrl:ToolCard>
 
                                 <!-- Word to PDF -->
-                                <ctrl:ToolCard Title="Word to PDF" Description="Convert Word documents to PDF format" 
+                                <ctrl:ToolCard Title="Word to PDF" 
                                                IconBackground="#2B579A" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="DOCX_PDF">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M15,16H13V19H11V16H9V14H11V11H13V14H15V16Z"/>
@@ -312,7 +312,7 @@
                                 </ctrl:ToolCard>
 
                                 <!-- PDF to PowerPoint -->
-                                <ctrl:ToolCard Title="PDF to PowerPoint" Description="Convert PDF to editable PowerPoint slides" 
+                                <ctrl:ToolCard Title="PDF to PowerPoint" 
                                                IconBackground="#D24726" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PDF_PPTX">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,13H13V19H11V13H8V11H16V13Z"/>
@@ -320,7 +320,7 @@
                                 </ctrl:ToolCard>
 
                                 <!-- PowerPoint to PDF -->
-                                <ctrl:ToolCard Title="PowerPoint to PDF" Description="Convert PowerPoint presentations to PDF" 
+                                <ctrl:ToolCard Title="PowerPoint to PDF" 
                                                IconBackground="#D24726" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PPTX_PDF">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,15H13V19H11V15H9V13H11V10H13V13H16V15Z"/>
@@ -328,7 +328,7 @@
                                 </ctrl:ToolCard>
 
                                 <!-- Excel to PDF -->
-                                <ctrl:ToolCard Title="Excel to PDF" Description="Convert Excel spreadsheets to PDF" 
+                                <ctrl:ToolCard Title="Excel to PDF" 
                                                IconBackground="#217346" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="XLSX_PDF">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,17H8V15H16V17M16,13H8V11H16V13M16,9H8V7H16V9Z"/>
@@ -336,7 +336,7 @@
                                 </ctrl:ToolCard>
 
                                 <!-- PDF to Image -->
-                                <ctrl:ToolCard Title="PDF to Image" Description="Extract images from PDF files" 
+                                <ctrl:ToolCard Title="PDF to Image" 
                                                IconBackground="#FBC02D" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="PDF_JPG">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M11,15L13,18L16,14L20,19H4L8,13L11,15Z"/>
@@ -344,7 +344,7 @@
                                 </ctrl:ToolCard>
 
                                 <!-- More Tools (+) -->
-                                <ctrl:ToolCard Title="More Tools" Description="Explore advanced PDF &amp; Office utilities" 
+                                <ctrl:ToolCard Title="More Tools" 
                                                IconBackground="#333333" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="MORE_TOOLS">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
