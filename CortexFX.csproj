@@ -22,8 +22,18 @@
     </None>
   </ItemGroup>
 
+  <!-- Ensure FFmpeg shared libraries are copied to the output directory -->
   <ItemGroup>
+    <Content Include="Resources\ffmpeg_libs\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FFME.Windows" Version="4.4.350" />
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.10.2" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NetOfficeFw.Excel" Version="1.9.7" />
     <PackageReference Include="NetOfficeFw.PowerPoint" Version="1.9.7" />
     <PackageReference Include="NetOfficeFw.Word" Version="1.9.7" />
@@ -33,8 +43,8 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <Version>0.3.5</Version>
-    <FileVersion>0.3.5</FileVersion>
-    <AssemblyVersion>0.3.5</AssemblyVersion>
+    <Version>0.5.0</Version>
+    <FileVersion>0.5.0.0</FileVersion>
+    <AssemblyVersion>0.5.0.0</AssemblyVersion>
   </PropertyGroup>
 </Project>

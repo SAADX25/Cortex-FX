@@ -2,10 +2,10 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Cortex FX"
-#define MyAppVersion "0.3.5"
+#define MyAppVersion "0.5.0"
 #define MyAppPublisher "Saad Developer"
 #define MyAppExeName "CortexFX.exe"
-#define MyBuildPath "E:\Code-Setup\Cortex FX\Publish\CortexFX_v0.3.5"
+#define MyBuildPath "E:\Code-Setup\Cortex FX\Publish\CortexFX_v0.5.0"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.

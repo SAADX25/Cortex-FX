@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,6 +21,8 @@ using System.Reflection;
 using PdfiumViewer;
 using ImageMagick;
 using System.Drawing.Imaging;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 using System.Threading;
 
@@ -54,6 +58,12 @@ public class FileModel : INotifyPropertyChanged
     }
 }
 
+public class ThumbnailItem
+{
+    public ImageSource? Image { get; set; }
+    public string Path { get; set; } = string.Empty;
+}
+
 /// <summary>
 /// Interaction logic for MainWindow.xaml
 /// </summary>
@@ -61,19 +71,102 @@ public partial class MainWindow : Window
 {
     private ObservableCollection<FileModel> _filesToConvert = new ObservableCollection<FileModel>();
     private CancellationTokenSource? _cancellationTokenSource;
+    private ObservableCollection<ThumbnailItem> _thumbnails = new ObservableCollection<ThumbnailItem>();
+    private CancellationTokenSource? _thumbnailCts;
+    private FileSystemWatcher? _thumbnailWatcher;
+    private Process? _thumbnailProcess;
+    private HashSet<string> _thumbnailPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private double _videoFps = 30;
+    private bool _isScrubbing;
+    private double _lastScrubRatio = -1;
+    private DateTime _lastScrubUpdate = DateTime.MinValue;
+
+    // Audio Editor State
+    private string? _currentAudioFile;
+    private string? _pendingAudioFile;
+    private AudioFileReader? _audioReader;
+    private WaveOutEvent? _waveOut;
+    private TimeSpan _selectionStart = TimeSpan.Zero;
+    private TimeSpan _selectionEnd = TimeSpan.Zero;
+    private System.Windows.Threading.DispatcherTimer? _playbackTimer;
+
+    // FFME
+    private string _ffmpegBinPath;
+    private string ResourcesDirectory
+    {
+        get
+        {
+            string baseDirResources = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
+            if (Directory.Exists(baseDirResources))
+            {
+                return baseDirResources;
+            }
+
+            string absoluteResources = @"E:\Code-Setup\Cortex FX\Resources";
+            return Directory.Exists(absoluteResources) ? absoluteResources : baseDirResources;
+        }
+    }
+
+    private string FFmpegPath => System.IO.Path.Combine(ResourcesDirectory, "ffmpeg.exe");
+    private string ThumbnailsDirectory => System.IO.Path.Combine(ResourcesDirectory, "Temp_Thumbs");
 
     public MainWindow(string? startupFile = null)
     {
         try
         {
             InitializeComponent();
+            
+            // --- SMART FFMPEG LOADING START ---
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            // 1. Try standard path first
+            string targetFolder = System.IO.Path.Combine(baseDir, "Resources", "ffmpeg_libs");
+
+            // 2. Auto-Discovery: If not found, search for the DLL recursively
+            if (!File.Exists(System.IO.Path.Combine(targetFolder, "avcodec-58.dll")))
+            {
+                var foundFile = Directory.GetFiles(baseDir, "avcodec-58.dll", SearchOption.AllDirectories).FirstOrDefault();
+                if (foundFile != null)
+                {
+                    targetFolder = System.IO.Path.GetDirectoryName(foundFile)!;
+                }
+            }
+
+            // 3. Attempt to Load
+            _ffmpegBinPath = targetFolder;
+            try
+            {
+                Unosquare.FFME.Library.FFmpegDirectory = _ffmpegBinPath;
+                Unosquare.FFME.Library.LoadFFmpeg();
+            }
+            catch (Exception ffmpegEx)
+            {
+                // Detailed Debug Info if it still fails
+                string folderContent = "";
+                if (Directory.Exists(targetFolder))
+                {
+                    var files = Directory.GetFiles(targetFolder).Select(System.IO.Path.GetFileName).Take(5);
+                    folderContent = string.Join(", ", files);
+                }
+                else
+                {
+                    folderContent = "Folder does not exist!";
+                }
+                MessageBox.Show($"FFmpeg Critical Error!\n\nTarget Path: {targetFolder}\nError: {ffmpegEx.Message}\n\nFiles found in folder: {folderContent}", "Startup Error");
+            }
+            // --- SMART FFMPEG LOADING END ---
+
+            RegionsOverlay.ItemsSource = _selectedRegions;
+            ApplySelectionBrushes();
+            ThumbnailsTimeline.ItemsSource = _thumbnails;
+            CompositionTarget.Rendering += TimelineRendering;
+
             FilesList.ItemsSource = _filesToConvert;
             // Trigger initial population
             PopulateFormats("Document");
 
             // Set Version
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.3.5";
+            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.5.0";
 
             // Handle context menu startup file
             if (!string.IsNullOrEmpty(startupFile) && File.Exists(startupFile))
@@ -99,6 +192,343 @@ public partial class MainWindow : Window
         }
     }
 
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (!Directory.Exists(ResourcesDirectory))
+        {
+            MessageBox.Show($"Resources folder not found.\nPlace tools in:\n{ResourcesDirectory}", "Resources Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        string[] requiredFiles = { "ffmpeg.exe", "magick.exe", "pdftocairo.exe" };
+        var missing = requiredFiles.Where(file => !File.Exists(System.IO.Path.Combine(ResourcesDirectory, file))).ToList();
+        if (missing.Count > 0)
+        {
+            string missingList = string.Join("\n", missing);
+            MessageBox.Show($"Missing tools in Resources:\n{missingList}\n\nPath:\n{ResourcesDirectory}", "Resources Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Delete && _selectedRegion != null && WatermarkRemoverView.Visibility == Visibility.Visible)
+        {
+            _selectedRegions.Remove(_selectedRegion);
+            _selectedRegion = null;
+            _selectedRectangleVisual = null;
+            _regionColorIndex = _selectedRegions.Count % _regionStrokeBrushes.Length;
+            ApplySelectionBrushes();
+            UpdateTimelineVisuals();
+            e.Handled = true;
+        }
+    }
+
+    private void ResetThumbnails()
+    {
+        _thumbnailCts?.Cancel();
+        _thumbnailCts?.Dispose();
+        _thumbnailCts = null;
+
+        if (_thumbnailProcess != null)
+        {
+            if (!_thumbnailProcess.HasExited)
+            {
+                _thumbnailProcess.Kill();
+            }
+            _thumbnailProcess.Dispose();
+            _thumbnailProcess = null;
+        }
+
+        if (_thumbnailWatcher != null)
+        {
+            _thumbnailWatcher.EnableRaisingEvents = false;
+            _thumbnailWatcher.Dispose();
+            _thumbnailWatcher = null;
+        }
+
+        _thumbnailPaths.Clear();
+
+        // Detach ItemsSource and clear the collection so BitmapImage handles are released
+        Dispatcher.Invoke(() =>
+        {
+            ThumbnailsTimeline.ItemsSource = null;
+            _thumbnails.Clear();
+        });
+
+        // Force GC to release file handles held by frozen BitmapImage objects
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        // Now delete the temp files — handles should be free
+        try
+        {
+            Directory.CreateDirectory(ThumbnailsDirectory);
+            foreach (var file in Directory.EnumerateFiles(ThumbnailsDirectory, "*.jpg"))
+            {
+                try { File.Delete(file); }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Thumbnail cleanup skip: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Thumbnail folder cleanup: {ex.Message}");
+        }
+
+        // Re-attach the ItemsSource for the next session
+        Dispatcher.Invoke(() =>
+        {
+            ThumbnailsTimeline.ItemsSource = _thumbnails;
+        });
+    }
+
+    private void StartThumbnailWatcher()
+    {
+        Directory.CreateDirectory(ThumbnailsDirectory);
+        _thumbnailWatcher = new FileSystemWatcher(ThumbnailsDirectory, "*.jpg")
+        {
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.CreationTime
+        };
+
+        _thumbnailWatcher.Created += async (s, e) =>
+        {
+            await LoadThumbnailAsync(e.FullPath);
+        };
+
+        _thumbnailWatcher.EnableRaisingEvents = true;
+    }
+
+    private async Task LoadThumbnailAsync(string filePath)
+    {
+        if (_thumbnailPaths.Contains(filePath)) return;
+
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.StreamSource = stream;
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (_thumbnailPaths.Count >= 15) return;
+                    if (_thumbnailPaths.Add(filePath))
+                    {
+                        _thumbnails.Add(new ThumbnailItem { Image = bitmap, Path = filePath });
+                    }
+                });
+                break;
+            }
+            catch
+            {
+                await Task.Delay(120);
+            }
+        }
+    }
+
+    private async Task StartThumbnailGenerationAsync(string inputPath)
+    {
+        if (string.IsNullOrWhiteSpace(inputPath) || !File.Exists(inputPath)) return;
+        if (!File.Exists(FFmpegPath)) return;
+
+        _thumbnailCts?.Cancel();
+        _thumbnailCts?.Dispose();
+        _thumbnailCts = new CancellationTokenSource();
+
+        StartThumbnailWatcher();
+
+        for (int i = 0; i < 10; i++)
+        {
+            if (WatermarkVideoPlayer.NaturalDuration.HasValue && WatermarkVideoPlayer.NaturalDuration.Value.TotalSeconds > 0)
+            {
+                break;
+            }
+            await Task.Delay(100);
+        }
+
+        double durationSeconds = WatermarkVideoPlayer.NaturalDuration.HasValue
+            ? WatermarkVideoPlayer.NaturalDuration.Value.TotalSeconds : 0;
+        if (durationSeconds <= 0) return;
+
+        double totalFrames = Math.Max(1, durationSeconds * Math.Max(1, _videoFps));
+        int interval = Math.Max(1, (int)Math.Round(totalFrames / 15.0));
+
+        string outputPattern = System.IO.Path.Combine(ThumbnailsDirectory, "thumb%03d.jpg");
+        string filter = $"select='not(mod(n\\,{interval}))',scale=160:-1";
+        string arguments = $"-i \"{inputPath}\" -vf \"{filter}\" -vsync vfr -q:v 2 \"{outputPattern}\"";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = FFmpegPath,
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true
+        };
+
+        _thumbnailProcess = new Process { StartInfo = psi };
+        _thumbnailProcess.Start();
+        _thumbnailProcess.BeginOutputReadLine();
+        _thumbnailProcess.BeginErrorReadLine();
+        await _thumbnailProcess.WaitForExitAsync();
+        _thumbnailProcess.Dispose();
+        _thumbnailProcess = null;
+    }
+
+    private void ThumbnailsTimeline_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue || _thumbnails.Count == 0) return;
+        if (ThumbnailsTimeline.SelectedIndex < 0) return;
+
+        double ratio = ThumbnailsTimeline.SelectedIndex / (double)_thumbnails.Count;
+        SeekToRatio(ratio);
+    }
+
+    private void TimelineRendering(object? sender, EventArgs e)
+    {
+        if (_isScrubbing) return;
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+        var duration = WatermarkVideoPlayer.NaturalDuration.Value;
+        if (duration.TotalMilliseconds <= 0) return;
+
+        double ratio = WatermarkVideoPlayer.Position.TotalMilliseconds / duration.TotalMilliseconds;
+        UpdatePlayheadPosition(ratio);
+    }
+
+    private void TimelineOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+        _isScrubbing = true;
+        TimelineOverlay.CaptureMouse();
+        UpdateScrubFromPoint(e.GetPosition(TimelineOverlay), true);
+    }
+
+    private void TimelineOverlay_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isScrubbing) return;
+        UpdateScrubFromPoint(e.GetPosition(TimelineOverlay), false);
+    }
+
+    private void TimelineOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isScrubbing) return;
+        UpdateScrubFromPoint(e.GetPosition(TimelineOverlay), true);
+        _isScrubbing = false;
+        TimelineOverlay.ReleaseMouseCapture();
+    }
+
+    private void UpdateScrubFromPoint(Point point, bool force)
+    {
+        double ratio = GetTimelineRatio(point.X);
+        double delta = Math.Abs(ratio - _lastScrubRatio);
+        double elapsed = (DateTime.Now - _lastScrubUpdate).TotalMilliseconds;
+        if (!force && delta < 0.01 && elapsed < 40) return;
+
+        _lastScrubRatio = ratio;
+        _lastScrubUpdate = DateTime.Now;
+        SeekToRatio(ratio);
+    }
+
+    private double GetTimelineRatio(double x)
+    {
+        double width = TimelineOverlay.ActualWidth;
+        if (width <= 0) return 0;
+        double ratio = x / width;
+        if (ratio < 0) ratio = 0;
+        if (ratio > 1) ratio = 1;
+        return ratio;
+    }
+
+    private async void SeekToRatio(double ratio)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+        var duration = WatermarkVideoPlayer.NaturalDuration.Value;
+        if (duration.TotalMilliseconds <= 0) return;
+        if (ratio < 0) ratio = 0;
+        if (ratio > 1) ratio = 1;
+
+        var targetTime = TimeSpan.FromMilliseconds(ratio * duration.TotalMilliseconds);
+        await WatermarkVideoPlayer.Seek(targetTime);
+        UpdatePlayheadPosition(ratio);
+    }
+
+    private void UpdatePlayheadPosition(double ratio)
+    {
+        if (TimelineOverlay == null || PlayheadLine == null) return;
+        double width = TimelineOverlay.ActualWidth;
+        if (width <= 0) return;
+        double x = ratio * width;
+        Canvas.SetLeft(PlayheadLine, x);
+    }
+
+    /// <summary>
+    /// Draws semi-transparent colored bars on the timeline for each region's time span.
+    /// </summary>
+    private void UpdateTimelineVisuals()
+    {
+        if (TimelineRegionCanvas == null) return;
+        TimelineRegionCanvas.Children.Clear();
+
+        if (_selectedRegions.Count == 0) return;
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+
+        double totalSeconds = WatermarkVideoPlayer.NaturalDuration.Value.TotalSeconds;
+        if (totalSeconds <= 0) return;
+
+        double timelineWidth = TimelineBorder.ActualWidth;
+        if (timelineWidth <= 0) return;
+
+        double pixelsPerSecond = timelineWidth / totalSeconds;
+
+        foreach (var region in _selectedRegions)
+        {
+            double startSec = region.StartTime.TotalSeconds;
+            double endSec = region.EndTime == TimeSpan.MaxValue
+                ? totalSeconds
+                : Math.Min(region.EndTime.TotalSeconds, totalSeconds);
+
+            if (endSec <= startSec) continue;
+
+            double xPos = startSec * pixelsPerSecond;
+            double barWidth = (endSec - startSec) * pixelsPerSecond;
+
+            // Use the same stroke color but at timeline-overlay opacity
+            var barBrush = region.Stroke.Clone();
+            barBrush.Opacity = 0.4;
+            barBrush.Freeze();
+
+            var bar = new System.Windows.Shapes.Rectangle
+            {
+                Width = barWidth,
+                Height = TimelineRegionCanvas.ActualHeight > 0 ? TimelineRegionCanvas.ActualHeight : 60,
+                Fill = barBrush,
+                RadiusX = 3,
+                RadiusY = 3,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(bar, xPos);
+            Canvas.SetTop(bar, 0);
+            TimelineRegionCanvas.Children.Add(bar);
+        }
+    }
+
+    /// <summary>
+    /// Recalculates region bar widths when the timeline container is resized.
+    /// </summary>
+    private void TimelineBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateTimelineVisuals();
+    }
+
     private void ShowConversionView(string? toolTag = null)
     {
         DashboardView.Visibility = Visibility.Collapsed;
@@ -115,6 +545,7 @@ public partial class MainWindow : Window
         PptToPdf,
         ExcelToPdf,
         PdfToImage,
+        WatermarkRemover,
         Unknown
     }
 
@@ -184,6 +615,31 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Centralized view switcher for the Watermark Remover editor.
+    /// true  = show editor (WatermarkRemoverView), hide dashboard.
+    /// false = hide editor, show dashboard.
+    /// </summary>
+    private void UpdateUIMode(bool isEditing)
+    {
+        if (isEditing)
+        {
+            if (DashboardView != null) DashboardView.Visibility = Visibility.Collapsed;
+            if (ConversionView != null) ConversionView.Visibility = Visibility.Collapsed;
+            if (WatermarkRemoverView != null) WatermarkRemoverView.Visibility = Visibility.Visible;
+            if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+            CurrentToolTitle.Text = "Watermark Remover";
+        }
+        else
+        {
+            if (WatermarkRemoverView != null) WatermarkRemoverView.Visibility = Visibility.Collapsed;
+            if (DashboardView != null) DashboardView.Visibility = Visibility.Visible;
+            if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+            CurrentToolTitle.Text = "Select Tool";
+            LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
     private void SwitchToMode(AppMode mode)
     {
         _currentMode = mode;
@@ -200,6 +656,7 @@ public partial class MainWindow : Window
         {
             DashboardView.Visibility = Visibility.Visible;
             ConversionView.Visibility = Visibility.Collapsed;
+            if (WatermarkRemoverView != null) WatermarkRemoverView.Visibility = Visibility.Collapsed;
             CurrentToolTitle.Text = "Select Tool";
             FormatComboBox.IsEnabled = true;
             
@@ -216,6 +673,7 @@ public partial class MainWindow : Window
         {
             DashboardView.Visibility = Visibility.Collapsed;
             ConversionView.Visibility = Visibility.Visible;
+            if (WatermarkRemoverView != null) WatermarkRemoverView.Visibility = Visibility.Collapsed;
             
             // Show Top Nav for Universal Mode
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Visible;
@@ -230,6 +688,10 @@ public partial class MainWindow : Window
             }
             
             // _filesToConvert.Clear(); // PERSISTENCE FIX: Do not clear files when switching tabs
+        }
+        else if (mode == AppMode.WatermarkRemover)
+        {
+            UpdateUIMode(true);
         }
         else
         {
@@ -291,6 +753,7 @@ public partial class MainWindow : Window
             "PPTX_PDF" => AppMode.PptToPdf,
             "XLSX_PDF" => AppMode.ExcelToPdf,
             "PDF_JPG" => AppMode.PdfToImage,
+            "WATERMARK_REMOVER" => AppMode.WatermarkRemover,
             "MORE_TOOLS" => AppMode.Universal, // Changed from AdvancedGallery to Universal
             _ => AppMode.Unknown
         };
@@ -397,6 +860,19 @@ public partial class MainWindow : Window
             string[]? items = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (items != null)
             {
+                // 1. Single Audio File Detection (Audio Editor Mode)
+                if (items.Length == 1 && File.Exists(items[0]))
+                {
+                    string ext = System.IO.Path.GetExtension(items[0]).ToLower();
+                    if (new[] { ".mp3", ".wav", ".m4a", ".ogg" }.Contains(ext))
+                    {
+                        // NEW LOGIC: Show Choice Overlay
+                        _pendingAudioFile = items[0];
+                        AudioChoiceOverlay.Visibility = Visibility.Visible;
+                        return; // Stop normal processing
+                    }
+                }
+
                 bool invalidFound = false;
                 
                 // Universal Mode Logic
@@ -569,6 +1045,20 @@ public partial class MainWindow : Window
 
         if (dialog.ShowDialog() == true)
         {
+            string[] selectedFiles = dialog.FileNames;
+
+            // Check if Single Audio File -> Show Overlay
+            if (selectedFiles.Length == 1)
+            {
+                string ext = System.IO.Path.GetExtension(selectedFiles[0]).ToLower();
+                if (new[] { ".mp3", ".wav", ".m4a", ".ogg" }.Contains(ext))
+                {
+                    _pendingAudioFile = selectedFiles[0]; // Store for later
+                    AudioChoiceOverlay.Visibility = Visibility.Visible; // Show the Choice Screen
+                    return; // STOP here, don't load into list yet
+                }
+            }
+
             foreach (var file in dialog.FileNames)
             {
                 AddFileToList(file);
@@ -759,9 +1249,9 @@ public partial class MainWindow : Window
         bool autoEnhance = AutoEnhanceCheckBox.IsChecked == true;
 
         // Tool Paths
-        string resourcesPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
+        string resourcesPath = ResourcesDirectory;
         string magickPath = System.IO.Path.Combine(resourcesPath, "magick.exe");
-        string ffmpegPath = System.IO.Path.Combine(resourcesPath, "ffmpeg.exe");
+        string ffmpegPath = FFmpegPath;
         string pdftocairoPath = System.IO.Path.Combine(resourcesPath, "pdftocairo.exe");
 
         bool useFFmpeg = new List<string> { "mp4", "mp3", "avi", "wav", "mkv", "mov", "gif", "webm", "m4a", "ogg", "flac", "aac" }.Contains(targetFormat);
@@ -1280,6 +1770,1091 @@ public partial class MainWindow : Window
             
             // Write to PDF
             collection.Write(outputPath);
+        }
+    }
+
+    // --- Audio Editor Implementation ---
+
+    private void LoadAudioEditor(string filePath)
+    {
+        try
+        {
+            _currentAudioFile = filePath;
+
+            // Switch UI
+            DropZone.Visibility = Visibility.Collapsed;
+            FilesList.Visibility = Visibility.Collapsed;
+            AudioEditorGrid.Visibility = Visibility.Visible;
+            CurrentToolTitle.Text = $"Audio Editor - {System.IO.Path.GetFileName(filePath)}";
+
+            // Initialize Audio
+            if (_audioReader != null) { _audioReader.Dispose(); }
+            if (_waveOut != null) { _waveOut.Dispose(); }
+
+            _audioReader = new AudioFileReader(filePath);
+            _waveOut = new WaveOutEvent();
+            _waveOut.Init(_audioReader);
+
+            // Reset Volume Slider
+            if (VolumeSlider != null)
+            {
+                VolumeSlider.Value = 1;
+            }
+
+            // Wait for layout update to draw waveform correctly
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() => 
+            {
+                DrawWaveform();
+                UpdateSelectionVisuals();
+                UpdateTimeDisplay();
+            }));
+
+            // Reset Selection
+            _selectionStart = TimeSpan.Zero;
+            _selectionEnd = _audioReader.TotalTime;
+
+            // Setup Timer
+            if (_playbackTimer == null)
+            {
+                _playbackTimer = new System.Windows.Threading.DispatcherTimer();
+                _playbackTimer.Interval = TimeSpan.FromMilliseconds(30);
+                _playbackTimer.Tick += (s, e) => UpdatePlaybackCursor();
+            }
+            _playbackTimer.Start();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error loading audio: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            CloseAudioEditor_Click(null, null);
+        }
+    }
+
+    private void DrawWaveform()
+    {
+        if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
+
+        WaveformLine.Points.Clear();
+        
+        double width = WaveformContainer.ActualWidth;
+        double height = WaveformContainer.ActualHeight > 0 ? WaveformContainer.ActualHeight : 100; // Fallback
+        double mid = height / 2;
+        
+        var points = new PointCollection();
+        Random r = new Random();
+        
+        points.Add(new Point(0, mid));
+
+        int steps = (int)width / 2;
+        for (int i = 0; i <= steps; i++)
+        {
+            double x = i * 2;
+            double amplitude = (r.NextDouble() * 0.8 + 0.1) * (mid * 0.9); 
+            points.Add(new Point(x, mid - amplitude));
+            points.Add(new Point(x, mid + amplitude));
+        }
+        
+        points.Add(new Point(width, mid));
+        WaveformLine.Points = points;
+    }
+
+    private void UpdatePlaybackCursor()
+    {
+        if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
+        
+        double progress = 0;
+        if (_audioReader.TotalTime.TotalSeconds > 0)
+            progress = _audioReader.CurrentTime.TotalSeconds / _audioReader.TotalTime.TotalSeconds;
+            
+        double x = progress * WaveformContainer.ActualWidth;
+        
+        if (x < 0) x = 0;
+        if (x > WaveformContainer.ActualWidth) x = WaveformContainer.ActualWidth;
+
+        PlaybackCursor.X1 = x;
+        PlaybackCursor.X2 = x;
+        
+        if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+        {
+             if (_selectionEnd > TimeSpan.Zero && _audioReader.CurrentTime >= _selectionEnd)
+             {
+                 _waveOut.Pause();
+                 _audioReader.CurrentTime = _selectionEnd;
+             }
+        }
+    }
+
+    private void Waveform_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_audioReader == null) return;
+        
+        Point p = e.GetPosition(WaveformContainer);
+        double width = WaveformContainer.ActualWidth;
+        if (width <= 0) return;
+
+        double progress = p.X / width;
+        if (progress < 0) progress = 0;
+        if (progress > 1) progress = 1;
+
+        TimeSpan newTime = TimeSpan.FromSeconds(progress * _audioReader.TotalTime.TotalSeconds);
+        _audioReader.CurrentTime = newTime;
+        UpdatePlaybackCursor();
+    }
+
+    private void UpdateTimeDisplay()
+    {
+        if (TimeDisplay == null) return;
+        
+        TimeSpan duration = _selectionEnd - _selectionStart;
+        // Ensure duration isn't negative
+        if (duration < TimeSpan.Zero) duration = TimeSpan.Zero;
+        
+        TimeDisplay.Text = $"Start: {_selectionStart:mm\\:ss\\.fff}  |  End: {_selectionEnd:mm\\:ss\\.fff}  |  Duration: {duration:mm\\:ss\\.fff}";
+        
+        // Optional: Change color to Red if duration is 0, Green if valid.
+        TimeDisplay.Foreground = (duration.TotalMilliseconds > 0) ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00E5FF")) : Brushes.Gray;
+    }
+
+    private void SetStart_Click(object sender, RoutedEventArgs e)
+    {
+        if (_audioReader != null)
+        {
+            _selectionStart = _audioReader.CurrentTime;
+            if (_selectionStart > _selectionEnd) _selectionEnd = _audioReader.TotalTime;
+            UpdateSelectionVisuals();
+            UpdateTimeDisplay();
+        }
+    }
+
+    private void SetEnd_Click(object sender, RoutedEventArgs e)
+    {
+        if (_audioReader != null)
+        {
+            _selectionEnd = _audioReader.CurrentTime;
+            if (_selectionEnd < _selectionStart) _selectionStart = TimeSpan.Zero;
+            UpdateSelectionVisuals();
+            UpdateTimeDisplay();
+        }
+    }
+
+    private void UpdateSelectionVisuals()
+    {
+        if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
+        
+        double totalSeconds = _audioReader.TotalTime.TotalSeconds;
+        if (totalSeconds <= 0) return;
+
+        double startX = (_selectionStart.TotalSeconds / totalSeconds) * WaveformContainer.ActualWidth;
+        double endX = (_selectionEnd.TotalSeconds / totalSeconds) * WaveformContainer.ActualWidth;
+        double totalWidth = WaveformContainer.ActualWidth;
+
+        // 1. Left Dimming (From 0 to Start)
+        DimLeft.Width = startX;
+        
+        // 2. Right Dimming (From End to TotalWidth)
+        double rightWidth = totalWidth - endX;
+        if (rightWidth < 0) rightWidth = 0;
+        DimRight.Width = rightWidth;
+        DimRight.Margin = new Thickness(endX, 0, 0, 0);
+
+        // 3. Markers
+        StartMarker.Margin = new Thickness(startX, 0, 0, 0);
+        EndMarker.Margin = new Thickness(endX, 0, 0, 0);
+    }
+
+    private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_audioReader != null)
+        {
+            _audioReader.Volume = (float)e.NewValue;
+        }
+    }
+
+    private void PlaySelection_Click(object sender, RoutedEventArgs e)
+    {
+        if (_waveOut != null && _audioReader != null)
+        {
+            _audioReader.CurrentTime = _selectionStart;
+            _waveOut.Play();
+        }
+    }
+
+    private void SaveSelection_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentAudioFile == null) return;
+        
+        // 1. Pause Playback (Safety)
+        if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+        {
+            _waveOut.Pause();
+        }
+
+        // 2. Prepare Default Filename
+        string dir = System.IO.Path.GetDirectoryName(_currentAudioFile) ?? "";
+        string name = System.IO.Path.GetFileNameWithoutExtension(_currentAudioFile);
+        string ext = System.IO.Path.GetExtension(_currentAudioFile);
+        
+        // 3. Open SaveFileDialog
+        var saveDialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Save Trimmed Audio",
+            FileName = $"{name}_Trimmed{ext}",
+            DefaultExt = ext,
+            Filter = $"Audio File (*{ext})|*{ext}|All Files (*.*)|*.*",
+            InitialDirectory = dir
+        };
+
+        if (saveDialog.ShowDialog() == true)
+        {
+            string outputFile = saveDialog.FileName;
+
+            // 4. Validation: Prevent Overwriting Source
+            if (string.Equals(outputFile, _currentAudioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Cannot overwrite the source file while it is open. Please choose a different name.", "File Locked", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!File.Exists(FFmpegPath))
+            {
+                 MessageBox.Show($"FFmpeg not found.\nPlace ffmpeg.exe in:\n{FFmpegPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                 return;
+            }
+            
+            // 5. Construct Arguments with Escaped Quotes
+            string start = _selectionStart.ToString(@"hh\:mm\:ss\.fff");
+            string end = _selectionEnd.ToString(@"hh\:mm\:ss\.fff");
+            
+            // IMPORTANT: Wrap paths in escaped quotes to handle spaces and special chars
+            string args = $"-i \"{_currentAudioFile}\" -ss {start} -to {end} -c copy -y \"{outputFile}\"";
+            
+            try 
+            {
+                RunExternalProcess(FFmpegPath, args);
+                MessageBox.Show($"Saved Trimmed Audio:\n{outputFile}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Save Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void CloseAudioEditor_Click(object sender, RoutedEventArgs e)
+    {
+        if (_waveOut != null)
+        {
+            _waveOut.Stop();
+            _waveOut.Dispose();
+            _waveOut = null;
+        }
+        if (_audioReader != null)
+        {
+            _audioReader.Dispose();
+            _audioReader = null;
+        }
+        if (_playbackTimer != null)
+        {
+            _playbackTimer.Stop();
+        }
+
+        AudioEditorGrid.Visibility = Visibility.Collapsed;
+        DropZone.Visibility = Visibility.Visible;
+        FilesList.Visibility = Visibility.Visible;
+        
+        CurrentToolTitle.Text = "Select Tool"; 
+        _currentAudioFile = null;
+    }
+
+    private void TrimChoice_Click(object sender, RoutedEventArgs e)
+    {
+        AudioChoiceOverlay.Visibility = Visibility.Collapsed;
+        if (!string.IsNullOrEmpty(_pendingAudioFile))
+        {
+            LoadAudioEditor(_pendingAudioFile);
+            _pendingAudioFile = null;
+        }
+    }
+
+    private void ConvertChoice_Click(object sender, RoutedEventArgs e)
+    {
+        AudioChoiceOverlay.Visibility = Visibility.Collapsed;
+        if (!string.IsNullOrEmpty(_pendingAudioFile))
+        {
+            AddFileToList(_pendingAudioFile);
+            _pendingAudioFile = null;
+        }
+    }
+
+    private void CancelChoice_Click(object sender, RoutedEventArgs e)
+    {
+        AudioChoiceOverlay.Visibility = Visibility.Collapsed;
+        _pendingAudioFile = null;
+    }
+
+    // --- Watermark Remover Logic ---
+    
+    // Global variables for Watermark Remover
+    private string currentInputPath;
+    private double _naturalVideoWidth;
+    private double _naturalVideoHeight;
+    private ObservableCollection<RegionModel> _selectedRegions = new ObservableCollection<RegionModel>();
+    private readonly Brush[] _regionStrokeBrushes = new Brush[]
+    {
+        new SolidColorBrush(Color.FromRgb(0, 229, 255)),
+        new SolidColorBrush(Color.FromRgb(255, 45, 85)),
+        new SolidColorBrush(Color.FromRgb(255, 214, 79)),
+        new SolidColorBrush(Color.FromRgb(76, 175, 80))
+    };
+    private readonly Brush[] _regionFillBrushes = new Brush[]
+    {
+        new SolidColorBrush(Color.FromArgb(60, 0, 229, 255)),
+        new SolidColorBrush(Color.FromArgb(60, 255, 45, 85)),
+        new SolidColorBrush(Color.FromArgb(60, 255, 214, 79)),
+        new SolidColorBrush(Color.FromArgb(60, 76, 175, 80))
+    };
+    private int _regionColorIndex;
+    private bool _isSelectionMode;
+    private RegionModel _selectedRegion;
+    private Rectangle _selectedRectangleVisual;
+    private double _lastSelectionVideoX;
+    private double _lastSelectionVideoY;
+    private double _lastSelectionVideoWidth;
+    private double _lastSelectionVideoHeight;
+    private bool _hasSelection;
+
+    // Temporal In/Out points for region time-bounding
+    private TimeSpan _currentInPoint = TimeSpan.Zero;
+    private TimeSpan _currentOutPoint = TimeSpan.MaxValue;
+    
+    // Drawing State
+    private bool _isDrawingMode;
+    private bool isDrawing;
+    private Point startPoint;
+
+    private void EnableDrawingMode()
+    {
+        _isDrawingMode = true;
+        DrawingCanvas.IsHitTestVisible = true;
+        // FFME renders in WPF visual tree – transparent background is enough
+        DrawingCanvas.Background = Brushes.Transparent;
+        DrawingCanvas.Cursor = Cursors.Cross;
+        Panel.SetZIndex(DrawingCanvas, 1000); // Above RegionsOverlay while drawing
+        btnSelectRegion.Content = "✂ Cancel";
+    }
+
+    private void DisableDrawingMode()
+    {
+        _isDrawingMode = false;
+        DrawingCanvas.IsHitTestVisible = false;
+        DrawingCanvas.Background = Brushes.Transparent;
+        DrawingCanvas.Cursor = Cursors.Arrow;
+        Panel.SetZIndex(DrawingCanvas, 998); // Below RegionsOverlay so regions are clickable
+        btnSelectRegion.Content = "✂ Select";
+    }
+
+    // --- Frame-by-Frame Stepping ---
+    private async void StepForward_Click(object sender, RoutedEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+
+        // Pause first, then step forward
+        if (!WatermarkVideoPlayer.IsPaused)
+            await WatermarkVideoPlayer.Pause();
+
+        await WatermarkVideoPlayer.StepForward();
+    }
+
+    private async void StepBackward_Click(object sender, RoutedEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+
+        // Pause first, then step backward
+        if (!WatermarkVideoPlayer.IsPaused)
+            await WatermarkVideoPlayer.Pause();
+
+        await WatermarkVideoPlayer.StepBackward();
+    }
+
+    private void ApplySelectionBrushes()
+    {
+        if (SelectionRect == null) return;
+        int index = _regionColorIndex % _regionStrokeBrushes.Length;
+        SelectionRect.Stroke = _regionStrokeBrushes[index];
+        SelectionRect.Fill = _regionFillBrushes[index];
+    }
+
+    private void ClearActiveSelection()
+    {
+        if (SelectionRect == null) return;
+        SelectionRect.Visibility = Visibility.Collapsed;
+        SelectionRect.Width = 0;
+        SelectionRect.Height = 0;
+        _hasSelection = false;
+    }
+
+    private async void ExitSelectionMode(bool resumePlayback)
+    {
+        SnapshotPreview.Visibility = Visibility.Collapsed;
+        SnapshotPreview.Source = null;
+        WatermarkVideoPlayer.Visibility = Visibility.Visible;
+        WatermarkVideoPlayer.IsHitTestVisible = true;
+        _isSelectionMode = false;
+        DisableDrawingMode();
+        if (resumePlayback && WatermarkVideoPlayer.NaturalDuration.HasValue)
+        {
+            await WatermarkVideoPlayer.Play();
+        }
+    }
+
+    private bool TryGetSelectionInVideoPixels(out double videoX, out double videoY, out double videoWidth, out double videoHeight)
+    {
+        videoX = 0;
+        videoY = 0;
+        videoWidth = 0;
+        videoHeight = 0;
+
+        if (_naturalVideoWidth <= 0 || _naturalVideoHeight <= 0) return false;
+
+        double containerWidth = DrawingCanvas.ActualWidth;
+        double containerHeight = DrawingCanvas.ActualHeight;
+        if (containerWidth <= 0 || containerHeight <= 0) return false;
+
+        double videoAspect = _naturalVideoWidth / _naturalVideoHeight;
+        double containerAspect = containerWidth / containerHeight;
+
+        double displayWidth;
+        double displayHeight;
+        double offsetX;
+        double offsetY;
+
+        if (containerAspect > videoAspect)
+        {
+            displayHeight = containerHeight;
+            displayWidth = containerHeight * videoAspect;
+            offsetX = (containerWidth - displayWidth) / 2;
+            offsetY = 0;
+        }
+        else
+        {
+            displayWidth = containerWidth;
+            displayHeight = containerWidth / videoAspect;
+            offsetX = 0;
+            offsetY = (containerHeight - displayHeight) / 2;
+        }
+
+        double scaleX = _naturalVideoWidth / displayWidth;
+        double scaleY = _naturalVideoHeight / displayHeight;
+
+        double uiX = Canvas.GetLeft(SelectionRect);
+        double uiY = Canvas.GetTop(SelectionRect);
+        double uiW = SelectionRect.Width;
+        double uiH = SelectionRect.Height;
+
+        double mappedX = (uiX - offsetX) * scaleX;
+        double mappedY = (uiY - offsetY) * scaleY;
+        double mappedW = uiW * scaleX;
+        double mappedH = uiH * scaleY;
+
+        double clampedX = Math.Max(0, mappedX);
+        double clampedY = Math.Max(0, mappedY);
+        double clampedW = Math.Min(_naturalVideoWidth - clampedX, mappedW);
+        double clampedH = Math.Min(_naturalVideoHeight - clampedY, mappedH);
+
+        if (clampedW <= 0 || clampedH <= 0) return false;
+
+        videoX = clampedX;
+        videoY = clampedY;
+        videoWidth = clampedW;
+        videoHeight = clampedH;
+        return true;
+    }
+
+    private static async Task RunFFmpegAsync(string ffmpegPath, string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = ffmpegPath,
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true
+        };
+
+        using var process = new Process { StartInfo = psi };
+        var stderr = new StringBuilder();
+
+        process.OutputDataReceived += (s, e) => { };
+        process.ErrorDataReceived += (s, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                stderr.AppendLine(e.Data);
+            }
+        };
+
+        if (!process.Start())
+        {
+            throw new InvalidOperationException("Failed to start FFmpeg process.");
+        }
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode != 0)
+        {
+            string error = stderr.Length > 0 ? stderr.ToString().Trim() : $"FFmpeg exited with code {process.ExitCode}";
+            throw new Exception(error);
+        }
+    }
+
+    /// <summary>
+    /// Safely releases the current video, clears all regions, resets time points,
+    /// and returns the editor to a clean state. Must be awaited before opening a new file.
+    /// </summary>
+    private async Task CloseAndResetProject()
+    {
+        // 1. Aggressively stop and release the media player
+        try
+        {
+            if (WatermarkVideoPlayer.IsPlaying)
+                await WatermarkVideoPlayer.Pause();
+
+            if (WatermarkVideoPlayer.IsPlaying || WatermarkVideoPlayer.IsPaused)
+                await WatermarkVideoPlayer.Stop();
+
+            await WatermarkVideoPlayer.Close();   // releases file lock
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CloseAndResetProject player cleanup: {ex.Message}");
+        }
+
+        // 2. Restore player element to a clean state
+        WatermarkVideoPlayer.Visibility = Visibility.Visible;
+        WatermarkVideoPlayer.IsHitTestVisible = true;
+
+        // 3. Clear all region data AND visual children
+        _selectedRegions.Clear();
+        _selectedRegion = null;
+        _selectedRectangleVisual = null;
+        _regionColorIndex = 0;
+        ApplySelectionBrushes();
+        ClearActiveSelection();
+
+        if (RegionsOverlay != null)
+            RegionsOverlay.UpdateLayout();
+
+        if (DrawingCanvas != null)
+        {
+            var toRemove = DrawingCanvas.Children.Cast<UIElement>()
+                .Where(c => c != SelectionRect).ToList();
+            foreach (var child in toRemove)
+                DrawingCanvas.Children.Remove(child);
+        }
+
+        // 4. Reset temporal in/out points
+        _currentInPoint = TimeSpan.Zero;
+        _currentOutPoint = TimeSpan.MaxValue;
+        if (WmInPointLabel != null)
+            WmInPointLabel.Text = "IN  00:00:00.0";
+        if (WmOutPointLabel != null)
+            WmOutPointLabel.Text = "OUT  END";
+
+        // 5. Reset snapshot & drawing state
+        SnapshotPreview.Visibility = Visibility.Collapsed;
+        SnapshotPreview.Source = null;
+        _isSelectionMode = false;
+        DisableDrawingMode();
+
+        // 6. Reset video metadata
+        currentInputPath = null;
+        _naturalVideoWidth = 0;
+        _naturalVideoHeight = 0;
+
+        // 7. Clear thumbnails / timeline and delete temp files
+        ResetThumbnails();
+
+        // 8. Switch UI back to Dashboard via centralized helper
+        UpdateUIMode(false);
+    }
+
+    private async void OpenVideo_Click(object sender, RoutedEventArgs e)
+    {
+        // STEP 1: Force cleanup first — prevents memory leaks, file locks, and ghost UI
+        await CloseAndResetProject();
+
+        // STEP 2: Show file dialog (old video is already fully released)
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Video Files|*.mp4;*.mkv;*.avi;*.mov",
+            Title = "Select Video"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            try
+            {
+                // STEP 3: Switch UI to editor BEFORE loading (fixes "playing behind dashboard" bug)
+                UpdateUIMode(true);
+                LoadingOverlay.Visibility = Visibility.Visible;
+
+                // STEP 4: Load the new file
+                currentInputPath = dialog.FileName;
+                ResetThumbnails();
+
+                await WatermarkVideoPlayer.Open(new Uri(currentInputPath));
+                await WatermarkVideoPlayer.Play();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load video: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Return to a safe state so the app doesn't stay on broken editor UI
+                await CloseAndResetProject();
+            }
+        }
+        else
+        {
+            // User cancelled — stay on the clean Dashboard
+            SwitchToMode(AppMode.Dashboard);
+        }
+    }
+
+    private void MediaElement_MediaOpened(object sender, Unosquare.FFME.Common.MediaOpenedEventArgs e)
+    {
+        LoadingOverlay.Visibility = Visibility.Collapsed;
+
+        // Get dimensions from FFME
+        if (WatermarkVideoPlayer.NaturalVideoWidth > 0 && WatermarkVideoPlayer.NaturalVideoHeight > 0)
+        {
+            _naturalVideoWidth = WatermarkVideoPlayer.NaturalVideoWidth;
+            _naturalVideoHeight = WatermarkVideoPlayer.NaturalVideoHeight;
+        }
+
+        // Try to get FPS from video stream info
+        var videoStream = e.Info?.Streams?.Values
+            .FirstOrDefault(s => s.CodecType == FFmpeg.AutoGen.AVMediaType.AVMEDIA_TYPE_VIDEO);
+        if (videoStream != null && videoStream.FPS > 0)
+        {
+            _videoFps = videoStream.FPS;
+        }
+        else
+        {
+            _videoFps = 30;
+        }
+
+        _selectedRegions.Clear();
+        _regionColorIndex = 0;
+        ApplySelectionBrushes();
+        ClearActiveSelection();
+        SnapshotPreview.Visibility = Visibility.Collapsed;
+        SnapshotPreview.Source = null;
+        WatermarkVideoPlayer.Visibility = Visibility.Visible;
+        WatermarkVideoPlayer.IsHitTestVisible = true;
+        _isSelectionMode = false;
+        DisableDrawingMode();
+        if (!string.IsNullOrWhiteSpace(currentInputPath))
+        {
+            _ = StartThumbnailGenerationAsync(currentInputPath);
+        }
+    }
+
+    private void MediaElement_MediaFailed(object sender, Unosquare.FFME.Common.MediaFailedEventArgs e)
+    {
+        LoadingOverlay.Visibility = Visibility.Collapsed;
+        MessageBox.Show($"Failed to load video: {e.ErrorException?.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    /// <summary>Convert a RegionModel's UI coordinates to video pixel coordinates.</summary>
+    private bool TryConvertRegionToVideoPixels(RegionModel region, out int vx, out int vy, out int vw, out int vh)
+    {
+        vx = vy = vw = vh = 0;
+        if (_naturalVideoWidth <= 0 || _naturalVideoHeight <= 0) return false;
+
+        double containerWidth = DrawingCanvas.ActualWidth;
+        double containerHeight = DrawingCanvas.ActualHeight;
+        if (containerWidth <= 0 || containerHeight <= 0) return false;
+
+        double videoAspect = _naturalVideoWidth / _naturalVideoHeight;
+        double containerAspect = containerWidth / containerHeight;
+
+        double displayWidth, displayHeight, offsetX, offsetY;
+        if (containerAspect > videoAspect)
+        {
+            displayHeight = containerHeight;
+            displayWidth = containerHeight * videoAspect;
+            offsetX = (containerWidth - displayWidth) / 2;
+            offsetY = 0;
+        }
+        else
+        {
+            displayWidth = containerWidth;
+            displayHeight = containerWidth / videoAspect;
+            offsetX = 0;
+            offsetY = (containerHeight - displayHeight) / 2;
+        }
+
+        double scaleX = _naturalVideoWidth / displayWidth;
+        double scaleY = _naturalVideoHeight / displayHeight;
+
+        double mappedX = (region.X - offsetX) * scaleX;
+        double mappedY = (region.Y - offsetY) * scaleY;
+        double mappedW = region.Width * scaleX;
+        double mappedH = region.Height * scaleY;
+
+        int cx = (int)Math.Max(0, Math.Round(mappedX));
+        int cy = (int)Math.Max(0, Math.Round(mappedY));
+        int cw = (int)Math.Round(Math.Min(_naturalVideoWidth - cx, mappedW));
+        int ch = (int)Math.Round(Math.Min(_naturalVideoHeight - cy, mappedH));
+        if (cw <= 0 || ch <= 0) return false;
+
+        vx = cx; vy = cy; vw = cw; vh = ch;
+        return true;
+    }
+
+    private async void RemoveWatermark_Click(object sender, RoutedEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue)
+        {
+            MessageBox.Show("Please open a video first.", "No Video", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (_naturalVideoWidth == 0 || _naturalVideoHeight == 0)
+        {
+            MessageBox.Show("Video dimensions not available. Please play the video first.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (_selectedRegions.Count == 0)
+        {
+            MessageBox.Show("Please add at least one region first.", "No Regions", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Resolve video duration for default end-time
+        double videoDurationSec = WatermarkVideoPlayer.NaturalDuration.Value.TotalSeconds;
+
+        // Build a delogo filter for each region, with temporal enable
+        var filters = new List<string>();
+        foreach (var region in _selectedRegions)
+        {
+            if (!TryConvertRegionToVideoPixels(region, out int vx, out int vy, out int vw, out int vh))
+                continue;
+
+            double startSec = region.StartTime.TotalSeconds;
+            double endSec = region.EndTime == TimeSpan.MaxValue ? videoDurationSec : region.EndTime.TotalSeconds;
+
+            string filter = $"delogo=x={vx}:y={vy}:w={vw}:h={vh}:show=0:enable='between(t,{startSec:F3},{endSec:F3})'";
+            filters.Add(filter);
+        }
+
+        if (filters.Count == 0)
+        {
+            MessageBox.Show("All regions are outside the video bounds.", "Selection Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // Chain multiple delogo filters with commas (filter graph)
+        string filterArgs = string.Join(",", filters);
+
+        string inputFile = currentInputPath;
+        string outputFile = System.IO.Path.Combine(
+            System.IO.Path.GetDirectoryName(inputFile) ?? AppDomain.CurrentDomain.BaseDirectory,
+            $"{System.IO.Path.GetFileNameWithoutExtension(inputFile)}_cleaned.mp4");
+
+        if (!File.Exists(FFmpegPath))
+        {
+            MessageBox.Show($"FFmpeg not found.\nPlace ffmpeg.exe in:\n{FFmpegPath}", "FFmpeg Missing", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        string arguments = $"-i \"{inputFile}\" -vf \"{filterArgs}\" -c:v libx264 -preset slow -crf 17 -c:a copy -y \"{outputFile}\"";
+
+        var btn = sender as Button;
+        if (btn != null)
+        {
+            btn.Content = "Processing...";
+            btn.IsEnabled = false;
+        }
+
+        try
+        {
+            await RunFFmpegAsync(FFmpegPath, arguments);
+            MessageBox.Show($"Watermark removed successfully!\nSaved to: {outputFile}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error: {ex.Message}", "Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            if (btn != null)
+            {
+                btn.Content = "✨ Remove";
+                btn.IsEnabled = true;
+            }
+        }
+    }
+
+    private async void CancelWatermark_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isSelectionMode)
+        {
+            ExitSelectionMode(true);
+            return;
+        }
+
+        // Confirm before destroying the session — using modern themed dialog
+        bool confirmed = false;
+        try
+        {
+            var dialog = new ModernConfirmDialog(
+                "Close Video",
+                "Do you want to close the current video? All unsaved regions will be lost.");
+            dialog.Owner = this;
+            dialog.ShowDialog();
+            confirmed = dialog.Confirmed;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Dialog error: {ex.Message}\n\n{ex.InnerException?.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            await CloseAndResetProject();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CloseAndResetProject error: {ex.Message}");
+        }
+
+        // Always switch to Dashboard — even if cleanup had partial failures
+        SwitchToMode(AppMode.Dashboard);
+    }
+
+    private void SelectRegion_Click(object sender, RoutedEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue)
+        {
+            MessageBox.Show("Please open a video first.", "No Video", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Toggle drawing mode — video keeps playing in the background
+        if (_isDrawingMode)
+        {
+            DisableDrawingMode();
+            _isSelectionMode = false;
+        }
+        else
+        {
+            EnableDrawingMode();
+            _isSelectionMode = true;
+            ClearActiveSelection();
+        }
+    }
+
+    private void AddRegion_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectionRect.Visibility != Visibility.Visible || SelectionRect.Width <= 5 || SelectionRect.Height <= 5)
+        {
+            MessageBox.Show("Please draw a region first.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Resolve the end time: if still MaxValue, use video duration
+        TimeSpan resolvedEnd = _currentOutPoint;
+        if (resolvedEnd == TimeSpan.MaxValue && WatermarkVideoPlayer.NaturalDuration.HasValue)
+        {
+            resolvedEnd = WatermarkVideoPlayer.NaturalDuration.Value;
+        }
+
+        int index = _regionColorIndex % _regionStrokeBrushes.Length;
+        var region = new RegionModel
+        {
+            X = Canvas.GetLeft(SelectionRect),
+            Y = Canvas.GetTop(SelectionRect),
+            Width = SelectionRect.Width,
+            Height = SelectionRect.Height,
+            Stroke = _regionStrokeBrushes[index],
+            Fill = _regionFillBrushes[index],
+            StartTime = _currentInPoint,
+            EndTime = resolvedEnd
+        };
+        _selectedRegions.Add(region);
+        _regionColorIndex = (_regionColorIndex + 1) % _regionStrokeBrushes.Length;
+        ApplySelectionBrushes();
+        ClearActiveSelection();
+        DeselectRegion();
+        UpdateTimelineVisuals();
+
+        // Reset in/out points for the next region
+        _currentInPoint = TimeSpan.Zero;
+        _currentOutPoint = TimeSpan.MaxValue;
+        if (WmInPointLabel != null)
+            WmInPointLabel.Text = "IN  00:00:00.0";
+        if (WmOutPointLabel != null)
+            WmOutPointLabel.Text = "OUT  END";
+
+        if (_isSelectionMode)
+        {
+            ExitSelectionMode(true);
+        }
+    }
+
+    // --- Temporal In/Out Point Handlers ---
+
+    private void WmSetIn_Click(object sender, RoutedEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+        _currentInPoint = WatermarkVideoPlayer.Position;
+        if (_currentInPoint > _currentOutPoint && _currentOutPoint != TimeSpan.MaxValue)
+            _currentOutPoint = TimeSpan.MaxValue;
+        if (WmInPointLabel != null)
+            WmInPointLabel.Text = $"IN  {_currentInPoint:hh\\:mm\\:ss\\.f}";
+    }
+
+    private void WmSetOut_Click(object sender, RoutedEventArgs e)
+    {
+        if (!WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+        _currentOutPoint = WatermarkVideoPlayer.Position;
+        if (_currentOutPoint < _currentInPoint)
+            _currentInPoint = TimeSpan.Zero;
+        if (WmOutPointLabel != null)
+            WmOutPointLabel.Text = $"OUT  {_currentOutPoint:hh\\:mm\\:ss\\.f}";
+    }
+
+    // --- Region Select-to-Delete Logic ---
+
+    private void Region_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Rectangle clickedRect)
+        {
+            var region = clickedRect.DataContext as RegionModel;
+            if (region == null) return;
+
+            // If clicking the already-selected region, deselect it
+            if (_selectedRegion == region)
+            {
+                DeselectRegion();
+                e.Handled = true;
+                return;
+            }
+
+            // Deselect previous
+            DeselectRegion();
+
+            // Select the clicked region
+            _selectedRegion = region;
+            _selectedRectangleVisual = clickedRect;
+            region.IsSelected = true;
+
+            // Visual highlight
+            clickedRect.Stroke = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange highlight
+            clickedRect.StrokeThickness = 3;
+
+            e.Handled = true;
+        }
+    }
+
+    private void DeselectRegion()
+    {
+        if (_selectedRegion != null)
+        {
+            _selectedRegion.IsSelected = false;
+            if (_selectedRectangleVisual != null)
+            {
+                // Restore the original stroke from the model
+                _selectedRectangleVisual.Stroke = _selectedRegion.Stroke;
+                _selectedRectangleVisual.StrokeThickness = 2;
+            }
+        }
+        _selectedRegion = null;
+        _selectedRectangleVisual = null;
+    }
+
+    /// <summary>Handler for the on-canvas X close button on each region.</summary>
+    private void RegionClose_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is RegionModel region)
+        {
+            _selectedRegions.Remove(region);
+            if (_selectedRegion == region)
+            {
+                _selectedRegion = null;
+                _selectedRectangleVisual = null;
+            }
+            _regionColorIndex = _selectedRegions.Count % _regionStrokeBrushes.Length;
+            ApplySelectionBrushes();
+            UpdateTimelineVisuals();
+        }
+    }
+
+    private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isDrawingMode || !WatermarkVideoPlayer.NaturalDuration.HasValue) return;
+
+        isDrawing = true;
+        startPoint = e.GetPosition(DrawingCanvas);
+
+        int index = _regionColorIndex % _regionStrokeBrushes.Length;
+        SelectionRect.Stroke = _regionStrokeBrushes[index];
+        SelectionRect.Fill = _regionFillBrushes[index];
+        SelectionRect.Visibility = Visibility.Visible;
+        Canvas.SetLeft(SelectionRect, startPoint.X);
+        Canvas.SetTop(SelectionRect, startPoint.Y);
+        SelectionRect.Width = 0;
+        SelectionRect.Height = 0;
+        DrawingCanvas.CaptureMouse();
+    }
+
+    private void Canvas_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!isDrawing) return;
+
+        var pos = e.GetPosition(DrawingCanvas);
+        var x = Math.Min(pos.X, startPoint.X);
+        var y = Math.Min(pos.Y, startPoint.Y);
+        var w = Math.Abs(pos.X - startPoint.X);
+        var h = Math.Abs(pos.Y - startPoint.Y);
+
+        Canvas.SetLeft(SelectionRect, x);
+        Canvas.SetTop(SelectionRect, y);
+        SelectionRect.Width = w;
+        SelectionRect.Height = h;
+    }
+
+    private void Canvas_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!isDrawing) return;
+        
+        isDrawing = false;
+        DrawingCanvas.ReleaseMouseCapture();
+
+        if (SelectionRect.Width <= 5 || SelectionRect.Height <= 5)
+        {
+            ClearActiveSelection();
+        }
+
+        if (SelectionRect.Width > 5 && SelectionRect.Height > 5 &&
+            TryGetSelectionInVideoPixels(out double videoX, out double videoY, out double videoWidth, out double videoHeight))
+        {
+            _lastSelectionVideoX = videoX;
+            _lastSelectionVideoY = videoY;
+            _lastSelectionVideoWidth = videoWidth;
+            _lastSelectionVideoHeight = videoHeight;
+            _hasSelection = true;
+        }
+        else
+        {
+            _hasSelection = false;
         }
     }
 }

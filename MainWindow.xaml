@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CortexFX"
         xmlns:ctrl="clr-namespace:CortexFX.Controls"
+        xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
         mc:Ignorable="d"
         Title="Cortex FX" Height="650" Width="850"
         MinWidth="950" MinHeight="650" ResizeMode="CanResize"
@@ -12,13 +13,18 @@
         Foreground="#E0E0E0"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI"
-        Icon="logo.ico">
+        Icon="logo.ico"
+        Loaded="MainWindow_Loaded"
+        KeyDown="Window_KeyDown">
 
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="35" ResizeBorderThickness="5" CornerRadius="10" GlassFrameThickness="0"/>
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
+        <!-- Converters -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
         <!-- Colors -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#181818"/>
         <SolidColorBrush x:Key="SecondaryBackground" Color="#202020"/>
@@ -318,10 +324,23 @@
 
                 <!-- Custom Title Bar (Row 0) -->
                 <Grid Grid.Row="0" Background="#1E1E1E">
+                    <!-- Title & Icon -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
                         <Image Source="logo.ico" Width="20" Height="20" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="Cortex FX" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                     </StackPanel>
+
+                    <!-- Center Version Indicator -->
+                    <TextBlock x:Name="VersionText" Text="v0.5.0" 
+                               Foreground="#00E5FF" FontWeight="Bold" FontSize="14"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsHitTestVisible="False">
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.5"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+
+                    <!-- Window Controls -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="⚙️" Background="Transparent" Foreground="#AAAAAA" FontSize="14" Click="SettingsButton_Click" Padding="10,0" Width="40" WindowChrome.IsHitTestVisibleInChrome="True"/>
                         <Button Content="_" Click="MinimizeButton_Click" Background="Transparent" Foreground="White" FontSize="14" Padding="10,0" Width="40" WindowChrome.IsHitTestVisibleInChrome="True"/>
@@ -425,6 +444,35 @@
                                     </ctrl:ToolCard.IconData>
                                 </ctrl:ToolCard>
 
+                                <!-- Watermark Remover -->
+                                <Border Background="#252525" CornerRadius="15" Width="150" Height="150" Margin="0,0,15,15" Cursor="Hand" Tag="WATERMARK_REMOVER" MouseDown="ToolCard_MouseDown">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
+                                    </Border.Effect>
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Opacity" Value="1.0"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Opacity" Value="0.8"/>
+                                                    <Setter Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="Black" BlurRadius="15" ShadowDepth="4" Opacity="0.5"/>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Border Width="50" Height="50" CornerRadius="25" Background="#FF2D55" Margin="0,0,0,10">
+                                            <Path Data="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" 
+                                                  Fill="White" Stretch="Uniform" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="Watermark Remover" Foreground="White" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" FontSize="14" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- More Tools (+) -->
                                 <ctrl:ToolCard Title="More Tools" 
                                                IconBackground="#333333" Margin="0,0,15,15" MouseDown="ToolCard_MouseDown" Tag="MORE_TOOLS">
@@ -502,7 +550,508 @@
                             <TextBlock Grid.Row="0" Text="Selected Files" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
                             <ListBox Grid.Row="1" x:Name="FilesList" VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="#1A1A1A" BorderThickness="0" Foreground="#CCCCCC" Padding="5"/>
                         </Grid>
+
+                        <!-- Audio Editor Grid (Replaces DropZone/Files when active) -->
+                        <Grid x:Name="AudioEditorGrid" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed" Background="#1E1E1E" Margin="0,0,0,10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>    <!-- Waveform -->
+                                <RowDefinition Height="Auto"/> <!-- Controls -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Waveform Area -->
+                            <Border Grid.Row="0" Background="#111111" CornerRadius="12" BorderBrush="#00E5FF" BorderThickness="1" Margin="0,0,0,15" ClipToBounds="True">
+                                <Grid x:Name="WaveformContainer" MouseLeftButtonDown="Waveform_MouseLeftButtonDown">
+                                    <!-- The Waveform Visual -->
+                                    <Polyline x:Name="WaveformLine" Stroke="#00E5FF" StrokeThickness="1" Points="" VerticalAlignment="Center" Stretch="Fill"/>
+             
+                                    <!-- Dimmed Overlay Logic -->
+                                    <!-- Left Dim (Before Start) -->
+                                    <Rectangle x:Name="DimLeft" Fill="#AA000000" HorizontalAlignment="Left" Width="0" Height="NaN" Visibility="Visible"/>
+                                    
+                                    <!-- Right Dim (After End) -->
+                                    <Rectangle x:Name="DimRight" Fill="#AA000000" HorizontalAlignment="Left" Width="0" Height="NaN" Visibility="Visible"/>
+
+                                    <!-- Start Marker (Cyan Line) -->
+                                    <Rectangle x:Name="StartMarker" Width="2" Fill="#00E5FF" HorizontalAlignment="Left" Visibility="Visible"/>
+                                    
+                                    <!-- End Marker (Pink Line) -->
+                                    <Rectangle x:Name="EndMarker" Width="2" Fill="#FF4081" HorizontalAlignment="Left" Visibility="Visible"/>
+             
+                                    <!-- Playback Cursor (Needle) -->
+                                    <Line x:Name="PlaybackCursor" X1="0" Y1="0" X2="0" Y2="2000" Stroke="#FF0055" StrokeThickness="2" Visibility="Visible"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Controls Row -->
+                        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center">
+                            <!-- Time Display -->
+                            <TextBlock x:Name="TimeDisplay" Text="Start: 00:00.000 | End: 00:00.000 | Duration: 00:00.000" 
+                                       Foreground="#00E5FF" FontFamily="Consolas" FontSize="16" FontWeight="Bold" 
+                                       HorizontalAlignment="Center" Margin="0,0,0,15"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <!-- Volume Control -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                                    <TextBlock Text="🔊" Foreground="White" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <Slider x:Name="VolumeSlider" Width="100" Minimum="0" Maximum="1" Value="1" TickFrequency="0.1" VerticalAlignment="Center" ValueChanged="VolumeSlider_ValueChanged"/>
+                                </StackPanel>
     
+                                <Button x:Name="SetStartBtn" Click="SetStart_Click" Margin="0,0,10,0" Width="130" Height="40" Cursor="Hand" BorderThickness="0" Background="Transparent">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" CornerRadius="15" BorderThickness="1" BorderBrush="#00B8D4">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#00838F" Offset="0"/>
+                                                    <GradientStop Color="#00E5FF" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="[ " Foreground="White" FontWeight="Bold" Margin="0,0,5,0"/>
+                                                <TextBlock Text="Set Start" Foreground="White" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                                <Setter TargetName="border" Property="Effect">
+                                                    <Setter.Value>
+                                                         <DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button x:Name="SetEndBtn" Click="SetEnd_Click" Margin="0,0,20,0" Width="130" Height="40" Cursor="Hand" BorderThickness="0" Background="Transparent">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" CornerRadius="15" BorderThickness="1" BorderBrush="#F50057">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#C2185B" Offset="0"/>
+                                                    <GradientStop Color="#FF4081" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="Set End" Foreground="White" FontWeight="Bold" Margin="0,0,5,0"/>
+                                                <TextBlock Text=" ]" Foreground="White" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                                <Setter TargetName="border" Property="Effect">
+                                                    <Setter.Value>
+                                                         <DropShadowEffect Color="#FF4081" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+        
+                            <Button x:Name="PlaySelectionBtn" Click="PlaySelection_Click" Margin="0,0,10,0" Width="160" Height="40" Cursor="Hand" BorderThickness="0" Background="Transparent">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" CornerRadius="15" BorderThickness="1" BorderBrush="#00C853">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#2E7D32" Offset="0"/>
+                                                    <GradientStop Color="#64DD17" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="▶" Foreground="White" FontWeight="Bold" Margin="0,0,8,0" FontSize="14"/>
+                                                <TextBlock Text="Play Selection" Foreground="White" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                                <Setter TargetName="border" Property="Effect">
+                                                    <Setter.Value>
+                                                         <DropShadowEffect Color="#64DD17" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                                <Button Content="💾 Save Selection" Click="SaveSelection_Click" Width="130" Background="#007ACC" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+        
+                                <Button Content="Cancel" Click="CloseAudioEditor_Click" Margin="20,0,0,0" Background="Transparent" Foreground="#FF5555" BorderThickness="0"/>
+                            </StackPanel>
+                        </StackPanel>
+                        </Grid>
+    
+                    </Grid>
+
+                    <!-- Watermark Remover View -->
+                    <Grid x:Name="WatermarkRemoverView" Visibility="Collapsed" Background="#050505">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Video Area -->
+                        <Grid Grid.Row="0">
+                            <ffme:MediaElement x:Name="WatermarkVideoPlayer" LoadedBehavior="Manual" UnloadedBehavior="Manual"
+                                               HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                               MediaOpened="MediaElement_MediaOpened"
+                                               MediaFailed="MediaElement_MediaFailed"/>
+                            <Image x:Name="SnapshotPreview" Visibility="Collapsed" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Canvas x:Name="DrawingCanvas" Background="Transparent" 
+                                    Panel.ZIndex="998"
+                                    IsHitTestVisible="False"
+                                    MouseLeftButtonDown="Canvas_MouseDown" 
+                                    MouseMove="Canvas_MouseMove" 
+                                    MouseLeftButtonUp="Canvas_MouseUp"
+                                    Cursor="Arrow">
+                                <Rectangle x:Name="SelectionRect" StrokeThickness="2" Visibility="Collapsed"/>
+                            </Canvas>
+                            <!-- Region overlay sits OUTSIDE DrawingCanvas so it stays clickable -->
+                            <ItemsControl x:Name="RegionsOverlay" IsHitTestVisible="True"
+                                          Panel.ZIndex="999"
+                                          Width="{Binding ElementName=WatermarkVideoPlayer, Path=ActualWidth}"
+                                          Height="{Binding ElementName=WatermarkVideoPlayer, Path=ActualHeight}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <!-- Region rectangle -->
+                                            <Rectangle Width="{Binding Width}" Height="{Binding Height}" Stroke="{Binding Stroke}" Fill="{Binding Fill}" StrokeThickness="2"
+                                                       Cursor="Hand" MouseLeftButtonDown="Region_MouseLeftButtonDown"/>
+                                            <!-- Time label at bottom -->
+                                            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4"
+                                                    Background="#AA000000" CornerRadius="3" Padding="5,1" IsHitTestVisible="False">
+                                                <TextBlock Text="{Binding TimeLabel}" Foreground="White" FontSize="9.5" FontFamily="Consolas"/>
+                                            </Border>
+                                            <!-- Close (X) button — visible only when selected -->
+                                            <Button Content="✕" Click="RegionClose_Click" Tag="{Binding}"
+                                                    Width="20" Height="20" FontSize="11" FontWeight="Bold" Padding="0" Cursor="Hand"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-10,-10,0"
+                                                    Foreground="White" BorderThickness="0"
+                                                    Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="xb" Width="20" Height="20" CornerRadius="10" Background="#E53935" Cursor="Hand">
+                                                            <TextBlock Text="✕" Foreground="White" FontSize="11" FontWeight="Bold"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="xb" Property="Background" Value="#FF1744"/>
+                                                                <Setter TargetName="xb" Property="Effect">
+                                                                    <Setter.Value>
+                                                                        <DropShadowEffect Color="#FF1744" BlurRadius="8" ShadowDepth="0" Opacity="0.7"/>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Loading Overlay -->
+                            <Grid x:Name="LoadingOverlay" Visibility="Collapsed" Background="#CC000000">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Viewbox Width="50" Height="50">
+                                        <Grid Width="20" Height="20" RenderTransformOrigin="0.5,0.5">
+                                            <Grid.RenderTransform>
+                                                <RotateTransform Angle="0"/>
+                                            </Grid.RenderTransform>
+                                            <Path Data="M 10 0 A 10 10 0 0 1 20 10" Stroke="#FF2D55" StrokeThickness="2" Stretch="None"/>
+                                            <Ellipse Width="20" Height="20" Stroke="#33FF2D55" StrokeThickness="2"/>
+                                            <Grid.Triggers>
+                                                <EventTrigger RoutedEvent="Loaded">
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)" From="0" To="360" Duration="0:0:1" RepeatBehavior="Forever"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </EventTrigger>
+                                            </Grid.Triggers>
+                                        </Grid>
+                                    </Viewbox>
+                                    <TextBlock Text="Loading Video..." Foreground="White" HorizontalAlignment="Center" Margin="0,15,0,0" FontSize="16" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+
+                        <Border x:Name="TimelineBorder" Grid.Row="1" Height="60" Margin="20,10,20,10" Background="Transparent" BorderThickness="0"
+                                SizeChanged="TimelineBorder_SizeChanged">
+                            <Grid>
+                                <ListBox x:Name="ThumbnailsTimeline" Height="60" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.CanContentScroll="True"
+                                         SelectionChanged="ThumbnailsTimeline_SelectionChanged">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Margin" Value="0"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="96" Height="54" CornerRadius="5" Margin="2" Background="#1E1E1E">
+                                                <Border.Effect>
+                                                    <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.35" Color="Black"/>
+                                                </Border.Effect>
+                                                <Image Source="{Binding Image}" Stretch="UniformToFill" Opacity="0">
+                                                    <Image.Triggers>
+                                                        <EventTrigger RoutedEvent="Loaded">
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.35"/>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </EventTrigger>
+                                                    </Image.Triggers>
+                                                </Image>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <Canvas x:Name="TimelineRegionCanvas" Background="Transparent" IsHitTestVisible="False"/>
+                                <Canvas x:Name="TimelineOverlay" Background="Transparent"
+                                        MouseLeftButtonDown="TimelineOverlay_MouseLeftButtonDown"
+                                        MouseMove="TimelineOverlay_MouseMove"
+                                        MouseLeftButtonUp="TimelineOverlay_MouseLeftButtonUp">
+                                    <Rectangle x:Name="PlayheadLine" Width="2" Height="60" Fill="#FF3B30"/>
+                                </Canvas>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="2" Margin="0,0,0,60" Height="80" Width="Auto" MinWidth="450" Padding="30,0" CornerRadius="25" VerticalAlignment="Bottom" HorizontalAlignment="Center" BorderBrush="#333333" BorderThickness="1">
+                            <Border.Background>
+                                <SolidColorBrush Color="#1E1E1E" Opacity="0.90"/>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="Black" Opacity="0.6"/>
+                            </Border.Effect>
+                            
+                            <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <!-- Row 1: Main Action Buttons -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <Button Content="📂 Open" Click="OpenVideo_Click" Width="90" Height="38" Margin="0,0,10,0" Background="#333333" Foreground="White" BorderThickness="0" Cursor="Hand" FontSize="12">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#444444"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <!-- Separator -->
+                                    <Rectangle Width="1" Height="28" Fill="#444444" Margin="0,0,10,0"/>
+
+                                    <!-- In / Out compact group -->
+                                    <Button Content="[ In" Click="WmSetIn_Click" Width="52" Height="38" Margin="0,0,4,0" Background="#00838F" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#00ACC1"/>
+                                                        <Setter TargetName="b" Property="Effect">
+                                                            <Setter.Value>
+                                                                <DropShadowEffect Color="#00E5FF" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Content="Out ]" Click="WmSetOut_Click" Width="52" Height="38" Margin="0,0,10,0" Background="#C2185B" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#E91E63"/>
+                                                        <Setter TargetName="b" Property="Effect">
+                                                            <Setter.Value>
+                                                                <DropShadowEffect Color="#FF4081" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <!-- Separator -->
+                                    <Rectangle Width="1" Height="28" Fill="#444444" Margin="0,0,10,0"/>
+
+                                    <Button x:Name="btnSelectRegion" Content="✂ Select" Click="SelectRegion_Click" Width="85" Height="38" Margin="0,0,6,0" Background="#8A7CFF" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#A190FF"/>
+                                                        <Setter TargetName="b" Property="Effect">
+                                                            <Setter.Value>
+                                                                <DropShadowEffect Color="#8A7CFF" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Content="+ Add" Click="AddRegion_Click" Width="70" Height="38" Margin="0,0,10,0" Background="#00E5FF" Foreground="#0B1C23" BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#29F3FF"/>
+                                                        <Setter TargetName="b" Property="Effect">
+                                                            <Setter.Value>
+                                                                <DropShadowEffect Color="#00E5FF" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <!-- Separator -->
+                                    <Rectangle Width="1" Height="28" Fill="#444444" Margin="0,0,10,0"/>
+
+                                    <Button Content="✨ Remove" Click="RemoveWatermark_Click" Width="100" Height="38" Margin="0,0,10,0" Background="#FF2D55" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#FF4065"/>
+                                                        <Setter TargetName="b" Property="Effect">
+                                                            <Setter.Value>
+                                                                <DropShadowEffect Color="#FF2D55" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <!-- Separator -->
+                                    <Rectangle Width="1" Height="28" Fill="#444444" Margin="0,0,10,0"/>
+
+                                    <Button Content="⏮" Click="StepBackward_Click" Width="38" Height="38" Margin="0,0,4,0" Background="#555555" Foreground="White" BorderThickness="0" Cursor="Hand" FontSize="14">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#666666"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Content="⏭" Click="StepForward_Click" Width="38" Height="38" Margin="0,0,10,0" Background="#555555" Foreground="White" BorderThickness="0" Cursor="Hand" FontSize="14">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#666666"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <Button Content="✕ Cancel" Click="CancelWatermark_Click" Width="80" Height="38" Background="Transparent" Foreground="#888888" BorderThickness="0" Cursor="Hand" FontSize="11">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" CornerRadius="10" Background="Transparent">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                        <Setter TargetName="b" Property="Background" Value="#333333"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Row 2: Timestamp indicators -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Border Background="#CC000000" CornerRadius="5" Padding="8,2" Margin="0,0,8,0">
+                                        <TextBlock x:Name="WmInPointLabel" Text="IN  00:00:00.0" Foreground="#00E5FF" FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#CC000000" CornerRadius="5" Padding="8,2">
+                                        <TextBlock x:Name="WmOutPointLabel" Text="OUT  END" Foreground="#FF4081" FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Grid>
 
@@ -697,7 +1246,6 @@
                              <ProgressBar x:Name="ConversionProgress" Height="4" Background="#333333" BorderThickness="0" Foreground="{StaticResource AccentColor}"/>
                              <Grid Margin="0,5,0,0">
                                 <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
-                                <TextBlock x:Name="VersionText" Text="v0.3.5" Foreground="#444444" HorizontalAlignment="Right" FontSize="11"/>
                              </Grid>
                         </StackPanel>
                     </Grid>
@@ -712,6 +1260,93 @@
                     <TextBlock Text="🎉" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                     <TextBlock Text="All Tasks Finished!" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                     <Button Content="Great!" Click="CloseOverlay_Click" Width="150" Height="40" FontSize="16"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Audio Choice Overlay -->
+        <Grid x:Name="AudioChoiceOverlay" Background="#CC000000" Visibility="Collapsed">
+            <Border Background="#252525" CornerRadius="16" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="30" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Width="500">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Audio Detected" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                    <TextBlock Text="What would you like to do with this file?" FontSize="14" Foreground="#AAAAAA" HorizontalAlignment="Center" Margin="0,0,0,25"/>
+                    
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Option A: Trim / Cut -->
+                        <Button Grid.Column="0" Click="TrimChoice_Click" Height="140" Cursor="Hand" BorderThickness="0" Background="Transparent">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="TrimBorder" CornerRadius="12" Background="#1E1E1E" BorderBrush="#00E5FF" BorderThickness="1">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="✂" FontSize="40" Foreground="#00E5FF" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                            <TextBlock Text="Trim / Cut" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Open Waveform Editor" FontSize="11" Foreground="#888888" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="TrimBorder" Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity="0.1">
+                                                        <GradientStop Color="#00E5FF" Offset="0"/>
+                                                        <GradientStop Color="Transparent" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter TargetName="TrimBorder" Property="Effect">
+                                                 <Setter.Value>
+                                                     <DropShadowEffect Color="#00E5FF" BlurRadius="15" ShadowDepth="0" Opacity="0.4"/>
+                                                 </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        
+                        <!-- Option B: Convert Format -->
+                        <Button Grid.Column="2" Click="ConvertChoice_Click" Height="140" Cursor="Hand" BorderThickness="0" Background="Transparent">
+                             <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="ConvertBorder" CornerRadius="12" Background="#1E1E1E" BorderBrush="#D500F9" BorderThickness="1">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="🔄" FontSize="40" Foreground="#D500F9" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                            <TextBlock Text="Convert" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Change Format (MP3/WAV)" FontSize="11" Foreground="#888888" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ConvertBorder" Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity="0.1">
+                                                        <GradientStop Color="#D500F9" Offset="0"/>
+                                                        <GradientStop Color="#FF6D00" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter TargetName="ConvertBorder" Property="Effect">
+                                                 <Setter.Value>
+                                                     <DropShadowEffect Color="#D500F9" BlurRadius="15" ShadowDepth="0" Opacity="0.4"/>
+                                                 </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                    
+                    <Button Content="Cancel" Click="CancelChoice_Click" Background="Transparent" Foreground="#666666" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Center" FontSize="13"/>
                 </StackPanel>
             </Border>
         </Grid>
