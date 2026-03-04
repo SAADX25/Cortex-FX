@@ -1,0 +1,431 @@
+<UserControl x:Class="CortexFX.Views.VideoCompressorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="850"
+             Background="#0A0A0A">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Accent brushes -->
+        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#6C63FF" Offset="0"/>
+            <GradientStop Color="#3F51B5" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="DangerGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E53935" Offset="0"/>
+            <GradientStop Color="#C62828" Offset="1"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="CardBg" Color="#1A1A1A"/>
+        <SolidColorBrush x:Key="SubtleBorder" Color="#2A2A2A"/>
+        <SolidColorBrush x:Key="TextDim" Color="#888888"/>
+
+        <!-- Preset Radio Button Style -->
+        <Style x:Key="PresetRadioStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="PresetBorder" CornerRadius="12" Background="#1E1E1E"
+                                BorderBrush="#333333" BorderThickness="1.5" Padding="18,12" MinWidth="115">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock x:Name="PresetIcon" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" 
+                                           FontSize="22" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                <TextBlock x:Name="PresetLabel" Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" 
+                                           FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#CCCCCC"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="PresetBorder" Property="BorderBrush" Value="#6C63FF"/>
+                                <Setter TargetName="PresetBorder" Property="Background" Value="#1A1A2E"/>
+                                <Setter TargetName="PresetBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#6C63FF" BlurRadius="12" ShadowDepth="0" Opacity="0.35"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="PresetLabel" Property="Foreground" Value="#6C63FF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PresetBorder" Property="Background" Value="#222222"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Slim slider thumb -->
+        <Style x:Key="SlimSlider" TargetType="Slider">
+            <Setter Property="Foreground" Value="#6C63FF"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- Header -->
+            <RowDefinition Height="*"/>     <!-- Content -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══ Header Bar ═══ -->
+        <Grid Grid.Row="0" Margin="20,15,20,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BackButton" Grid.Column="0" Click="BackButton_Click"
+                    Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="0" Width="34" Height="34">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bb" CornerRadius="17" Background="Transparent">
+                            <TextBlock Text="🡠" FontSize="20" Foreground="#6C63FF"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,2,2"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bb" Property="Background" Value="#22FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="Smart Video Compressor" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                <Border Background="#6C63FF" CornerRadius="8" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="BETA" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- ═══ Main Content ═══ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,5,0">
+            <Grid Margin="20,20,15,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- Drop Zone -->
+                    <RowDefinition Height="Auto"/>  <!-- File Info Card -->
+                    <RowDefinition Height="Auto"/>  <!-- Presets -->
+                    <RowDefinition Height="Auto"/>  <!-- Quality Slider -->
+                    <RowDefinition Height="Auto"/>  <!-- Resolution Picker -->
+                    <RowDefinition Height="Auto"/>  <!-- Output Path -->
+                    <RowDefinition Height="Auto"/>  <!-- Compress Button -->
+                    <RowDefinition Height="Auto"/>  <!-- Progress -->
+                    <RowDefinition Height="Auto"/>  <!-- Result Card -->
+                </Grid.RowDefinitions>
+
+                <!-- ── Drop Zone ── -->
+                <Border x:Name="DropZoneBorder" Grid.Row="0" Height="170" CornerRadius="16"
+                        Background="#0CFFFFFF" BorderBrush="#6C63FF" BorderThickness="2"
+                        AllowDrop="True" Drop="DropZone_Drop" DragEnter="DropZone_DragEnter" DragLeave="DropZone_DragLeave"
+                        MouseLeftButtonUp="DropZone_Click" Cursor="Hand" Margin="0,0,0,20">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.15" Color="#6C63FF"/>
+                    </Border.Effect>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock Text="🎬" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Drop a Video File Here" FontSize="16" FontWeight="SemiBold" Foreground="#AAAAAA" 
+                                   HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                        <TextBlock Text="MP4, MOV, AVI, MKV, WEBM" FontSize="11" Foreground="#666666"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── File Info Card ── -->
+                <Border x:Name="FileInfoCard" Grid.Row="1" Visibility="Collapsed"
+                        Background="{StaticResource CardBg}" CornerRadius="14" Padding="20" Margin="0,0,0,20"
+                        BorderBrush="{StaticResource SubtleBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Thumbnail -->
+                        <Border Grid.Column="0" Width="100" Height="60" CornerRadius="8" ClipToBounds="True" 
+                                Background="#111111" Margin="0,0,16,0">
+                            <Image x:Name="VideoThumbnail" Stretch="UniformToFill"/>
+                        </Border>
+
+                        <!-- Info -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="FileNameText" Text="video.mp4" FontSize="15" FontWeight="SemiBold" 
+                                       Foreground="White" TextTrimming="CharacterEllipsis"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="FileSizeText" Text="0 MB" Foreground="#6C63FF" FontSize="12" FontWeight="SemiBold"/>
+                                <TextBlock Text="  •  " Foreground="#444444" FontSize="12"/>
+                                <TextBlock x:Name="FileResolutionText" Text="1920×1080" Foreground="{StaticResource TextDim}" FontSize="12"/>
+                                <TextBlock Text="  •  " Foreground="#444444" FontSize="12"/>
+                                <TextBlock x:Name="FileDurationText" Text="00:00" Foreground="{StaticResource TextDim}" FontSize="12"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Remove button -->
+                        <Button Grid.Column="2" Content="✕" Click="RemoveFile_Click" 
+                                Background="Transparent" Foreground="#FF5555" BorderThickness="0"
+                                FontSize="16" FontWeight="Bold" Cursor="Hand" Padding="8,4" VerticalAlignment="Top">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="xb" CornerRadius="12" Background="Transparent" Padding="8,4">
+                                        <TextBlock Text="✕" Foreground="#FF5555" FontSize="16" FontWeight="Bold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="xb" Property="Background" Value="#33FF5555"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- ── Quality Presets ── -->
+                <StackPanel x:Name="PresetsPanel" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,20">
+                    <TextBlock Text="C O M P R E S S I O N   P R E S E T" FontSize="11" FontWeight="Bold" Foreground="#666666" 
+                               Margin="0,0,0,10"/>
+                    <WrapPanel>
+                        <RadioButton x:Name="PresetSocial" Style="{StaticResource PresetRadioStyle}" 
+                                     Content="📱" Tag="Social Media" GroupName="Preset" IsChecked="True"
+                                     Checked="Preset_Checked"/>
+                        <RadioButton x:Name="PresetEmail" Style="{StaticResource PresetRadioStyle}" 
+                                     Content="📧" Tag="Email Ready" GroupName="Preset"
+                                     Checked="Preset_Checked"/>
+                        <RadioButton x:Name="PresetBalanced" Style="{StaticResource PresetRadioStyle}" 
+                                     Content="⚖️" Tag="Balanced" GroupName="Preset"
+                                     Checked="Preset_Checked"/>
+                        <RadioButton x:Name="PresetHighQ" Style="{StaticResource PresetRadioStyle}" 
+                                     Content="💎" Tag="High Quality" GroupName="Preset"
+                                     Checked="Preset_Checked"/>
+                        <RadioButton x:Name="PresetCustom" Style="{StaticResource PresetRadioStyle}" 
+                                     Content="🎛️" Tag="Custom" GroupName="Preset"
+                                     Checked="Preset_Checked"/>
+                    </WrapPanel>
+                </StackPanel>
+
+                <!-- ── Quality Slider (visible in Custom mode or always as read-only indicator) ── -->
+                <Border x:Name="QualityPanel" Grid.Row="3" Visibility="Collapsed"
+                        Background="{StaticResource CardBg}" CornerRadius="14" Padding="20" Margin="0,0,0,20"
+                        BorderBrush="{StaticResource SubtleBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="Quality (CRF)" FontSize="13" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <TextBlock x:Name="CrfValueText" Text="23" FontSize="13" FontWeight="Bold" 
+                                       Foreground="#6C63FF" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Slider x:Name="CrfSlider" Minimum="18" Maximum="40" Value="23" 
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                ValueChanged="CrfSlider_ValueChanged"/>
+                        <Grid Margin="0,4,0,0">
+                            <TextBlock Text="← Higher Quality" FontSize="10" Foreground="#555555"/>
+                            <TextBlock Text="Smaller File →" FontSize="10" Foreground="#555555" HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <!-- Resolution -->
+                        <TextBlock Text="OUTPUT RESOLUTION" FontSize="11" FontWeight="Bold" Foreground="#666666" 
+                                   Margin="0,20,0,10"/>
+                        <WrapPanel>
+                            <RadioButton x:Name="ResOriginal" Content="Original" GroupName="Resolution" IsChecked="True"
+                                         Foreground="White" Margin="0,0,15,0" Cursor="Hand"/>
+                            <RadioButton x:Name="Res1080" Content="1080p" GroupName="Resolution"
+                                         Foreground="White" Margin="0,0,15,0" Cursor="Hand"/>
+                            <RadioButton x:Name="Res720" Content="720p" GroupName="Resolution"
+                                         Foreground="White" Margin="0,0,15,0" Cursor="Hand"/>
+                            <RadioButton x:Name="Res480" Content="480p" GroupName="Resolution"
+                                         Foreground="White" Margin="0,0,15,0" Cursor="Hand"/>
+                        </WrapPanel>
+
+                        <!-- Codec -->
+                        <TextBlock Text="CODEC" FontSize="11" FontWeight="Bold" Foreground="#666666" 
+                                   Margin="0,20,0,10"/>
+                        <WrapPanel>
+                            <RadioButton x:Name="CodecH264" Content="H.264 (Compatible)" GroupName="Codec" IsChecked="True"
+                                         Foreground="White" Margin="0,0,15,0" Cursor="Hand"/>
+                            <RadioButton x:Name="CodecH265" Content="H.265 (Smaller)" GroupName="Codec"
+                                         Foreground="White" Margin="0,0,15,0" Cursor="Hand"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Output Path ── -->
+                <Border x:Name="OutputPanel" Grid.Row="5" Visibility="Collapsed"
+                        Background="{StaticResource CardBg}" CornerRadius="14" Padding="16" Margin="0,0,0,20"
+                        BorderBrush="{StaticResource SubtleBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="OutputPathText" Text="Output: Same folder as input" 
+                                   Foreground="#999999" FontSize="13" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Button Grid.Column="1" Content="📁 Change" Click="ChangeOutput_Click"
+                                Background="#252525" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                Padding="12,6" FontSize="12">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="ob" CornerRadius="8" Background="#252525" Padding="12,6">
+                                        <TextBlock Text="📁 Change" FontSize="12" Foreground="White"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ob" Property="Background" Value="#333333"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- ── Compress Button ── -->
+                <Button x:Name="CompressButton" Grid.Row="6" Visibility="Collapsed"
+                        Click="CompressButton_Click" Height="52" Cursor="Hand" Margin="0,0,0,20"
+                        BorderThickness="0" Background="Transparent">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="CompBorder" CornerRadius="14" Background="{StaticResource AccentGradient}">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#6C63FF" BlurRadius="18" ShadowDepth="0" Opacity="0.35"/>
+                                </Border.Effect>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="⚡" FontSize="18" Margin="0,0,10,0"/>
+                                    <TextBlock x:Name="CompressButtonText" Text="COMPRESS VIDEO" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="CompBorder" Property="Opacity" Value="0.9"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="CompBorder" Property="Opacity" Value="0.4"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <!-- ── Progress ── -->
+                <Border x:Name="ProgressPanel" Grid.Row="7" Visibility="Collapsed"
+                        Background="{StaticResource CardBg}" CornerRadius="14" Padding="20" Margin="0,0,0,20"
+                        BorderBrush="{StaticResource SubtleBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock x:Name="ProgressStatusText" Text="Compressing..." FontSize="14" 
+                                       FontWeight="SemiBold" Foreground="White"/>
+                            <TextBlock x:Name="ProgressPercentText" Text="0%" FontSize="14" FontWeight="Bold" 
+                                       Foreground="#6C63FF" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <ProgressBar x:Name="CompressionProgress" Height="6" Background="#252525" 
+                                     BorderThickness="0" Foreground="#6C63FF" Value="0"/>
+                        <TextBlock x:Name="ProgressDetailText" Text="" FontSize="11" Foreground="#666666" Margin="0,8,0,0"/>
+                        
+                        <Button x:Name="CancelButton" Content="Cancel" Click="CancelCompress_Click"
+                                Background="Transparent" Foreground="#FF5555" BorderThickness="0"
+                                Cursor="Hand" HorizontalAlignment="Left" Margin="0,10,0,0" Padding="0" FontSize="12">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <TextBlock x:Name="ct" Text="Cancel" Foreground="#FF5555" FontSize="12" Cursor="Hand"/>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ct" Property="TextDecorations" Value="Underline"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Result Card ── -->
+                <Border x:Name="ResultCard" Grid.Row="8" Visibility="Collapsed"
+                        CornerRadius="14" Padding="24" Margin="0,0,0,20"
+                        BorderThickness="1.5">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#0D1B0D"/>
+                            <Setter Property="BorderBrush" Value="#2E7D32"/>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <TextBlock x:Name="ResultTitle" Text="✅ Compression Complete!" FontSize="18" FontWeight="Bold" Foreground="#66BB6A"/>
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Before -->
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <TextBlock Text="BEFORE" FontSize="10" FontWeight="Bold" Foreground="#666666" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="ResultBeforeSize" Text="120.5 MB" FontSize="22" FontWeight="Bold" 
+                                           Foreground="#FF5555" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <!-- Arrow -->
+                            <TextBlock Grid.Column="1" Text="→" FontSize="28" Foreground="#444444" 
+                                       VerticalAlignment="Center" Margin="20,8,20,0"/>
+
+                            <!-- After -->
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <TextBlock Text="AFTER" FontSize="10" FontWeight="Bold" Foreground="#666666" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="ResultAfterSize" Text="34.2 MB" FontSize="22" FontWeight="Bold" 
+                                           Foreground="#66BB6A" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Background="#1A3A1A" CornerRadius="10" Padding="12,8" Margin="0,16,0,0" HorizontalAlignment="Center">
+                            <TextBlock x:Name="ResultSavingsText" Text="Saved 72% — 86.3 MB smaller!" 
+                                       FontSize="14" FontWeight="Bold" Foreground="#A5D6A7"/>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
+                            <Button Content="📂 Open Folder" Click="OpenOutputFolder_Click" 
+                                    Background="#252525" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    Padding="16,8" Margin="0,0,10,0" FontSize="13">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="ofb" CornerRadius="10" Background="#252525" Padding="16,8">
+                                            <TextBlock Text="📂 Open Folder" FontSize="13" Foreground="White"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ofb" Property="Background" Value="#333333"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button Content="🔄 Compress Another" Click="CompressAnother_Click" 
+                                    Background="Transparent" Foreground="#6C63FF" BorderThickness="0" Cursor="Hand"
+                                    Padding="16,8" FontSize="13">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="cab" CornerRadius="10" Background="Transparent" Padding="16,8" BorderBrush="#6C63FF" BorderThickness="1">
+                                            <TextBlock Text="🔄 Compress Another" FontSize="13" Foreground="#6C63FF"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="cab" Property="Background" Value="#11FFFFFF"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

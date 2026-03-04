@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "NORMqWYEwtk=",
+  "dgSpecHash": "dCBqRUQnPiU=",
   "success": true,
   "projectFilePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
   "expectedPackageFiles": [
@@ -8,9 +8,6 @@
     "C:\\Users\\saadr\\.nuget\\packages\\ffmpeg.autogen\\4.4.0\\ffmpeg.autogen.4.4.0.nupkg.sha512",
     "C:\\Users\\saadr\\.nuget\\packages\\magick.net-q8-anycpu\\14.10.2\\magick.net-q8-anycpu.14.10.2.nupkg.sha512",
     "C:\\Users\\saadr\\.nuget\\packages\\magick.net.core\\14.10.2\\magick.net.core.14.10.2.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\microsoft.netcore.platforms\\3.1.0\\microsoft.netcore.platforms.3.1.0.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\microsoft.win32.registry\\4.7.0\\microsoft.win32.registry.4.7.0.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.3\\microsoft.win32.systemevents.10.0.3.nupkg.sha512",
     "C:\\Users\\saadr\\.nuget\\packages\\naudio\\2.2.1\\naudio.2.2.1.nupkg.sha512",
     "C:\\Users\\saadr\\.nuget\\packages\\naudio.asio\\2.2.1\\naudio.asio.2.2.1.nupkg.sha512",
     "C:\\Users\\saadr\\.nuget\\packages\\naudio.core\\2.2.1\\naudio.core.2.2.1.nupkg.sha512",
@@ -27,13 +24,452 @@
     "C:\\Users\\saadr\\.nuget\\packages\\pdfiumviewer\\2.13.0\\pdfiumviewer.2.13.0.nupkg.sha512",
     "C:\\Users\\saadr\\.nuget\\packages\\pdfiumviewer.native.x86_64.v8-xfa\\2018.4.8.256\\pdfiumviewer.native.x86_64.v8-xfa.2018.4.8.256.nupkg.sha512",
     "C:\\Users\\saadr\\.nuget\\packages\\stdole\\7.0.3300\\stdole.7.0.3300.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\system.drawing.common\\10.0.3\\system.drawing.common.10.0.3.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\system.security.accesscontrol\\4.7.0\\system.security.accesscontrol.4.7.0.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\system.security.principal.windows\\4.7.0\\system.security.principal.windows.4.7.0.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.23\\microsoft.netcore.app.ref.8.0.23.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.23\\microsoft.windowsdesktop.app.ref.8.0.23.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.23\\microsoft.aspnetcore.app.ref.8.0.23.nupkg.sha512",
-    "C:\\Users\\saadr\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.23\\microsoft.netcore.app.host.win-x64.8.0.23.nupkg.sha512"
+    "C:\\Users\\saadr\\.nuget\\packages\\system.drawing.common\\10.0.3\\system.drawing.common.10.0.3.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1510",
+      "level": "Warning",
+      "message": "PackageReference System.Drawing.Common will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary.",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "System.Drawing.Common",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-273h-m46v-96q4",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-2gq3-ww97-wfjm",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-3j4x-rwrx-xxj9",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-3q5f-gmjc-38r8",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-42p5-62qq-mmh7",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-543g-8grm-9cw6",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6j5f-24fw-pqp4",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-72hf-fj62-w6j4",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-7355-pwx2-pm84",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-782x-jh29-9mf7",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-8jvj-p28h-9gm7",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-96pc-27rx-pr36",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-fwqw-2x5x-w566",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g2pr-qxjg-7r2w",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gm37-qx7w-p258",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-gq5v-qf8q-fp77",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gwr3-x37h-h84v",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gxcx-qjqp-8vjw",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-jv4p-gjwq-9r2j",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-p33r-fqw2-rqmm",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-p863-5fgm-rgq4",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-pqgj-2p96-rx85",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-qpgx-jfcq-r59f",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-r99p-5442-q2x2",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rw6c-xp26-225v",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-v7g2-m8c5-mf84",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-v994-63cg-9wj3",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-vhqj-f5cj-9x8h",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-vpxv-r9pg-7gpr",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-w8mw-frc6-r7m8",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-wfx3-6g53-9fgc",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-wg3g-gvx5-2pmv",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-wgxp-q8xq-wpp9",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-xgm3-v4r9-wfgm",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1901",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-xpg8-7m6m-jf56",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-xwc6-v6g8-pw2h",
+      "projectPath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
+      "libraryId": "Magick.NET-Q8-AnyCPU",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    }
+  ]
 }
