@@ -177,6 +177,61 @@
                         </StackPanel>
                     </Border>
                 </Grid>
+
+                <!-- Processing Overlay (progress bar for watermark removal) -->
+                <Grid x:Name="ProcessingOverlay" Visibility="Collapsed" Background="#EE0A0A0A" Panel.ZIndex="1100">
+                    <Border CornerRadius="16" Background="#1A1A1A" Padding="36,28" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            BorderBrush="#2A2A2A" BorderThickness="1" MinWidth="340">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.6" Color="Black"/>
+                        </Border.Effect>
+                        <StackPanel HorizontalAlignment="Stretch">
+                            <!-- Spinner -->
+                            <Viewbox Width="40" Height="40" HorizontalAlignment="Center">
+                                <Grid Width="20" Height="20" RenderTransformOrigin="0.5,0.5">
+                                    <Grid.RenderTransform>
+                                        <RotateTransform Angle="0"/>
+                                    </Grid.RenderTransform>
+                                    <Ellipse Width="20" Height="20" Stroke="#22FF2D55" StrokeThickness="2.5"/>
+                                    <Path Data="M 10 0 A 10 10 0 0 1 20 10" Stroke="#FF2D55" StrokeThickness="2.5" Stretch="None"/>
+                                    <Grid.Triggers>
+                                        <EventTrigger RoutedEvent="Loaded">
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                     From="0" To="360" Duration="0:0:0.8" RepeatBehavior="Forever"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
+                                    </Grid.Triggers>
+                                </Grid>
+                            </Viewbox>
+
+                            <!-- Status text -->
+                            <TextBlock x:Name="ProcessingStatusText" Text="Removing watermark..."
+                                       Foreground="#CCCCCC" HorizontalAlignment="Center"
+                                       Margin="0,14,0,0" FontSize="14" FontWeight="SemiBold"/>
+
+                            <!-- Percentage text -->
+                            <TextBlock x:Name="ProcessingPercentText" Text="0 %"
+                                       Foreground="#FF2D55" HorizontalAlignment="Center"
+                                       Margin="0,8,0,0" FontSize="22" FontWeight="Bold" FontFamily="Consolas"/>
+
+                            <!-- Progress bar track -->
+                            <Border CornerRadius="5" Background="#222222" Height="10" Margin="0,14,0,0" ClipToBounds="True">
+                                <Border x:Name="ProcessingProgressBar" CornerRadius="5" Height="10"
+                                        HorizontalAlignment="Left" Width="0">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#FF2D55" Offset="0"/>
+                                            <GradientStop Color="#FF6B81" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
         </Border>
 
@@ -192,7 +247,7 @@
                     SizeChanged="TimelineBorder_SizeChanged">
                 <Grid>
                     <ListBox x:Name="ThumbnailsTimeline" Height="60" Background="Transparent" BorderThickness="0"
-                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
                              VirtualizingPanel.IsVirtualizing="True"
                              VirtualizingPanel.VirtualizationMode="Recycling"
@@ -336,19 +391,35 @@
                             Background="{StaticResource AccentGradientRed}" Style="{StaticResource PillButton}" FontSize="13">
                     </Button>
 
-                    <!-- Separator -->
-                    <Border Width="1" Height="24" Background="#333333" Margin="4,0,12,0" VerticalAlignment="Center"/>
-
-                    <!-- Frame stepping -->
-                    <Button Content="⏮" Click="StepBackward_Click" Width="36" Height="36" Margin="0,0,4,0"
-                            Background="#2A2A2A" Style="{StaticResource PillButton}" FontSize="13" FontWeight="Normal"/>
-                    <Button Content="⏭" Click="StepForward_Click" Width="36" Height="36" Margin="0,0,8,0"
-                            Background="#2A2A2A" Style="{StaticResource PillButton}" FontSize="13" FontWeight="Normal"/>
-
-                    <!-- Cancel -->
-                    <Button Content="✕ Close" Click="CancelWatermark_Click" Height="36" Padding="12,0"
-                            Style="{StaticResource PillButton}" FontSize="11" FontWeight="Normal"
-                            Background="Transparent" Foreground="#777777"/>
+                    <!-- Close -->
+                    <Button Click="CancelWatermark_Click" Height="36" Padding="14,0"
+                            FontSize="12" FontWeight="SemiBold" Cursor="Hand"
+                            Foreground="#FF4060" Background="Transparent">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="closePill" CornerRadius="10" Padding="14,0"
+                                        Background="#1A1A1A" BorderBrush="#44FF2D55" BorderThickness="1.2">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="✕" Foreground="#FF4060" FontSize="11" FontWeight="Bold"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Close" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="closePill" Property="Background" Value="#2A1520"/>
+                                        <Setter TargetName="closePill" Property="BorderBrush" Value="#88FF2D55"/>
+                                        <Setter TargetName="closePill" Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect Color="#FF2D55" BlurRadius="10" ShadowDepth="0" Opacity="0.25"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </StackPanel>
 
                 <!-- ── Row 1: Timestamp Display ── -->

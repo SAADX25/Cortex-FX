@@ -369,6 +369,344 @@
           "buildTransitive/net8.0/_._": {}
         }
       }
+    },
+    "net10.0-windows7.0/win-x64": {
+      "FFME.Windows/4.4.350": {
+        "type": "package",
+        "dependencies": {
+          "FFmpeg.AutoGen": "4.4.0"
+        },
+        "compile": {
+          "lib/net5.0-windows7.0/ffme.win.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0-windows7.0/ffme.win.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.WindowsDesktop.App"
+        ]
+      },
+      "FFmpeg.AutoGen/4.4.0": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/FFmpeg.AutoGen.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/FFmpeg.AutoGen.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Magick.NET-Q8-AnyCPU/14.10.2": {
+        "type": "package",
+        "dependencies": {
+          "Magick.NET.Core": "14.10.2"
+        },
+        "compile": {
+          "lib/net8.0/Magick.NET-Q8-AnyCPU.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Magick.NET-Q8-AnyCPU.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/win-x64/native/Magick.Native-Q8-x64.dll": {}
+        },
+        "build": {
+          "buildTransitive/netstandard20/Magick.NET-Q8-AnyCPU.targets": {}
+        }
+      },
+      "Magick.NET.Core/14.10.2": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/Magick.NET.Core.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Magick.NET.Core.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NAudio/2.2.1": {
+        "type": "package",
+        "dependencies": {
+          "NAudio.Asio": "2.2.1",
+          "NAudio.Core": "2.2.1",
+          "NAudio.Midi": "2.2.1",
+          "NAudio.Wasapi": "2.2.1",
+          "NAudio.WinForms": "2.2.1",
+          "NAudio.WinMM": "2.2.1"
+        },
+        "compile": {
+          "lib/net6.0-windows7.0/NAudio.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/NAudio.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NAudio.Asio/2.2.1": {
+        "type": "package",
+        "dependencies": {
+          "NAudio.Core": "2.2.1"
+        },
+        "compile": {
+          "lib/netstandard2.0/NAudio.Asio.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/NAudio.Asio.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NAudio.Core/2.2.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/NAudio.Core.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/NAudio.Core.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NAudio.Midi/2.2.1": {
+        "type": "package",
+        "dependencies": {
+          "NAudio.Core": "2.2.1"
+        },
+        "compile": {
+          "lib/netstandard2.0/NAudio.Midi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/NAudio.Midi.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NAudio.Wasapi/2.2.1": {
+        "type": "package",
+        "dependencies": {
+          "NAudio.Core": "2.2.1"
+        },
+        "compile": {
+          "lib/netstandard2.0/NAudio.Wasapi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/NAudio.Wasapi.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NAudio.WinForms/2.2.1": {
+        "type": "package",
+        "dependencies": {
+          "NAudio.WinMM": "2.2.1"
+        },
+        "compile": {
+          "lib/netcoreapp3.1/NAudio.WinForms.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netcoreapp3.1/NAudio.WinForms.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.WindowsDesktop.App.WindowsForms"
+        ]
+      },
+      "NAudio.WinMM/2.2.1": {
+        "type": "package",
+        "dependencies": {
+          "NAudio.Core": "2.2.1"
+        },
+        "compile": {
+          "lib/netstandard2.0/NAudio.WinMM.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/NAudio.WinMM.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NetOfficeFw.Core/1.9.7": {
+        "type": "package",
+        "compile": {
+          "lib/net462/NetOffice.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net462/NetOffice.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NetOfficeFw.Excel/1.9.7": {
+        "type": "package",
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7",
+          "NetOfficeFw.VBIDE": "1.9.7"
+        },
+        "compile": {
+          "lib/net462/ExcelApi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net462/ExcelApi.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NetOfficeFw.Office/1.9.7": {
+        "type": "package",
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "stdole": "7.0.3300"
+        },
+        "compile": {
+          "lib/net462/OfficeApi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net462/OfficeApi.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NetOfficeFw.PowerPoint/1.9.7": {
+        "type": "package",
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7",
+          "NetOfficeFw.VBIDE": "1.9.7",
+          "stdole": "7.0.3300"
+        },
+        "compile": {
+          "lib/net462/PowerPointApi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net462/PowerPointApi.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NetOfficeFw.VBIDE/1.9.7": {
+        "type": "package",
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7"
+        },
+        "compile": {
+          "lib/net462/VBIDEApi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net462/VBIDEApi.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "NetOfficeFw.Word/1.9.7": {
+        "type": "package",
+        "dependencies": {
+          "NetOfficeFw.Core": "1.9.7",
+          "NetOfficeFw.Office": "1.9.7",
+          "NetOfficeFw.VBIDE": "1.9.7",
+          "stdole": "7.0.3300"
+        },
+        "compile": {
+          "lib/net462/WordApi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net462/WordApi.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "PdfiumViewer/2.13.0": {
+        "type": "package",
+        "compile": {
+          "lib/net20/PdfiumViewer.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net20/PdfiumViewer.dll": {
+            "related": ".xml"
+          }
+        },
+        "resource": {
+          "lib/net20/nl/PdfiumViewer.resources.dll": {
+            "locale": "nl"
+          }
+        }
+      },
+      "PdfiumViewer.Native.x86_64.v8-xfa/2018.4.8.256": {
+        "type": "package",
+        "build": {
+          "Build/PdfiumViewer.Native.x86_64.v8-xfa.props": {}
+        }
+      },
+      "stdole/7.0.3300": {
+        "type": "package",
+        "compile": {
+          "lib/net10/stdole.dll": {}
+        },
+        "runtime": {
+          "lib/net10/stdole.dll": {}
+        }
+      },
+      "System.Drawing.Common/10.0.3": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0/_._": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0/_._": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      }
     }
   },
   "libraries": {
@@ -790,7 +1128,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "0.5.0",
+    "version": "0.6.0",
     "restore": {
       "projectUniqueName": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "projectName": "CortexFX",
@@ -1186,6 +1524,11 @@
           "System.Xml.XPath.XDocument": "(,5.0.32767]"
         }
       }
+    },
+    "runtimes": {
+      "win-x64": {
+        "#import": []
+      }
     }
   },
   "logs": [
@@ -1206,7 +1549,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-273h-m46v-96q4",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1216,7 +1560,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-2gq3-ww97-wfjm",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1226,7 +1571,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-3j4x-rwrx-xxj9",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1236,7 +1582,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-3q5f-gmjc-38r8",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1246,7 +1593,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-42p5-62qq-mmh7",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1256,7 +1604,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-543g-8grm-9cw6",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1266,7 +1615,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6j5f-24fw-pqp4",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1276,7 +1626,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-72hf-fj62-w6j4",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1286,7 +1637,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-7355-pwx2-pm84",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1296,7 +1648,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-782x-jh29-9mf7",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1306,7 +1659,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-8jvj-p28h-9gm7",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1316,7 +1670,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-96pc-27rx-pr36",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1326,7 +1681,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-fwqw-2x5x-w566",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1336,7 +1692,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g2pr-qxjg-7r2w",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1346,7 +1703,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gm37-qx7w-p258",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1356,7 +1714,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-gq5v-qf8q-fp77",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1366,7 +1725,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gwr3-x37h-h84v",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1376,7 +1736,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gxcx-qjqp-8vjw",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1386,7 +1747,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-jv4p-gjwq-9r2j",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1396,7 +1758,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-p33r-fqw2-rqmm",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1406,7 +1769,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-p863-5fgm-rgq4",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1416,7 +1780,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-pqgj-2p96-rx85",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1426,7 +1791,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-qpgx-jfcq-r59f",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1436,7 +1802,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-r99p-5442-q2x2",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1446,7 +1813,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rw6c-xp26-225v",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1456,7 +1824,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-v7g2-m8c5-mf84",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1466,7 +1835,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-v994-63cg-9wj3",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1476,7 +1846,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-vhqj-f5cj-9x8h",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1486,7 +1857,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-vpxv-r9pg-7gpr",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1496,7 +1868,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-w8mw-frc6-r7m8",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1506,7 +1879,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-wfx3-6g53-9fgc",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1516,7 +1890,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-wg3g-gvx5-2pmv",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1526,7 +1901,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-wgxp-q8xq-wpp9",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1536,7 +1912,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-xgm3-v4r9-wfgm",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1546,7 +1923,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known low severity vulnerability, https://github.com/advisories/GHSA-xpg8-7m6m-jf56",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     },
     {
@@ -1556,7 +1934,8 @@
       "message": "Package 'Magick.NET-Q8-AnyCPU' 14.10.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-xwc6-v6g8-pw2h",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0"
+        "net10.0-windows7.0",
+        "net10.0-windows7.0/win-x64"
       ]
     }
   ]

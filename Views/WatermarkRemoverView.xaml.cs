@@ -781,7 +781,8 @@ public partial class WatermarkRemoverView : UserControl
     // Watermark removal
     // ------------------------------------------------------------------
 
-    private static async Task RunFFmpegAsync(string ffmpegPath, string arguments)
+    private static async Task RunFFmpegAsync(string ffmpegPath, string arguments,
+        double totalDurationSeconds = 0, IProgress<double>? progress = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -799,8 +800,26 @@ public partial class WatermarkRemoverView : UserControl
         process.OutputDataReceived += (s, e) => { };
         process.ErrorDataReceived += (s, e) =>
         {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-                stderr.AppendLine(e.Data);
+            if (string.IsNullOrWhiteSpace(e.Data)) return;
+            stderr.AppendLine(e.Data);
+
+            // Parse FFmpeg progress: look for "time=HH:MM:SS.xx" in stderr
+            if (totalDurationSeconds > 0 && progress != null)
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    e.Data, @"time=(\d{2}):(\d{2}):(\d{2})\.(\d+)");
+                if (match.Success)
+                {
+                    double h = double.Parse(match.Groups[1].Value);
+                    double m = double.Parse(match.Groups[2].Value);
+                    double sec = double.Parse(match.Groups[3].Value);
+                    double frac = double.Parse(match.Groups[4].Value) /
+                                  Math.Pow(10, match.Groups[4].Value.Length);
+                    double currentSec = h * 3600 + m * 60 + sec + frac;
+                    double pct = Math.Min(100.0, currentSec / totalDurationSeconds * 100.0);
+                    progress.Report(pct);
+                }
+            }
         };
 
         if (!process.Start())
@@ -810,12 +829,33 @@ public partial class WatermarkRemoverView : UserControl
         process.BeginErrorReadLine();
         await process.WaitForExitAsync();
 
+        // Ensure 100 % is reported on success
+        if (process.ExitCode == 0)
+            progress?.Report(100.0);
+
         if (process.ExitCode != 0)
         {
             string error = stderr.Length > 0 ? stderr.ToString().Trim()
                                              : $"FFmpeg exited with code {process.ExitCode}";
             throw new Exception(error);
         }
+    }
+
+    /// <summary>Helper to update the processing overlay progress bar from any thread.</summary>
+    private void UpdateProcessingProgress(double percent)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            double clampedPct = Math.Clamp(percent, 0, 100);
+            ProcessingPercentText.Text = $"{clampedPct:F1} %";
+
+            // Compute the bar width relative to its parent track
+            if (ProcessingProgressBar.Parent is Border track)
+            {
+                double trackWidth = track.ActualWidth > 0 ? track.ActualWidth : 300;
+                ProcessingProgressBar.Width = trackWidth * clampedPct / 100.0;
+            }
+        });
     }
 
     private async void RemoveWatermark_Click(object sender, RoutedEventArgs e)
@@ -880,16 +920,63 @@ public partial class WatermarkRemoverView : UserControl
             $"-i \"{inputFile}\" -vf \"{filterArgs}\" -c:v libx264 -preset slow -crf 17 -c:a copy -y \"{outputFile}\"";
 
         var btn = sender as Button;
+
+        // --- Show processing overlay, hide video player ---
+        WatermarkVideoPlayer.Visibility = Visibility.Hidden;
+        SnapshotPreview.Visibility = Visibility.Collapsed;
+        DrawingCanvas.Visibility = Visibility.Collapsed;
+        RegionsOverlay.Visibility = Visibility.Collapsed;
+        ProcessingOverlay.Visibility = Visibility.Visible;
+        ProcessingPercentText.Text = "0 %";
+        ProcessingProgressBar.Width = 0;
+        ProcessingStatusText.Text = "Removing watermark...";
         if (btn != null) { btn.Content = "Processing..."; btn.IsEnabled = false; }
 
         try
         {
-            await RunFFmpegAsync(_ffmpegPath, arguments);
-            MessageBox.Show($"Watermark removed successfully!\nSaved to: {outputFile}",
-                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            var progress = new Progress<double>(UpdateProcessingProgress);
+
+            await Task.Run(async () =>
+            {
+                await RunFFmpegAsync(_ffmpegPath, arguments, videoDurationSec, progress);
+            });
+
+            // Ensure bar shows 100 %
+            UpdateProcessingProgress(100);
+            ProcessingStatusText.Text = "Complete!";
+            await Task.Delay(400); // brief moment so user sees 100 %
+
+            // --- Hide overlay, restore video player ---
+            ProcessingOverlay.Visibility = Visibility.Collapsed;
+            WatermarkVideoPlayer.Visibility = Visibility.Visible;
+            DrawingCanvas.Visibility = Visibility.Visible;
+            RegionsOverlay.Visibility = Visibility.Visible;
+
+            // Show success dialog
+            try
+            {
+                var dialog = new ModernConfirmDialog(
+                    "\u2728 Watermark Removed",
+                    $"The video has been saved successfully!\n\n{outputFile}");
+                dialog.BtnNo.Visibility = Visibility.Collapsed;
+                dialog.BtnYes.Content = "OK";
+                dialog.Owner = Window.GetWindow(this);
+                dialog.ShowDialog();
+            }
+            catch
+            {
+                MessageBox.Show($"Watermark removed successfully!\nSaved to: {outputFile}",
+                    "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
         catch (Exception ex)
         {
+            // --- Hide overlay, restore video player ---
+            ProcessingOverlay.Visibility = Visibility.Collapsed;
+            WatermarkVideoPlayer.Visibility = Visibility.Visible;
+            DrawingCanvas.Visibility = Visibility.Visible;
+            RegionsOverlay.Visibility = Visibility.Visible;
+
             MessageBox.Show($"Error: {ex.Message}", "Failed",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }

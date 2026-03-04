@@ -153,7 +153,7 @@ public partial class MainWindow : Window
 
             // Set Version
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.5.0";
+            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.6.0";
 
             // Handle context menu startup file
             if (!string.IsNullOrEmpty(startupFile) && File.Exists(startupFile))

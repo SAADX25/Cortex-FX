@@ -332,7 +332,7 @@
                     </StackPanel>
 
                     <!-- Center Version Indicator -->
-                    <TextBlock x:Name="VersionText" Text="v0.5.0" 
+                    <TextBlock x:Name="VersionText" Text="v0.6.0" 
                                Foreground="#00E5FF" FontWeight="Bold" FontSize="14"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsHitTestVisible="False">
