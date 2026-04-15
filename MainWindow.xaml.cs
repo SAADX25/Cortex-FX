@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -29,34 +29,9 @@ using System.Threading;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
+using CortexFX.Models;
+
 namespace CortexFX;
-
-public class FileModel : INotifyPropertyChanged
-{
-    private string _status = "Pending";
-    private string _statusColor = "#AAAAAA"; // Gray for Pending
-
-    public string FileName { get; set; } = string.Empty;
-    public string FullPath { get; set; } = string.Empty;
-
-    public string Status
-    {
-        get => _status;
-        set { _status = value; OnPropertyChanged(); }
-    }
-
-    public string StatusColor
-    {
-        get => _statusColor;
-        set { _statusColor = value; OnPropertyChanged(); }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
-}
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml

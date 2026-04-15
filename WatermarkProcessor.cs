@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
+using CortexFX.Models;
+
 namespace CortexFX
 {
     public class WatermarkProcessor
