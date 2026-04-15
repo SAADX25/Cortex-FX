@@ -1,10 +1,39 @@
+# Build outputs
 bin/
 obj/
 Release/
+Publish/
+
+# Visual Studio
 .vs/
 *.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# Build artifacts
 *.exe
 *.dll
 *.pdb
 *.cache
+*.log
+
+# NuGet
+packages/
+*.nupkg
+
+# Resources - binary dependencies (download separately or use Git LFS)
+Resources/*.dll
+Resources/*.exe
+Resources/ffmpeg_libs/
+
+# Inno Setup output
+Output/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Keep Resources folder structure
 !Resources/README.txt
