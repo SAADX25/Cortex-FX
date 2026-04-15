@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "TdWv901eDoA=",
+  "dgSpecHash": "BXObe434L/8=",
   "success": true,
   "projectFilePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
   "expectedPackageFiles": [
@@ -48,8 +48,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -61,8 +60,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -74,8 +72,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -87,8 +84,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -100,8 +96,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -113,8 +108,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -126,8 +120,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -139,8 +132,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -152,8 +144,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -165,8 +156,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -178,8 +168,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -191,8 +180,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -204,8 +192,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -217,8 +204,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -230,8 +216,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -243,8 +228,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -256,8 +240,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -269,8 +252,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -282,8 +264,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -295,8 +276,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -308,8 +288,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -321,8 +300,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -334,8 +312,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -347,8 +324,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -360,8 +336,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -373,8 +348,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -386,8 +360,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -399,8 +372,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -412,8 +384,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -425,8 +396,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -438,8 +408,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -451,8 +420,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -464,8 +432,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -477,8 +444,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -490,8 +456,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     },
     {
@@ -503,8 +468,7 @@
       "filePath": "E:\\Code-Setup\\Cortex FX\\CortexFX.csproj",
       "libraryId": "Magick.NET-Q8-AnyCPU",
       "targetGraphs": [
-        "net10.0-windows7.0",
-        "net10.0-windows7.0/win-x64"
+        "net10.0-windows7.0"
       ]
     }
   ]
