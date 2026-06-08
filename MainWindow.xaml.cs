@@ -30,7 +30,9 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 using Microsoft.Extensions.DependencyInjection;
+using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
+using CortexFX.Core.Services;
 using CortexFX.Models;
 
 namespace CortexFX;
@@ -97,6 +99,7 @@ public partial class MainWindow : Window
             {
                 Unosquare.FFME.Library.FFmpegDirectory = _ffmpegBinPath;
                 Unosquare.FFME.Library.LoadFFmpeg();
+                ConsoleLogger.Success("Engine", $"FFME loaded from {ConsoleLogger.ShortPath(_ffmpegBinPath)}.");
             }
             catch (Exception ffmpegEx)
             {
@@ -111,6 +114,7 @@ public partial class MainWindow : Window
                 {
                     folderContent = "Folder does not exist!";
                 }
+                ConsoleLogger.Error("Engine", $"FFME load failed: {ffmpegEx.Message}");
                 MessageBox.Show($"FFmpeg Critical Error!\n\nTarget Path: {targetFolder}\nError: {ffmpegEx.Message}\n\nFiles found in folder: {folderContent}", "Startup Error");
             }
             // --- SMART FFMPEG LOADING END ---
@@ -126,10 +130,12 @@ public partial class MainWindow : Window
             // Set Version
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
             VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.6.0";
+            ConsoleLogger.Info("UI", $"Version label set to {VersionText.Text}.");
 
             // Handle context menu startup file
             if (!string.IsNullOrEmpty(startupFile) && File.Exists(startupFile))
             {
+                ConsoleLogger.Info("Startup", $"Startup file detected: {ConsoleLogger.ShortPath(startupFile)}");
                 AddFileToList(startupFile);
                 ShowConversionView();
             }
@@ -145,6 +151,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            ConsoleLogger.Error("Startup", ex.Message);
             MessageBox.Show($"Startup Error: {ex}", "Cortex FX Crash", MessageBoxButton.OK, MessageBoxImage.Error);
             // Ensure the app shuts down cleanly if startup fails
             Application.Current.Shutdown();
@@ -155,6 +162,7 @@ public partial class MainWindow : Window
     {
         if (!Directory.Exists(ResourcesDirectory))
         {
+            ConsoleLogger.Warning("Resources", $"Resources folder missing: {ResourcesDirectory}");
             MessageBox.Show($"Resources folder not found.\nPlace tools in:\n{ResourcesDirectory}", "Resources Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -164,7 +172,12 @@ public partial class MainWindow : Window
         if (missing.Count > 0)
         {
             string missingList = string.Join("\n", missing);
+            ConsoleLogger.Warning("Resources", $"Missing tools: {string.Join(", ", missing)}");
             MessageBox.Show($"Missing tools in Resources:\n{missingList}\n\nPath:\n{ResourcesDirectory}", "Resources Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        else
+        {
+            ConsoleLogger.Success("Resources", $"Core tools ready at {ConsoleLogger.ShortPath(ResourcesDirectory)}.");
         }
     }
 
@@ -188,45 +201,11 @@ public partial class MainWindow : Window
         Unknown
     }
 
-    // 1. The Master Capabilities Dictionary
-    private readonly Dictionary<string, List<string>> _conversionRules = new()
-    {
-        // Documents
-        { ".pdf",  new List<string> { "DOCX", "PPTX", "XLSX", "JPG", "PNG" } },
-        { ".docx", new List<string> { "PDF", "PPTX" } },
-        { ".doc",  new List<string> { "PDF", "PPTX" } },
-        { ".pptx", new List<string> { "PDF", "DOCX" } },
-        { ".ppt",  new List<string> { "PDF", "DOCX" } },
-        { ".xlsx", new List<string> { "PDF" } },
-        { ".xls",  new List<string> { "PDF" } },
-        
-        // Images
-        { ".jpg",  new List<string> { "PNG", "BMP", "WEBP", "ICO", "PDF" } },
-        { ".jpeg", new List<string> { "PNG", "BMP", "WEBP", "ICO", "PDF" } },
-        { ".png",  new List<string> { "JPG", "BMP", "WEBP", "ICO", "PDF" } },
-        { ".bmp",  new List<string> { "JPG", "PNG", "WEBP", "ICO", "PDF" } },
-        { ".webp", new List<string> { "JPG", "PNG", "PDF" } },
-        { ".ico",  new List<string> { "PNG", "JPG" } },
-
-        // Audio
-        { ".mp3",  new List<string> { "WAV", "AAC", "FLAC", "M4A", "OGG" } },
-        { ".wav",  new List<string> { "MP3", "AAC", "FLAC", "M4A", "OGG" } },
-        { ".flac", new List<string> { "MP3", "WAV", "AAC", "M4A", "OGG" } },
-        { ".m4a",  new List<string> { "MP3", "WAV", "AAC", "FLAC", "OGG" } },
-        { ".aac",  new List<string> { "MP3", "WAV", "FLAC", "M4A", "OGG" } },
-        { ".ogg",  new List<string> { "MP3", "WAV", "AAC", "FLAC", "M4A" } },
-        
-        // Video
-        { ".mp4",  new List<string> { "MP3", "AVI", "MOV", "GIF", "WEBM", "MKV" } },
-        { ".mov",  new List<string> { "MP4", "AVI", "GIF", "MP3" } },
-        { ".avi",  new List<string> { "MP4", "MOV", "GIF", "MP3" } },
-        { ".mkv",  new List<string> { "MP4", "AVI", "MOV", "MP3" } },
-        { ".webm", new List<string> { "MP4", "AVI", "MOV", "MP3" } }
-    };
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> _conversionRules => MediaTypes.ConversionRules;
 
     private AppMode _currentMode = AppMode.Dashboard;
 
-    private string? _universalFilterMode = null; // null = All, or "Video", "Audio", "Image", "Document"
+    private string? _universalFilterMode = null; // null = All, or "Video", "Audio", "Image", "Document", "Archive", "Ebook"
 
     private void Category_Click(object sender, RoutedEventArgs e)
     {
@@ -308,6 +287,8 @@ public partial class MainWindow : Window
             if(RadioVideo != null) RadioVideo.IsChecked = false;
             if(RadioAudio != null) RadioAudio.IsChecked = false;
             if(RadioDocument != null) RadioDocument.IsChecked = false;
+            if(RadioArchive != null) RadioArchive.IsChecked = false;
+            if(RadioEbook != null) RadioEbook.IsChecked = false;
         }
         else if (mode == AppMode.Universal)
         {
@@ -429,6 +410,115 @@ public partial class MainWindow : Window
         return isPowerPoint && targetFormat == "docx";
     }
 
+    private static bool ShouldUseConversionRouter(string extension, string targetFormat)
+    {
+        if (extension == ".pdf" &&
+            (MediaTypes.MagickOutputFormats.Contains(targetFormat) ||
+             MediaTypes.EbookOutputFormats.Contains(targetFormat)))
+        {
+            return true;
+        }
+
+        if (MediaTypes.DocumentExtensions.Contains(extension) &&
+            MediaTypes.LibreOfficeOutputFormats.Contains(targetFormat))
+        {
+            return true;
+        }
+
+        if (MediaTypes.ArchiveExtensions.Contains(extension) ||
+            MediaTypes.EbookExtensions.Contains(extension))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private void RefreshFormatsFromSelectedFiles()
+    {
+        if (_currentMode != AppMode.Universal || FormatComboBox == null)
+        {
+            return;
+        }
+
+        if (_filesToConvert.Count == 0)
+        {
+            if (_universalFilterMode != null)
+            {
+                PopulateFormats(_universalFilterMode);
+            }
+            else
+            {
+                FormatComboBox.Items.Clear();
+                FormatComboBox.Items.Add(new ComboBoxItem { Content = "Ready for any file..." });
+                FormatComboBox.SelectedIndex = 0;
+                FormatComboBox.IsEnabled = false;
+                CurrentToolTitle.Text = "Universal Smart Converter";
+            }
+            return;
+        }
+
+        var selectedExtensions = _filesToConvert
+            .Select(f => System.IO.Path.GetExtension(f.FullPath).ToLowerInvariant())
+            .Where(ext => _conversionRules.ContainsKey(ext))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (selectedExtensions.Count == 0)
+        {
+            return;
+        }
+
+        var firstFormats = _conversionRules[selectedExtensions[0]];
+        var commonFormats = new HashSet<string>(firstFormats, StringComparer.OrdinalIgnoreCase);
+
+        foreach (string ext in selectedExtensions.Skip(1))
+        {
+            commonFormats.IntersectWith(_conversionRules[ext]);
+        }
+
+        var visibleFormats = firstFormats
+            .Where(commonFormats.Contains)
+            .Where(FormatMatchesCurrentUniversalFilter)
+            .ToList();
+
+        FormatComboBox.Items.Clear();
+
+        if (visibleFormats.Count == 0)
+        {
+            FormatComboBox.Items.Add(new ComboBoxItem { Content = "No common output" });
+            FormatComboBox.SelectedIndex = 0;
+            FormatComboBox.IsEnabled = false;
+            return;
+        }
+
+        foreach (string fmt in visibleFormats)
+        {
+            FormatComboBox.Items.Add(new ComboBoxItem { Content = fmt });
+        }
+
+        FormatComboBox.SelectedIndex = 0;
+        FormatComboBox.IsEnabled = true;
+
+        if (_universalFilterMode == null)
+        {
+            string category = MediaTypes.GetCategory(selectedExtensions[0]);
+            CurrentToolTitle.Text = category == "Unknown"
+                ? "Universal Smart Converter"
+                : $"{category} Converter";
+        }
+    }
+
+    private bool FormatMatchesCurrentUniversalFilter(string format)
+    {
+        return _universalFilterMode switch
+        {
+            "Archive" => MediaTypes.ArchiveOutputFormats.Contains(format),
+            "Ebook" => MediaTypes.EbookOutputFormats.Contains(format),
+            _ => true
+        };
+    }
+
     private void BackToHome_Click(object sender, RoutedEventArgs e)
     {
         SwitchToMode(AppMode.Dashboard);
@@ -465,6 +555,8 @@ public partial class MainWindow : Window
                 FileName = System.IO.Path.GetFileName(file),
                 FullPath = file
             });
+
+            RefreshFormatsFromSelectedFiles();
         }
     }
 
@@ -529,7 +621,7 @@ public partial class MainWindow : Window
                 if (items.Length == 1 && File.Exists(items[0]))
                 {
                     string ext = System.IO.Path.GetExtension(items[0]).ToLower();
-                    if (new[] { ".mp3", ".wav", ".m4a", ".ogg" }.Contains(ext))
+                    if (MediaTypes.AudioEditorExtensions.Contains(ext))
                     {
                         // NEW LOGIC: Show Choice Overlay
                         _pendingAudioFile = items[0];
@@ -541,20 +633,12 @@ public partial class MainWindow : Window
                 bool invalidFound = false;
                 
                 // Universal Mode Logic
-                if (_currentMode == AppMode.Universal && items.Length > 0)
+                if (_currentMode == AppMode.Universal && items.Any(File.Exists))
                 {
                     // Take the first file's extension to determine capabilities
-                    string firstFile = items[0];
+                    string firstFile = items.First(File.Exists);
                     string ext = System.IO.Path.GetExtension(firstFile).ToLower();
 
-                    // Reject Documents in Universal Mode
-                    var docExtensions = new List<string> { ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls" };
-                    if (docExtensions.Contains(ext))
-                    {
-                        MessageBox.Show("Please use the Main Dashboard for Documents. The '+' tool is for Media (Video/Audio/Image) only.", "Wrong Tool", MessageBoxButton.OK, MessageBoxImage.Information);
-                        return; // Reject drop
-                    }
-                    
                     if (_conversionRules.ContainsKey(ext))
                     {
                         // Found supported type!
@@ -616,14 +700,7 @@ public partial class MainWindow : Window
                 {
                     string ext = System.IO.Path.GetExtension(file).ToLower();
                     // Basic supported check (global)
-                    var supported = new[] { 
-                        ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".pdf", 
-                        ".png", ".jpg", ".jpeg", ".ico", ".webp",
-                        ".mp4", ".avi", ".mkv", ".mov", ".gif", ".webm", 
-                        ".mp3", ".wav", ".m4a", ".ogg" 
-                    };
-                    
-                    if (supported.Contains(ext))
+                    if (MediaTypes.AllSupportedExtensions.Contains(ext))
                     {
                         AddFileToList(file);
                     }
@@ -645,10 +722,12 @@ public partial class MainWindow : Window
         {
             return _universalFilterMode switch
             {
-                "Video" => "Video Files (*.mp4;*.avi;*.mov)|*.mp4;*.avi;*.mov;*.mkv;*.webm",
-                "Audio" => "Audio Files (*.mp3;*.wav)|*.mp3;*.wav;*.flac;*.m4a;*.aac",
-                "Image" => "Image Files (*.jpg;*.png)|*.jpg;*.png;*.jpeg;*.bmp;*.webp;*.ico",
-                "Document" => "Documents (*.pdf;*.docx)|*.pdf;*.docx;*.doc;*.pptx;*.ppt;*.xlsx;*.xls",
+                "Video" => "Video Files (*.mp4;*.avi;*.mov;*.mkv;*.webm)|*.mp4;*.avi;*.mov;*.mkv;*.webm",
+                "Audio" => "Audio Files (*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg)|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg",
+                "Image" => "Image Files (*.jpg;*.png;*.webp;*.tiff;*.gif;*.heic)|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.ico;*.tif;*.tiff;*.gif;*.heic;*.heif",
+                "Document" => "Documents (*.pdf;*.docx;*.doc;*.pptx;*.ppt;*.xlsx;*.xls;*.odt;*.rtf;*.txt)|*.pdf;*.docx;*.doc;*.pptx;*.ppt;*.xlsx;*.xls;*.odt;*.rtf;*.txt",
+                "Archive" => "Archives (*.zip;*.rar;*.7z;*.tar)|*.zip;*.rar;*.7z;*.tar",
+                "Ebook" => "E-books (*.epub;*.mobi;*.azw3;*.pdf)|*.epub;*.mobi;*.azw3;*.pdf",
                 _ => "All Files|*.*"
             };
         }
@@ -659,7 +738,7 @@ public partial class MainWindow : Window
             AppMode.WordToPdf => "Word Documents (*.docx;*.doc)|*.docx;*.doc",
             AppMode.PptToPdf => "PowerPoint Presentations (*.pptx;*.ppt)|*.pptx;*.ppt",
             AppMode.ExcelToPdf => "Excel Workbooks (*.xlsx;*.xls)|*.xlsx;*.xls",
-            _ => "All Supported Files|*.pdf;*.docx;*.doc;*.xlsx;*.xls;*.pptx;*.ppt;*.png;*.jpg;*.jpeg;*.mp4;*.mp3"
+            _ => "All Supported Files|*.pdf;*.docx;*.doc;*.xlsx;*.xls;*.pptx;*.ppt;*.odt;*.rtf;*.txt;*.png;*.jpg;*.jpeg;*.bmp;*.webp;*.ico;*.tif;*.tiff;*.gif;*.heic;*.heif;*.mp4;*.avi;*.mkv;*.mov;*.webm;*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.zip;*.rar;*.7z;*.tar;*.epub;*.mobi;*.azw3"
         };
     }
 
@@ -676,10 +755,12 @@ public partial class MainWindow : Window
             {
                  bool isValid = _universalFilterMode switch
                  {
-                     "Video" => new List<string> { ".mp4", ".avi", ".mov", ".mkv", ".webm" }.Contains(ext),
-                     "Audio" => new List<string> { ".mp3", ".wav", ".flac", ".m4a", ".aac" }.Contains(ext),
-                     "Image" => new List<string> { ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".ico" }.Contains(ext),
-                     "Document" => new List<string> { ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls" }.Contains(ext),
+                     "Video" => MediaTypes.VideoExtensions.Contains(ext),
+                     "Audio" => MediaTypes.AudioExtensions.Contains(ext),
+                     "Image" => MediaTypes.ImageExtensions.Contains(ext),
+                     "Document" => MediaTypes.DocumentExtensions.Contains(ext),
+                     "Archive" => MediaTypes.ArchiveExtensions.Contains(ext),
+                     "Ebook" => MediaTypes.EbookExtensions.Contains(ext) || ext == ".pdf",
                      _ => true
                  };
                  return isValid;
@@ -716,7 +797,7 @@ public partial class MainWindow : Window
             if (selectedFiles.Length == 1)
             {
                 string ext = System.IO.Path.GetExtension(selectedFiles[0]).ToLower();
-                if (new[] { ".mp3", ".wav", ".m4a", ".ogg" }.Contains(ext))
+                if (MediaTypes.AudioEditorExtensions.Contains(ext))
                 {
                     _pendingAudioFile = selectedFiles[0]; // Store for later
                     AudioChoiceOverlay.Visibility = Visibility.Visible; // Show the Choice Screen
@@ -726,8 +807,13 @@ public partial class MainWindow : Window
 
             foreach (var file in dialog.FileNames)
             {
-                AddFileToList(file);
+                if (IsFileValidForMode(file))
+                {
+                    AddFileToList(file);
+                }
             }
+
+            RefreshFormatsFromSelectedFiles();
         }
     }
 
@@ -748,6 +834,7 @@ public partial class MainWindow : Window
             if (itemToRemove != null)
             {
                 _filesToConvert.Remove(itemToRemove);
+                RefreshFormatsFromSelectedFiles();
             }
         }
     }
@@ -785,16 +872,22 @@ public partial class MainWindow : Window
         switch (category)
         {
             case "Image":
-                baseFormats = new[] { "JPG", "PNG", "ICO", "WEBP", "PDF" };
+                baseFormats = new[] { "JPG", "PNG", "WEBP", "BMP", "ICO", "TIFF", "GIF", "HEIC", "PDF" };
                 break;
             case "Video":
                 baseFormats = new[] { "MP4", "AVI", "MKV", "MOV", "GIF", "WEBM" };
                 break;
             case "Audio":
-                baseFormats = new[] { "MP3", "WAV", "M4A", "OGG" };
+                baseFormats = new[] { "MP3", "WAV", "AAC", "FLAC", "M4A", "OGG" };
                 break;
             case "Document":
-                baseFormats = new[] { "PDF" };
+                baseFormats = new[] { "PDF", "DOCX", "ODT", "RTF", "TXT" };
+                break;
+            case "Archive":
+                baseFormats = new[] { "ZIP", "7Z", "TAR" };
+                break;
+            case "Ebook":
+                baseFormats = new[] { "EPUB", "MOBI", "AZW3", "PDF" };
                 break;
         }
 
@@ -822,13 +915,16 @@ public partial class MainWindow : Window
             if (hasPdf)
             {
                 AddFormat("DOCX");
-                AddFormat("XLSX");
                 AddFormat("PPTX");
+                AddFormat("EPUB");
+                AddFormat("MOBI");
+                AddFormat("AZW3");
             }
 
             // Rule: Bridge Logic (Word <-> PPT)
             if (hasWord) AddFormat("PPTX");
             if (hasPpt) AddFormat("DOCX");
+            if (hasExcel) AddFormat("XLSX");
         }
 
         // 3. Default Selection
@@ -920,8 +1016,8 @@ public partial class MainWindow : Window
         string ffmpegPath = FFmpegPath;
         string pdftocairoPath = System.IO.Path.Combine(resourcesPath, "pdftocairo.exe");
 
-        bool useFFmpeg = new List<string> { "mp4", "mp3", "avi", "wav", "mkv", "mov", "gif", "webm", "m4a", "ogg", "flac", "aac" }.Contains(targetFormat);
-        bool useMagick = new List<string> { "jpg", "jpeg", "png", "bmp", "webp", "ico" }.Contains(targetFormat);
+        bool useFFmpeg = MediaTypes.FFmpegOutputFormats.Contains(targetFormat);
+        bool useMagick = MediaTypes.MagickOutputFormats.Contains(targetFormat);
 
         // Routing Logic
         // Determine which engine to use based on input and output
@@ -933,6 +1029,7 @@ public partial class MainWindow : Window
         ConversionProgress.Value = 0;
         ConversionProgress.Maximum = _filesToConvert.Count * 100; // 100 points per file for smooth updates
         StatusText.Text = "Converting...";
+        ConsoleLogger.Info("Conversion", $"Starting batch: {_filesToConvert.Count} file(s) -> {targetFormat.ToUpperInvariant()}.");
 
         try
         {
@@ -953,13 +1050,14 @@ public partial class MainWindow : Window
                 // Strict check: Multiple files + All Images + Target PDF + Merge Checked
                 bool areAllImages = filePaths.All(f => {
                     string ext = System.IO.Path.GetExtension(f).ToLower();
-                    return new[] { ".jpg", ".jpeg", ".png", ".bmp", ".webp" }.Contains(ext);
+                    return MediaTypes.RasterImageExtensions.Contains(ext);
                 });
 
                 if (filePaths.Count > 1 && areAllImages && targetFormat == "pdf" && isMergeChecked)
                 {
                     // --- MERGE MODE START ---
                     Dispatcher.Invoke(() => StatusText.Text = "Merging all images...");
+                    ConsoleLogger.Info("Conversion", $"Merging {filePaths.Count} image(s) -> PDF.");
                     
                     string outputName = $"Merged_Images_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
                     
@@ -987,11 +1085,13 @@ public partial class MainWindow : Window
                         // Update UI to Done
                         foreach (var f in files) UpdateFileStatus(f, "Merged!", "#4CAF50");
                         successCount = files.Count;
+                        ConsoleLogger.Success("Conversion", $"Merged images -> {ConsoleLogger.ShortPath(finalPath)}.");
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         foreach (var f in files) UpdateFileStatus(f, "Error", "#FF5555");
                         errorCount = files.Count;
+                        ConsoleLogger.Error("Conversion", $"Merge failed: {ex.Message}");
                     }
                     
                     Dispatcher.Invoke(() => 
@@ -1026,6 +1126,7 @@ public partial class MainWindow : Window
 
                     string file = fileItem.FullPath;
                     string extension = System.IO.Path.GetExtension(file).ToLower();
+                    ConsoleLogger.Info("Conversion", $"Converting {ConsoleLogger.ShortPath(file)} -> {targetFormat.ToUpperInvariant()}.");
                     
                     UpdateFileStatus(fileItem, "Processing...", "#007ACC"); // Blue
 
@@ -1087,8 +1188,24 @@ public partial class MainWindow : Window
                                  throw new InvalidOperationException(result.ErrorMessage ?? "Office conversion failed.");
                              }
                         }
-                        // 2. JPG/PNG -> PDF Conversion Logic
-                        else if ((new[] { ".jpg", ".jpeg", ".png", ".bmp" }.Contains(extension)) && targetFormat == "pdf")
+                        else if (ShouldUseConversionRouter(extension, targetFormat))
+                        {
+                             var result = await conversionRouter.ConvertAsync(new ConversionJob
+                             {
+                                 InputPath = file,
+                                 OutputDirectory = userOutputDir,
+                                 TargetFormat = targetFormat,
+                                 QualityLevel = qualityLevel,
+                                 CreateSubfolder = createSubfolder
+                             }, token, fileProgress);
+
+                             if (!result.Success)
+                             {
+                                 throw new InvalidOperationException(result.ErrorMessage ?? "Conversion failed.");
+                             }
+                        }
+                        // 2. Image -> PDF Conversion Logic
+                        else if (MediaTypes.RasterImageExtensions.Contains(extension) && targetFormat == "pdf")
                         {
                              Dispatcher.Invoke(() => StatusText.Text = $"Converting {System.IO.Path.GetFileName(file)} to PDF...");
                              UpdateFileStatus(fileItem, "Converting to PDF...", "#FF8C00"); // Orange
@@ -1097,10 +1214,9 @@ public partial class MainWindow : Window
                              string arguments = $"\"{file}\" \"{newFileName}\"";
                              if (!File.Exists(magickPath)) throw new FileNotFoundException($"Magick not found at: {magickPath}");
                              RunExternalProcess(magickPath, arguments);
-                             
+                            
                              ((IProgress<double>)fileProgress).Report(100);
                              UpdateFileStatus(fileItem, "Done", "#4CAF50");
-                             successCount++;
                         }
                         // 3. PDF -> JPG/PNG Conversion Logic (Explicit)
                         else if (extension == ".pdf" && (targetFormat == "jpg" || targetFormat == "png"))
@@ -1136,7 +1252,6 @@ public partial class MainWindow : Window
                              }
                              
                              UpdateFileStatus(fileItem, "Done", "#4CAF50");
-                             successCount++;
                         }
                         // 4. Other PDF to Image (Fallback for BMP, WEBP, ICO)
                         else if (extension == ".pdf" && useMagick) 
@@ -1175,7 +1290,7 @@ public partial class MainWindow : Window
                              }
                         }
                         // 3. Media Conversion (FFmpeg)
-                        else if (useFFmpeg || (useMagick && new List<string> { ".mp4", ".mov", ".avi", ".mkv", ".webm" }.Contains(extension)))
+                        else if (useFFmpeg || (useMagick && MediaTypes.VideoExtensions.Contains(extension)))
                         {
                             // FFmpeg Logic (Video/Audio)
                             string arguments = "";
@@ -1185,7 +1300,7 @@ public partial class MainWindow : Window
 
                             if (targetFormat == "gif")
                                 arguments = $"-i \"{file}\" -vf \"fps=10,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 -y \"{newFileName}\"";
-                            else if (new List<string> { "mp3", "wav", "aac", "flac", "m4a" }.Contains(targetFormat))
+                            else if (MediaTypes.AudioOutputFormats.Contains(targetFormat))
                                 arguments = $"-i \"{file}\" -vn -y \"{newFileName}\""; // Audio extraction
                             else
                                 arguments = $"-i \"{file}\" {qualityArgs} -y \"{newFileName}\"";
@@ -1238,11 +1353,13 @@ public partial class MainWindow : Window
 
                         UpdateFileStatus(fileItem, "Done", "#4CAF50"); // Green
                         successCount++;
+                        ConsoleLogger.Success("Conversion", $"Done {ConsoleLogger.ShortPath(file)}.");
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                          UpdateFileStatus(fileItem, "Error", "#FF5555"); // Red
                          errorCount++;
+                         ConsoleLogger.Error("Conversion", $"Failed {ConsoleLogger.ShortPath(file)}: {ex.Message}");
                          // Optional: Store error message in model
                          
                          Dispatcher.Invoke(() => 
@@ -1260,6 +1377,7 @@ public partial class MainWindow : Window
 
                 Dispatcher.Invoke(() => {
                     StatusText.Text = "Conversion Complete!";
+                    ConsoleLogger.Success("Conversion", $"Batch complete: {successCount} succeeded, {errorCount} failed.");
                     
                     // Final Report
                     var overlayStack = FindVisualChild<StackPanel>(SuccessOverlay);
@@ -1284,6 +1402,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            ConsoleLogger.Error("Conversion", $"Critical error: {ex.Message}");
             MessageBox.Show($"Critical Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally

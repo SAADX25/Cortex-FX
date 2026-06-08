@@ -158,6 +158,28 @@
             </Setter>
         </Style>
 
+        <Style x:Key="ArchiveNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#546E7A" Offset="0"/>
+                        <GradientStop Color="#263238" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="EbookNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#6A8F2A" Offset="0"/>
+                        <GradientStop Color="#2F6B45" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ComboBox Style -->
         <ControlTemplate x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
             <Grid>
@@ -386,6 +408,20 @@
                          <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBlock Text="Document" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <RadioButton x:Name="RadioArchive" Style="{StaticResource ArchiveNavStyle}" GroupName="Category" Click="Category_Click" Tag="Archive">
+                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7B8;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Archive" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <RadioButton x:Name="RadioEbook" Style="{StaticResource EbookNavStyle}" GroupName="Category" Click="Category_Click" Tag="Ebook">
+                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE82D;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="E-book" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>

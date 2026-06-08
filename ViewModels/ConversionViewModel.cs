@@ -358,10 +358,12 @@ public partial class ConversionViewModel : ObservableObject
     {
         return category switch
         {
-            "Image" => new[] { "JPG", "PNG", "ICO", "WEBP", "PDF" },
+            "Image" => new[] { "JPG", "PNG", "WEBP", "BMP", "ICO", "TIFF", "GIF", "HEIC", "PDF" },
             "Video" => new[] { "MP4", "AVI", "MKV", "MOV", "GIF", "WEBM" },
-            "Audio" => new[] { "MP3", "WAV", "M4A", "OGG" },
-            "Document" => new[] { "PDF" },
+            "Audio" => new[] { "MP3", "WAV", "AAC", "FLAC", "M4A", "OGG" },
+            "Document" => new[] { "PDF", "DOCX", "ODT", "RTF", "TXT" },
+            "Archive" => new[] { "ZIP", "7Z", "TAR" },
+            "Ebook" => new[] { "EPUB", "MOBI", "AZW3", "PDF" },
             _ => Array.Empty<string>()
         };
     }
@@ -379,7 +381,7 @@ public partial class ConversionViewModel : ObservableObject
             if (uniqueFormats.Add(fmt)) AvailableFormats.Add(fmt);
         }
 
-        if (hasPdf) { TryAdd("DOCX"); TryAdd("XLSX"); TryAdd("PPTX"); }
+        if (hasPdf) { TryAdd("DOCX"); TryAdd("PPTX"); TryAdd("EPUB"); TryAdd("MOBI"); TryAdd("AZW3"); }
         if (hasWord) TryAdd("PPTX");
         if (hasPpt) TryAdd("DOCX");
     }

@@ -613,6 +613,21 @@ public sealed class OfficeInteropService : IOfficeInteropService
 
     private void Log(string message)
     {
+        if (message.Contains("Error", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("Failed", StringComparison.OrdinalIgnoreCase))
+        {
+            ConsoleLogger.Error("Office", message);
+        }
+        else if (message.Contains("successful", StringComparison.OrdinalIgnoreCase) ||
+                 message.Contains("completed", StringComparison.OrdinalIgnoreCase))
+        {
+            ConsoleLogger.Success("Office", message);
+        }
+        else
+        {
+            ConsoleLogger.Info("Office", message);
+        }
+
         try
         {
             File.AppendAllText(_logPath,

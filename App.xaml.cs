@@ -20,15 +20,25 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ConsoleLogger.Initialize();
+
+        Version? version = typeof(App).Assembly.GetName().Version;
+        string versionText = version != null
+            ? $"v{version.Major}.{version.Minor}.{version.Build}"
+            : "v0.6.0";
+
+        ConsoleLogger.Info("App", $"Cortex FX {versionText} starting...");
 
         // 1. Build the DI Container
         var serviceCollection = new ServiceCollection();
         ConfigureServices(serviceCollection);
         Services = serviceCollection.BuildServiceProvider();
+        ConsoleLogger.Success("App", "Services loaded.");
 
         // 2. Pre-launch cleanup via the new ProcessManager
         var processManager = Services.GetRequiredService<IProcessManager>();
         processManager.KillZombieProcesses("WINWORD", "POWERPNT", "EXCEL");
+        ConsoleLogger.Info("Office", "Startup cleanup completed.");
 
         // 3. Resolve and show MainWindow
         string? startupFile = e.Args.Length > 0 ? e.Args[0] : null;
@@ -36,10 +46,12 @@ public partial class App : Application
         // MainWindow still accepts a startup file for context menu integration
         var mainWindow = new MainWindow(startupFile);
         mainWindow.Show();
+        ConsoleLogger.Success("App", "Main window ready.");
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        ConsoleLogger.Info("App", "Shutting down...");
         // Dispose ProcessManager → kills all tracked processes
         if (Services is IDisposable disposable)
         {
@@ -62,6 +74,7 @@ public partial class App : Application
         services.AddSingleton<IMagickService, MagickService>();
         services.AddSingleton<IOfficeInteropService, OfficeInteropService>();
         services.AddSingleton<IPdfRenderService, PdfRenderService>();
+        services.AddSingleton<IOptionalConversionService, OptionalConversionService>();
 
         // --- Routing (Singleton — the brain of the conversion pipeline) ---
         services.AddSingleton<IConversionRouter, ConversionRouter>();

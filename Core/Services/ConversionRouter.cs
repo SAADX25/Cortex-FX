@@ -21,6 +21,7 @@ public sealed class ConversionRouter : IConversionRouter
     private readonly IMagickService _magick;
     private readonly IOfficeInteropService _office;
     private readonly IPdfRenderService _pdfRenderer;
+    private readonly IOptionalConversionService _optional;
     private readonly FFmpegService _ffmpegConcrete; // For smart argument builders
     private readonly MagickService _magickConcrete;  // For metadata reads
 
@@ -36,13 +37,15 @@ public sealed class ConversionRouter : IConversionRouter
         IFFmpegService ffmpeg,
         IMagickService magick,
         IOfficeInteropService office,
-        IPdfRenderService pdfRenderer)
+        IPdfRenderService pdfRenderer,
+        IOptionalConversionService optional)
     {
         _config = config;
         _ffmpeg = ffmpeg;
         _magick = magick;
         _office = office;
         _pdfRenderer = pdfRenderer;
+        _optional = optional;
 
         // Store concrete types for access to non-interface methods
         // (smart builders, metadata reader). Safe because DI wires the same instance.
@@ -107,6 +110,12 @@ public sealed class ConversionRouter : IConversionRouter
             if (IsDocumentBridge(ext, target))
             {
                 return await HandleDocumentBridgeAsync(job.InputPath, outputPath, ext, target, ct, progress);
+            }
+
+            // 3b. Optional local engines: LibreOffice, 7-Zip, Calibre
+            if (_optional.CanConvert(ext, target))
+            {
+                return await _optional.ConvertAsync(job.InputPath, outputPath, ext, target, ct, progress);
             }
 
             // 4. Image → PDF (Magick native)
@@ -306,9 +315,9 @@ public sealed class ConversionRouter : IConversionRouter
     private static bool IsDocumentToPdf(string ext, string target)
     {
         return target == "pdf" && (
-            MediaTypes.WordExtensions.Contains(ext) ||
-            MediaTypes.ExcelExtensions.Contains(ext) ||
-            MediaTypes.PowerPointExtensions.Contains(ext));
+            ext is ".docx" or ".doc" ||
+            ext is ".xlsx" or ".xls" ||
+            ext is ".pptx" or ".ppt");
     }
 
     private static bool IsOfficeTarget(string target)
@@ -318,8 +327,8 @@ public sealed class ConversionRouter : IConversionRouter
 
     private static bool IsDocumentBridge(string ext, string target)
     {
-        bool wordToPpt = MediaTypes.WordExtensions.Contains(ext) && target == "pptx";
-        bool pptToWord = MediaTypes.PowerPointExtensions.Contains(ext) && target == "docx";
+        bool wordToPpt = ext is ".docx" or ".doc" && target == "pptx";
+        bool pptToWord = ext is ".pptx" or ".ppt" && target == "docx";
         return wordToPpt || pptToWord;
     }
 
@@ -343,11 +352,11 @@ public sealed class ConversionRouter : IConversionRouter
     private async Task<ConversionResult> HandleDocumentBridgeAsync(string inputFile, string outputPath,
         string ext, string target, CancellationToken ct, IProgress<double>? progress)
     {
-        if (MediaTypes.WordExtensions.Contains(ext) && target == "pptx")
+        if (ext is ".docx" or ".doc" && target == "pptx")
         {
             await _office.ConvertWordToPowerPointAsync(inputFile, outputPath, ct, progress);
         }
-        else if (MediaTypes.PowerPointExtensions.Contains(ext) && target == "docx")
+        else if (ext is ".pptx" or ".ppt" && target == "docx")
         {
             // Bridge: PPT → PDF → Word
             string tempPdf = Path.Combine(
