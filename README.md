@@ -99,10 +99,20 @@ Use the build script:
 .\build.ps1
 ```
 
+By default, the build script uses `Publish\CortexFX_vX.Y.Z` as a temporary staging folder and removes it after the installer is created. A normal installer build leaves only the setup executable in `Publish`.
+
 Create a portable ZIP:
 
 ```powershell
 .\build.ps1 -CreatePortableZip
+```
+
+When `-CreatePortableZip` is used, the final `Publish` folder contains the installer and portable ZIP only.
+
+Keep the staging folder for debugging:
+
+```powershell
+.\build.ps1 -KeepStagingFolder
 ```
 
 Publish without trying to build the installer:
@@ -129,7 +139,7 @@ Recommended release build:
 .\build.ps1 -CreatePortableZip
 ```
 
-This command restores, builds, publishes, validates required `Resources` files, creates a portable ZIP, and builds the installer when Inno Setup 6 is installed.
+This command restores, builds, publishes to a temporary staging folder, validates required `Resources` files, creates a portable ZIP, builds the installer when Inno Setup 6 is installed, and removes the staging folder after both release artifacts are created. Use `-KeepStagingFolder` when you need to inspect the staged app files.
 
 Each public release should include:
 

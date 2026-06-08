@@ -4,7 +4,8 @@ param(
     [string]$Runtime = "win-x64",
     [bool]$SelfContained = $true,
     [switch]$SkipInstaller,
-    [switch]$CreatePortableZip
+    [switch]$CreatePortableZip,
+    [switch]$KeepStagingFolder
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +39,23 @@ function Assert-Exists {
     }
 }
 
+function Remove-StagingFolder {
+    param(
+        [string]$Path,
+        [switch]$Keep
+    )
+
+    if ($Keep) {
+        Write-Host "Keeping staging folder: $Path" -ForegroundColor Yellow
+        return
+    }
+
+    if (Test-Path -LiteralPath $Path) {
+        Write-Step "Removing temporary staging folder"
+        Remove-Item -LiteralPath $Path -Recurse -Force
+    }
+}
+
 $ProjectRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $ProjectFile = Join-Path $ProjectRoot "CortexFX.csproj"
 $InstallerScript = Join-Path $ProjectRoot "setup.iss"
@@ -54,8 +72,12 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 }
 
 $PublishDir = Join-Path $PublishRoot "CortexFX_v$Version"
+$InstallerPath = Join-Path $PublishRoot "CortexFX_Setup_v$Version.exe"
+$ZipPath = Join-Path $PublishRoot "CortexFX_Portable_v$Version-$Runtime.zip"
 Assert-InProject -Path $PublishRoot -ProjectRoot $ProjectRoot
 Assert-InProject -Path $PublishDir -ProjectRoot $ProjectRoot
+Assert-InProject -Path $InstallerPath -ProjectRoot $ProjectRoot
+Assert-InProject -Path $ZipPath -ProjectRoot $ProjectRoot
 
 Write-Step "Cortex FX build started"
 Write-Host "Project: $ProjectFile"
@@ -63,10 +85,11 @@ Write-Host "Configuration: $Configuration"
 Write-Host "Runtime: $Runtime"
 Write-Host "Version: $Version"
 
-Write-Step "Cleaning publish directory"
-if (Test-Path -LiteralPath $PublishDir) {
-    Remove-Item -LiteralPath $PublishDir -Recurse -Force
+Write-Step "Cleaning publish output"
+if (Test-Path -LiteralPath $PublishRoot) {
+    Remove-Item -LiteralPath $PublishRoot -Recurse -Force
 }
+New-Item -ItemType Directory -Force -Path $PublishRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
 
 Write-Step "Restoring packages"
@@ -105,9 +128,6 @@ foreach ($RequiredFile in $RequiredPublishFiles) {
 }
 
 if ($CreatePortableZip) {
-    $ZipPath = Join-Path $PublishRoot "CortexFX_Portable_v$Version-$Runtime.zip"
-    Assert-InProject -Path $ZipPath -ProjectRoot $ProjectRoot
-
     if (Test-Path -LiteralPath $ZipPath) {
         Remove-Item -LiteralPath $ZipPath -Force
     }
@@ -119,6 +139,12 @@ if ($CreatePortableZip) {
 
 if ($SkipInstaller) {
     Write-Host "Installer step skipped." -ForegroundColor Yellow
+    if ($CreatePortableZip) {
+        Remove-StagingFolder -Path $PublishDir -Keep:$KeepStagingFolder
+    }
+    else {
+        Write-Host "Staging folder kept because no installer or portable ZIP was requested." -ForegroundColor Yellow
+    }
     exit 0
 }
 
@@ -144,5 +170,8 @@ $InnoCompiler = @($InnoCandidates)[0]
 if ($LASTEXITCODE -ne 0) {
     throw "Installer compilation failed with exit code $LASTEXITCODE."
 }
+
+Assert-Exists -Path $InstallerPath -Description "Installer"
+Remove-StagingFolder -Path $PublishDir -Keep:$KeepStagingFolder
 
 Write-Host "Build and installer completed successfully." -ForegroundColor Green
