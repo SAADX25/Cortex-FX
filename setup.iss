@@ -2,10 +2,13 @@
 ; Paths are resolved relative to this script unless build.ps1 passes overrides.
 
 #define MyAppName "Cortex FX"
-#define MyAppVersion "0.6.0"
 #define MyAppPublisher "Cortex FX"
 #define MyAppExeName "CortexFX.exe"
 #define MyScriptDir AddBackslash(SourcePath)
+
+#ifndef MyAppVersion
+  #define MyAppVersion "0.6.0"
+#endif
 
 #ifndef MyBuildPath
   #define MyBuildPath MyScriptDir + "Publish\CortexFX_v" + MyAppVersion

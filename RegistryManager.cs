@@ -29,7 +29,7 @@ namespace CortexFX
         {
             var mainModule = Process.GetCurrentProcess().MainModule;
             if (mainModule == null) throw new Exception("Could not determine executable path.");
-            
+
             string exePath = mainModule.FileName;
             string command = $"\"{exePath}\" \"%1\"";
 

@@ -115,12 +115,20 @@ The project file copies `Resources\**\*.*` into both build and publish output. T
 
 ## GitHub Release Checklist
 
+Recommended release build:
+
+```powershell
+.\build.ps1 -CreatePortableZip
+```
+
+This command restores, builds, publishes, validates required `Resources` files, creates a portable ZIP, and builds the installer when Inno Setup 6 is installed.
+
 Each public release should include:
 
 - Installer: `Publish\CortexFX_Setup_vX.Y.Z.exe`.
 - Portable ZIP: `Publish\CortexFX_Portable_vX.Y.Z-win-x64.zip`.
 - A note that `Resources` is bundled and must remain beside `CortexFX.exe` in portable installs.
-- Version number matching `CortexFX.csproj`, `setup.iss`, and the release tag.
+- Version number matching `CortexFX.csproj` and the release tag. `build.ps1` passes this version into `setup.iss`.
 - Known limitations for Office, HEIC/HEIF, optional engines, and very large files.
 
 Before uploading, test on a clean Windows machine or VM:

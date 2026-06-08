@@ -272,23 +272,23 @@ public partial class MainWindow : Window
         {
             if (rb.Tag == null) return;
             string category = rb.Tag.ToString()!;
-            
+
             // Switch to Universal Mode with Filter
             _universalFilterMode = category;
             SwitchToMode(AppMode.Universal);
-            
+
             // Update Title specifically for the category
             CurrentToolTitle.Text = $"{category} Converter Mode";
-            
+
             // Pre-populate formats for this category
             PopulateFormats(category);
-            
+
             // Re-enable dropdown if it was disabled by Universal mode reset
-             if (FormatComboBox.Items.Count > 0)
-             {
-                 FormatComboBox.SelectedIndex = 0;
-                 FormatComboBox.IsEnabled = true;
-             }
+            if (FormatComboBox.Items.Count > 0)
+            {
+                FormatComboBox.SelectedIndex = 0;
+                FormatComboBox.IsEnabled = true;
+            }
         }
     }
 
@@ -324,7 +324,7 @@ public partial class MainWindow : Window
         // Reset filter if not switching via Category Click (which sets it before calling this)
         // But we need to be careful not to reset it if we just called it from Category_Click
         // Simple way: Only reset if mode is NOT Universal, or if we want to clear it when going back to dashboard.
-        
+
         if (mode != AppMode.Universal)
         {
             _universalFilterMode = null;
@@ -337,17 +337,17 @@ public partial class MainWindow : Window
             if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
             CurrentToolTitle.Text = "Select Tool";
             FormatComboBox.IsEnabled = true;
-            
+
             // Hide Top Nav
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
 
             // Uncheck categories
-            if(RadioImage != null) RadioImage.IsChecked = false;
-            if(RadioVideo != null) RadioVideo.IsChecked = false;
-            if(RadioAudio != null) RadioAudio.IsChecked = false;
-            if(RadioDocument != null) RadioDocument.IsChecked = false;
-            if(RadioArchive != null) RadioArchive.IsChecked = false;
-            if(RadioEbook != null) RadioEbook.IsChecked = false;
+            if (RadioImage != null) RadioImage.IsChecked = false;
+            if (RadioVideo != null) RadioVideo.IsChecked = false;
+            if (RadioAudio != null) RadioAudio.IsChecked = false;
+            if (RadioDocument != null) RadioDocument.IsChecked = false;
+            if (RadioArchive != null) RadioArchive.IsChecked = false;
+            if (RadioEbook != null) RadioEbook.IsChecked = false;
         }
         else if (mode == AppMode.Universal)
         {
@@ -366,7 +366,7 @@ public partial class MainWindow : Window
                 FormatComboBox.SelectedIndex = 0;
                 FormatComboBox.IsEnabled = false; // Disabled until file drop
             }
-            
+
             // _filesToConvert.Clear(); // PERSISTENCE FIX: Do not clear files when switching tabs
         }
         else if (mode == AppMode.VideoCompressor)
@@ -377,7 +377,7 @@ public partial class MainWindow : Window
         {
             DashboardView.Visibility = Visibility.Collapsed;
             ConversionView.Visibility = Visibility.Visible;
-            
+
             // Hide Top Nav for specific single-purpose tools (keep it clean)
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
 
@@ -404,7 +404,7 @@ public partial class MainWindow : Window
             {
                 FormatComboBox.SelectedIndex = 0;
             }
-            
+
             FormatComboBox.IsEnabled = false;
         }
     }
@@ -418,7 +418,7 @@ public partial class MainWindow : Window
         // Fallback for XAML Tag strings if binding failed or old XAML
         else if (sender is FrameworkElement el && el.Tag is string tagStr)
         {
-             ConfigureTool(tagStr);
+            ConfigureTool(tagStr);
         }
     }
 
@@ -566,9 +566,9 @@ public partial class MainWindow : Window
 
         // Check if file already exists in the list
         bool exists = false;
-        foreach(var f in _filesToConvert)
+        foreach (var f in _filesToConvert)
         {
-            if(f.FullPath == file)
+            if (f.FullPath == file)
             {
                 exists = true;
                 break;
@@ -577,8 +577,8 @@ public partial class MainWindow : Window
 
         if (!exists)
         {
-            _filesToConvert.Add(new FileModel 
-            { 
+            _filesToConvert.Add(new FileModel
+            {
                 FileName = System.IO.Path.GetFileName(file),
                 FullPath = file
             });
@@ -706,7 +706,7 @@ public partial class MainWindow : Window
                 }
 
                 bool invalidFound = false;
-                
+
                 // Universal Mode Logic
                 if (_currentMode == AppMode.Universal && items.Any(File.Exists))
                 {
@@ -719,13 +719,13 @@ public partial class MainWindow : Window
                         // Found supported type!
                         var formats = _conversionRules[ext];
                         FormatComboBox.Items.Clear();
-                        foreach(var fmt in formats)
+                        foreach (var fmt in formats)
                         {
                             FormatComboBox.Items.Add(new ComboBoxItem { Content = fmt });
                         }
                         if (FormatComboBox.Items.Count > 0) FormatComboBox.SelectedIndex = 0;
                         FormatComboBox.IsEnabled = true;
-                        
+
                         // Update UI Title to reflect detection
                         CurrentToolTitle.Text = $"{ext.ToUpper().TrimStart('.')} Converter";
                     }
@@ -824,7 +824,7 @@ public partial class MainWindow : Window
     private bool IsFileValidForMode(string filePath)
     {
         if (_currentMode == AppMode.Dashboard) return true;
-        
+
         string ext = System.IO.Path.GetExtension(filePath).ToLower();
 
         if (_currentMode == AppMode.Universal)
@@ -832,17 +832,17 @@ public partial class MainWindow : Window
             // If Filter is active (Video, Audio, etc.), check strictly
             if (_universalFilterMode != null)
             {
-                 bool isValid = _universalFilterMode switch
-                 {
-                     "Video" => MediaTypes.VideoExtensions.Contains(ext),
-                     "Audio" => MediaTypes.AudioExtensions.Contains(ext),
-                     "Image" => MediaTypes.ImageExtensions.Contains(ext),
-                     "Document" => MediaTypes.DocumentExtensions.Contains(ext),
-                     "Archive" => MediaTypes.ArchiveExtensions.Contains(ext),
-                     "Ebook" => MediaTypes.EbookExtensions.Contains(ext) || ext == ".pdf",
-                     _ => true
-                 };
-                 return isValid;
+                bool isValid = _universalFilterMode switch
+                {
+                    "Video" => MediaTypes.VideoExtensions.Contains(ext),
+                    "Audio" => MediaTypes.AudioExtensions.Contains(ext),
+                    "Image" => MediaTypes.ImageExtensions.Contains(ext),
+                    "Document" => MediaTypes.DocumentExtensions.Contains(ext),
+                    "Archive" => MediaTypes.ArchiveExtensions.Contains(ext),
+                    "Ebook" => MediaTypes.EbookExtensions.Contains(ext) || ext == ".pdf",
+                    _ => true
+                };
+                return isValid;
             }
 
             // In Universal Mode (No Filter), file is valid if it exists in our rules
@@ -901,9 +901,9 @@ public partial class MainWindow : Window
         if (sender is Button btn && btn.Tag is string fullPath)
         {
             FileModel? itemToRemove = null;
-            foreach(var f in _filesToConvert)
+            foreach (var f in _filesToConvert)
             {
-                if(f.FullPath == fullPath)
+                if (f.FullPath == fullPath)
                 {
                     itemToRemove = f;
                     break;
@@ -925,7 +925,7 @@ public partial class MainWindow : Window
 
         // 1. Clear items first to avoid duplication
         FormatComboBox.Items.Clear();
-        
+
         // If strict target is provided (Standard Mode), only add that and return
         if (strictTarget != null)
         {
@@ -933,7 +933,7 @@ public partial class MainWindow : Window
             FormatComboBox.SelectedIndex = 0;
             return;
         }
-        
+
         // Use a set to track added formats and prevent duplicates
         HashSet<string> addedFormats = new HashSet<string>();
 
@@ -978,15 +978,18 @@ public partial class MainWindow : Window
         {
             // 2. Distinct Logic: Check Input Types
             bool hasPdf = _filesToConvert.Any(f => System.IO.Path.GetExtension(f.FullPath).ToLower() == ".pdf");
-            bool hasWord = _filesToConvert.Any(f => {
+            bool hasWord = _filesToConvert.Any(f =>
+            {
                 string ext = System.IO.Path.GetExtension(f.FullPath).ToLower();
                 return ext == ".docx" || ext == ".doc";
             });
-            bool hasPpt = _filesToConvert.Any(f => {
+            bool hasPpt = _filesToConvert.Any(f =>
+            {
                 string ext = System.IO.Path.GetExtension(f.FullPath).ToLower();
                 return ext == ".pptx" || ext == ".ppt";
             });
-            bool hasExcel = _filesToConvert.Any(f => {
+            bool hasExcel = _filesToConvert.Any(f =>
+            {
                 string ext = System.IO.Path.GetExtension(f.FullPath).ToLower();
                 return ext == ".xlsx" || ext == ".xls";
             });
@@ -1385,12 +1388,12 @@ public partial class MainWindow : Window
             string fmt = item.Content.ToString()!.ToUpper();
             if (fmt == "PDF")
             {
-                 chkMergePdf.Visibility = Visibility.Visible;
+                chkMergePdf.Visibility = Visibility.Visible;
             }
             else
             {
-                 chkMergePdf.Visibility = Visibility.Collapsed;
-                 chkMergePdf.IsChecked = false;
+                chkMergePdf.Visibility = Visibility.Collapsed;
+                chkMergePdf.IsChecked = false;
             }
         }
 
@@ -1426,7 +1429,7 @@ public partial class MainWindow : Window
             }
 
             // Wait for layout update to draw waveform correctly
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() => 
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
             {
                 DrawWaveform();
                 UpdateSelectionVisuals();
@@ -1458,25 +1461,25 @@ public partial class MainWindow : Window
         if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
 
         WaveformLine.Points.Clear();
-        
+
         double width = WaveformContainer.ActualWidth;
         double height = WaveformContainer.ActualHeight > 0 ? WaveformContainer.ActualHeight : 100; // Fallback
         double mid = height / 2;
-        
+
         var points = new PointCollection();
         Random r = new Random();
-        
+
         points.Add(new Point(0, mid));
 
         int steps = (int)width / 2;
         for (int i = 0; i <= steps; i++)
         {
             double x = i * 2;
-            double amplitude = (r.NextDouble() * 0.8 + 0.1) * (mid * 0.9); 
+            double amplitude = (r.NextDouble() * 0.8 + 0.1) * (mid * 0.9);
             points.Add(new Point(x, mid - amplitude));
             points.Add(new Point(x, mid + amplitude));
         }
-        
+
         points.Add(new Point(width, mid));
         WaveformLine.Points = points;
     }
@@ -1484,33 +1487,33 @@ public partial class MainWindow : Window
     private void UpdatePlaybackCursor()
     {
         if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
-        
+
         double progress = 0;
         if (_audioReader.TotalTime.TotalSeconds > 0)
             progress = _audioReader.CurrentTime.TotalSeconds / _audioReader.TotalTime.TotalSeconds;
-            
+
         double x = progress * WaveformContainer.ActualWidth;
-        
+
         if (x < 0) x = 0;
         if (x > WaveformContainer.ActualWidth) x = WaveformContainer.ActualWidth;
 
         PlaybackCursor.X1 = x;
         PlaybackCursor.X2 = x;
-        
+
         if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
         {
-             if (_selectionEnd > TimeSpan.Zero && _audioReader.CurrentTime >= _selectionEnd)
-             {
-                 _waveOut.Pause();
-                 _audioReader.CurrentTime = _selectionEnd;
-             }
+            if (_selectionEnd > TimeSpan.Zero && _audioReader.CurrentTime >= _selectionEnd)
+            {
+                _waveOut.Pause();
+                _audioReader.CurrentTime = _selectionEnd;
+            }
         }
     }
 
     private void Waveform_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_audioReader == null) return;
-        
+
         Point p = e.GetPosition(WaveformContainer);
         double width = WaveformContainer.ActualWidth;
         if (width <= 0) return;
@@ -1527,13 +1530,13 @@ public partial class MainWindow : Window
     private void UpdateTimeDisplay()
     {
         if (TimeDisplay == null) return;
-        
+
         TimeSpan duration = _selectionEnd - _selectionStart;
         // Ensure duration isn't negative
         if (duration < TimeSpan.Zero) duration = TimeSpan.Zero;
-        
+
         TimeDisplay.Text = $"Start: {_selectionStart:mm\\:ss\\.fff}  |  End: {_selectionEnd:mm\\:ss\\.fff}  |  Duration: {duration:mm\\:ss\\.fff}";
-        
+
         // Optional: Change color to Red if duration is 0, Green if valid.
         TimeDisplay.Foreground = (duration.TotalMilliseconds > 0) ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00E5FF")) : Brushes.Gray;
     }
@@ -1563,7 +1566,7 @@ public partial class MainWindow : Window
     private void UpdateSelectionVisuals()
     {
         if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
-        
+
         double totalSeconds = _audioReader.TotalTime.TotalSeconds;
         if (totalSeconds <= 0) return;
 
@@ -1573,7 +1576,7 @@ public partial class MainWindow : Window
 
         // 1. Left Dimming (From 0 to Start)
         DimLeft.Width = startX;
-        
+
         // 2. Right Dimming (From End to TotalWidth)
         double rightWidth = totalWidth - endX;
         if (rightWidth < 0) rightWidth = 0;
@@ -1605,7 +1608,7 @@ public partial class MainWindow : Window
     private void SaveSelection_Click(object sender, RoutedEventArgs e)
     {
         if (_currentAudioFile == null) return;
-        
+
         // 1. Pause Playback (Safety)
         if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
         {
@@ -1616,7 +1619,7 @@ public partial class MainWindow : Window
         string dir = System.IO.Path.GetDirectoryName(_currentAudioFile) ?? "";
         string name = System.IO.Path.GetFileNameWithoutExtension(_currentAudioFile);
         string ext = System.IO.Path.GetExtension(_currentAudioFile);
-        
+
         // 3. Open SaveFileDialog
         var saveDialog = new Microsoft.Win32.SaveFileDialog
         {
@@ -1640,18 +1643,18 @@ public partial class MainWindow : Window
 
             if (!File.Exists(_config.FFmpegPath))
             {
-                 MessageBox.Show($"FFmpeg not found.\nExpected location:\n{_config.FFmpegPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                 return;
+                MessageBox.Show($"FFmpeg not found.\nExpected location:\n{_config.FFmpegPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
-            
+
             // 5. Construct Arguments with Escaped Quotes
             string start = _selectionStart.ToString(@"hh\:mm\:ss\.fff");
             string end = _selectionEnd.ToString(@"hh\:mm\:ss\.fff");
-            
+
             // IMPORTANT: Wrap paths in escaped quotes to handle spaces and special chars
             string args = $"-i \"{_currentAudioFile}\" -ss {start} -to {end} -c copy -y \"{outputFile}\"";
-            
-            try 
+
+            try
             {
                 _processManager.RunSync(_config.FFmpegPath, args);
                 MessageBox.Show($"Saved Trimmed Audio:\n{outputFile}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1689,8 +1692,8 @@ public partial class MainWindow : Window
         AudioEditorGrid.Visibility = Visibility.Collapsed;
         DropZone.Visibility = Visibility.Visible;
         FilesList.Visibility = Visibility.Visible;
-        
-        CurrentToolTitle.Text = "Select Tool"; 
+
+        CurrentToolTitle.Text = "Select Tool";
         _currentAudioFile = null;
     }
 

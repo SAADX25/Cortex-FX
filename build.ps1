@@ -27,6 +27,17 @@ function Assert-InProject {
     }
 }
 
+function Assert-Exists {
+    param(
+        [string]$Path,
+        [string]$Description
+    )
+
+    if (!(Test-Path -LiteralPath $Path)) {
+        throw "$Description not found: $Path"
+    }
+}
+
 $ProjectRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $ProjectFile = Join-Path $ProjectRoot "CortexFX.csproj"
 $InstallerScript = Join-Path $ProjectRoot "setup.iss"
@@ -75,6 +86,24 @@ dotnet publish $ProjectFile `
 
 Write-Host "Publish output: $PublishDir" -ForegroundColor Green
 
+$RequiredPublishFiles = @(
+    (Join-Path $PublishDir "CortexFX.exe"),
+    (Join-Path $PublishDir "Resources"),
+    (Join-Path $PublishDir "Resources\ffmpeg.exe"),
+    (Join-Path $PublishDir "Resources\magick.exe"),
+    (Join-Path $PublishDir "Resources\pdftocairo.exe"),
+    (Join-Path $PublishDir "Resources\ffmpeg_libs\avcodec-58.dll"),
+    (Join-Path $PublishDir "Resources\ffmpeg_libs\avformat-58.dll"),
+    (Join-Path $PublishDir "Resources\ffmpeg_libs\avutil-56.dll"),
+    (Join-Path $PublishDir "Resources\ffmpeg_libs\swresample-3.dll"),
+    (Join-Path $PublishDir "Resources\ffmpeg_libs\swscale-5.dll")
+)
+
+Write-Step "Validating publish output"
+foreach ($RequiredFile in $RequiredPublishFiles) {
+    Assert-Exists -Path $RequiredFile -Description "Required publish file"
+}
+
 if ($CreatePortableZip) {
     $ZipPath = Join-Path $PublishRoot "CortexFX_Portable_v$Version-$Runtime.zip"
     Assert-InProject -Path $ZipPath -ProjectRoot $ProjectRoot
@@ -109,7 +138,8 @@ if (!(Test-Path -LiteralPath $InstallerScript)) {
 }
 
 Write-Step "Building installer"
-& $InnoCandidates[0] "/DMyBuildPath=$PublishDir" "/DMyOutputDir=$PublishRoot" $InstallerScript
+$InnoCompiler = @($InnoCandidates)[0]
+& $InnoCompiler "/DMyAppVersion=$Version" "/DMyBuildPath=$PublishDir" "/DMyOutputDir=$PublishRoot" $InstallerScript
 
 if ($LASTEXITCODE -ne 0) {
     throw "Installer compilation failed with exit code $LASTEXITCODE."
