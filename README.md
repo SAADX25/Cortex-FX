@@ -115,6 +115,14 @@ The project file copies `Resources\**\*.*` into both build and publish output. T
 
 ## GitHub Release Checklist
 
+Before tagging a release:
+
+```powershell
+dotnet restore .\CortexFX.csproj
+dotnet build .\CortexFX.csproj -c Release --no-restore
+dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v0.6.0
+```
+
 Recommended release build:
 
 ```powershell
@@ -139,6 +147,7 @@ Before uploading, test on a clean Windows machine or VM:
 - Video/audio conversion works.
 - PDF/document conversion behavior is clear, including Office-required warnings.
 - Missing resource warnings name the missing files and expected folder.
+- NuGet restore does not report unresolved high-severity package vulnerabilities.
 
 ## Troubleshooting
 
