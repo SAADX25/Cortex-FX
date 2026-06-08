@@ -11,7 +11,7 @@ namespace CortexFX.Core.Services;
 /// </summary>
 public sealed class ProcessManager : IProcessManager
 {
-    private readonly ConcurrentBag<int> _trackedPids = [];
+    private readonly ConcurrentDictionary<int, DateTime?> _trackedProcesses = [];
     private bool _disposed;
 
     /// <inheritdoc />
@@ -24,12 +24,16 @@ public sealed class ProcessManager : IProcessManager
     public async Task<ProcessResult> RunAsync(string exePath, string arguments, CancellationToken ct = default)
     {
         if (!File.Exists(exePath))
+        {
+            ConsoleLogger.Error("Process", $"Executable not found: {exePath}");
             throw new FileNotFoundException($"Executable not found: {exePath}");
+        }
 
         var psi = CreateStartInfo(exePath, arguments);
 
         using var process = new Process { StartInfo = psi };
 
+        ConsoleLogger.Info("Process", $"Starting {Path.GetFileName(exePath)}.");
         process.Start();
         TrackProcess(process.Id);
 
@@ -43,6 +47,7 @@ public sealed class ProcessManager : IProcessManager
         catch (OperationCanceledException)
         {
             KillSafe(process);
+            ConsoleLogger.Warning("Process", $"Cancelled {Path.GetFileName(exePath)}.");
             throw;
         }
 
@@ -52,31 +57,53 @@ public sealed class ProcessManager : IProcessManager
 
         if (result.ExitCode != 0)
         {
+            string details = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
+            ConsoleLogger.Error("Process", $"{Path.GetFileName(exePath)} exited with code {result.ExitCode}: {details}");
             throw new InvalidOperationException(
-                $"Process exited with code {result.ExitCode}:\n{result.StdErr}");
+                $"{Path.GetFileName(exePath)} exited with code {result.ExitCode}: {details}");
         }
 
+        ConsoleLogger.Success("Process", $"{Path.GetFileName(exePath)} completed.");
         return result;
     }
 
     /// <inheritdoc />
     public void TrackProcess(int pid)
     {
-        _trackedPids.Add(pid);
+        DateTime? startTime = null;
+        try
+        {
+            using var proc = Process.GetProcessById(pid);
+            startTime = proc.StartTime;
+        }
+        catch
+        {
+            // Process may have exited before it could be inspected.
+        }
+
+        _trackedProcesses[pid] = startTime;
     }
 
     /// <inheritdoc />
     public void KillAllTracked()
     {
-        while (_trackedPids.TryTake(out int pid))
+        foreach (var tracked in _trackedProcesses.ToArray())
         {
+            int pid = tracked.Key;
+            _trackedProcesses.TryRemove(pid, out _);
+
             try
             {
                 var proc = Process.GetProcessById(pid);
                 if (!proc.HasExited)
                 {
-                    proc.Kill();
+                    bool sameProcess = tracked.Value == null || proc.StartTime == tracked.Value.Value;
+                    if (sameProcess)
+                    {
+                        proc.Kill();
+                    }
                 }
+                proc.Dispose();
             }
             catch
             {

@@ -21,6 +21,29 @@ public partial class App : Application
     {
         base.OnStartup(e);
         ConsoleLogger.Initialize();
+        DispatcherUnhandledException += (_, args) =>
+        {
+            ConsoleLogger.Error("Unhandled", args.Exception.ToString());
+            MessageBox.Show(
+                "Cortex FX hit an unexpected problem. Your files were not deleted or uploaded.\n\n" +
+                $"A diagnostic log was saved here:\n{ConsoleLogger.LogFilePath}",
+                "Unexpected Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+            {
+                ConsoleLogger.Error("Unhandled", ex.ToString());
+            }
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            ConsoleLogger.Error("Unhandled", args.Exception.ToString());
+            args.SetObserved();
+        };
 
         Version? version = typeof(App).Assembly.GetName().Version;
         string versionText = version != null
@@ -35,10 +58,15 @@ public partial class App : Application
         Services = serviceCollection.BuildServiceProvider();
         ConsoleLogger.Success("App", "Services loaded.");
 
-        // 2. Pre-launch cleanup via the new ProcessManager
+        // 2. Background cleanup via the new ProcessManager.
+        // Office process scanning can be slow on some machines, so do not hold
+        // the first window paint hostage to it.
         var processManager = Services.GetRequiredService<IProcessManager>();
-        processManager.KillZombieProcesses("WINWORD", "POWERPNT", "EXCEL");
-        ConsoleLogger.Info("Office", "Startup cleanup completed.");
+        _ = Task.Run(() =>
+        {
+            processManager.KillZombieProcesses("WINWORD", "POWERPNT", "EXCEL");
+            ConsoleLogger.Info("Office", "Startup cleanup completed.");
+        });
 
         // 3. Resolve and show MainWindow
         string? startupFile = e.Args.Length > 0 ? e.Args[0] : null;

@@ -44,7 +44,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
     public OfficeInteropService(IProcessManager processManager)
     {
         _processManager = processManager;
-        _logPath = Path.Combine(AppContext.BaseDirectory, "cortex_log.txt");
+        _logPath = ConsoleLogger.LogFilePath;
     }
 
     // ------------------------------------------------------------------
@@ -630,8 +630,11 @@ public sealed class OfficeInteropService : IOfficeInteropService
 
         try
         {
-            File.AppendAllText(_logPath,
-                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}{Environment.NewLine}");
+            if (!string.IsNullOrWhiteSpace(_logPath))
+            {
+                File.AppendAllText(_logPath,
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - [Office] {message}{Environment.NewLine}");
+            }
         }
         catch { }
     }

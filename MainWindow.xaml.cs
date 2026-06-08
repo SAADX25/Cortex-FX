@@ -46,6 +46,10 @@ public partial class MainWindow : Window
     private readonly IResourceValidationService _resourceValidator;
     private ObservableCollection<FileModel> _filesToConvert = new ObservableCollection<FileModel>();
     private CancellationTokenSource? _cancellationTokenSource;
+    private bool _isConverting;
+    private bool _formatWasEnabledBeforeConversion;
+    private string? _lastOutputFolder;
+    private const int MaxBatchFiles = 100;
     // Audio Editor State
     private string? _currentAudioFile;
     private string? _pendingAudioFile;
@@ -74,33 +78,6 @@ public partial class MainWindow : Window
         try
         {
             InitializeComponent();
-            
-            // --- SMART FFMPEG LOADING START ---
-            string targetFolder = _config.FFmpegLibsDirectory;
-            _ffmpegBinPath = targetFolder;
-            try
-            {
-                Unosquare.FFME.Library.FFmpegDirectory = _ffmpegBinPath;
-                Unosquare.FFME.Library.LoadFFmpeg();
-                ConsoleLogger.Success("Engine", $"FFME loaded from {ConsoleLogger.ShortPath(_ffmpegBinPath)}.");
-            }
-            catch (Exception ffmpegEx)
-            {
-                // Detailed Debug Info if it still fails
-                string folderContent = "";
-                if (Directory.Exists(targetFolder))
-                {
-                    var files = Directory.GetFiles(targetFolder).Select(System.IO.Path.GetFileName).Take(5);
-                    folderContent = string.Join(", ", files);
-                }
-                else
-                {
-                    folderContent = "Folder does not exist!";
-                }
-                ConsoleLogger.Error("Engine", $"FFME load failed: {ffmpegEx.Message}");
-                MessageBox.Show($"FFmpeg Critical Error!\n\nTarget Path: {targetFolder}\nError: {ffmpegEx.Message}\n\nFiles found in folder: {folderContent}", "Startup Error");
-            }
-            // --- SMART FFMPEG LOADING END ---
 
             // Initialize the Video Compressor view
             VideoCompressorEditor.Initialize(_config.FFmpegPath);
@@ -131,6 +108,7 @@ public partial class MainWindow : Window
 
             // Explicitly hide TopNav on startup
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+            UpdateConvertButtonAvailability();
         }
         catch (Exception ex)
         {
@@ -141,34 +119,125 @@ public partial class MainWindow : Window
         }
     }
 
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        var resourceStatus = _resourceValidator.ValidateCoreResources();
-        if (!resourceStatus.ResourcesDirectoryExists)
+        StatusText.Text = "Checking local tools...";
+        ConsoleLogger.Info("Startup", "Background startup checks started.");
+
+        try
         {
-            ConsoleLogger.Warning("Resources", $"Resources folder missing: {resourceStatus.ResourcesDirectory}");
-            MessageBox.Show(
-                $"Resources folder not found.\n\nExpected location:\n{resourceStatus.ResourcesDirectory}\n\nInstall or publish the app with its Resources folder.",
-                "Resources Missing",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
+            var resourceStatus = await _resourceValidator.ValidateCoreResourcesAsync();
+            if (!resourceStatus.IsReady)
+            {
+                ConsoleLogger.Warning("Resources", BuildResourceStatusMessage(resourceStatus));
+                StatusText.Text = "Some local tools are missing. Open Settings for logs.";
+                MessageBox.Show(
+                    BuildResourceWarning(resourceStatus),
+                    "Resource Status",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            else
+            {
+                ConsoleLogger.Success("Resources", $"Core tools ready at {ConsoleLogger.ShortPath(resourceStatus.ResourcesDirectory)}.");
+                StatusText.Text = "Local tools ready.";
+            }
+
+            await LoadFfmeAsync();
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogger.Error("Startup", $"Startup checks failed: {ex}");
+            StatusText.Text = "Startup checks failed. Open Settings for logs.";
+        }
+    }
+
+    private async Task LoadFfmeAsync()
+    {
+        string targetFolder = _config.FFmpegLibsDirectory;
+        _ffmpegBinPath = targetFolder;
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                Unosquare.FFME.Library.FFmpegDirectory = _ffmpegBinPath;
+                Unosquare.FFME.Library.LoadFFmpeg();
+            });
+            ConsoleLogger.Success("Engine", $"FFME loaded from {ConsoleLogger.ShortPath(_ffmpegBinPath)}.");
+        }
+        catch (Exception ffmpegEx)
+        {
+            ConsoleLogger.Error("Engine", $"FFME load failed from {targetFolder}: {ffmpegEx.Message}");
+            StatusText.Text = "Video preview engine is unavailable. Conversion can still work if ffmpeg.exe is present.";
+        }
+    }
+
+    private static string BuildResourceStatusMessage(ResourceValidationResult status)
+    {
+        var parts = new List<string>
+        {
+            $"Resources: {status.ResourcesDirectory}"
+        };
+
+        if (!status.ResourcesDirectoryExists)
+        {
+            parts.Add("Resources folder missing.");
         }
 
-        if (resourceStatus.MissingTools.Count > 0)
+        if (status.MissingTools.Count > 0)
         {
-            string missingList = string.Join("\n", resourceStatus.MissingTools);
-            ConsoleLogger.Warning("Resources", $"Missing tools: {string.Join(", ", resourceStatus.MissingTools)}");
-            MessageBox.Show(
-                $"Missing required tools in Resources:\n{missingList}\n\nResources path:\n{resourceStatus.ResourcesDirectory}",
-                "Resources Missing",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            parts.Add($"Missing tools: {string.Join(", ", status.MissingTools)}");
         }
-        else
+
+        if (status.MissingFFmpegDlls.Count > 0)
         {
-            ConsoleLogger.Success("Resources", $"Core tools ready at {ConsoleLogger.ShortPath(resourceStatus.ResourcesDirectory)}.");
+            parts.Add($"Missing FFME DLLs in {status.FFmpegLibsDirectory}: {string.Join(", ", status.MissingFFmpegDlls)}");
         }
+
+        return string.Join(" ", parts);
+    }
+
+    private static string BuildResourceWarning(ResourceValidationResult status)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Cortex FX could not find every local tool it needs.");
+        builder.AppendLine();
+
+        if (!status.ResourcesDirectoryExists)
+        {
+            builder.AppendLine("Missing folder:");
+            builder.AppendLine(status.ResourcesDirectory);
+            builder.AppendLine();
+        }
+
+        if (status.MissingTools.Count > 0)
+        {
+            builder.AppendLine("Place these files in the Resources folder:");
+            foreach (string tool in status.MissingTools)
+            {
+                builder.AppendLine($"- {tool}");
+            }
+            builder.AppendLine();
+        }
+
+        if (status.MissingFFmpegDlls.Count > 0)
+        {
+            builder.AppendLine("Place these FFME DLLs in:");
+            builder.AppendLine(status.FFmpegLibsDirectory);
+            foreach (string dll in status.MissingFFmpegDlls)
+            {
+                builder.AppendLine($"- {dll}");
+            }
+            builder.AppendLine();
+        }
+
+        builder.AppendLine("Expected core Resources layout:");
+        builder.AppendLine("Resources\\ffmpeg.exe");
+        builder.AppendLine("Resources\\magick.exe");
+        builder.AppendLine("Resources\\pdftocairo.exe");
+        builder.AppendLine("Resources\\ffmpeg_libs\\*.dll");
+        return builder.ToString();
     }
 
     private void ShowConversionView(string? toolTag = null)
@@ -478,6 +547,23 @@ public partial class MainWindow : Window
 
     private void AddFileToList(string file)
     {
+        if (!File.Exists(file))
+        {
+            ConsoleLogger.Warning("Files", $"Skipped missing file: {ConsoleLogger.ShortPath(file)}");
+            return;
+        }
+
+        if (_filesToConvert.Count >= MaxBatchFiles)
+        {
+            StatusText.Text = $"Batch limit reached ({MaxBatchFiles} files).";
+            MessageBox.Show(
+                $"Cortex FX can process up to {MaxBatchFiles} files in one batch. Start this batch first, then add more files.",
+                "Batch Limit",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
         // Check if file already exists in the list
         bool exists = false;
         foreach(var f in _filesToConvert)
@@ -498,6 +584,7 @@ public partial class MainWindow : Window
             });
 
             RefreshFormatsFromSelectedFiles();
+            UpdateConvertButtonAvailability();
         }
     }
 
@@ -509,6 +596,53 @@ public partial class MainWindow : Window
     private void CloseSettings_Click(object sender, RoutedEventArgs e)
     {
         SettingsOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void ShowResourceStatus_Click(object sender, RoutedEventArgs e)
+    {
+        var status = _resourceValidator.ValidateCoreResources();
+        string message = status.IsReady
+            ? $"All core resources are ready.\n\nResources folder:\n{status.ResourcesDirectory}\n\nFFME DLL folder:\n{status.FFmpegLibsDirectory}"
+            : BuildResourceWarning(status);
+
+        MessageBox.Show(message, "Resource Status", MessageBoxButton.OK,
+            status.IsReady ? MessageBoxImage.Information : MessageBoxImage.Warning);
+    }
+
+    private void OpenLogFolder_Click(object sender, RoutedEventArgs e)
+    {
+        OpenFolder(ConsoleLogger.LogDirectory);
+    }
+
+    private void OpenOutputFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(_lastOutputFolder))
+        {
+            OpenFolder(_lastOutputFolder);
+        }
+    }
+
+    private static void OpenFolder(string? folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+        {
+            MessageBox.Show("The folder is not available yet.", "Folder Not Found", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = folderPath,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogger.Error("Shell", $"Could not open folder {ConsoleLogger.ShortPath(folderPath)}: {ex.Message}");
+            MessageBox.Show($"Could not open the folder.\n\n{folderPath}", "Open Folder Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void ContextMenuCheckBox_Checked(object sender, RoutedEventArgs e)
@@ -654,7 +788,11 @@ public partial class MainWindow : Window
                 ProcessDirectory(subDir);
             }
         }
-        catch { /* Access denied or other errors, skip */ }
+        catch (Exception ex)
+        {
+            ConsoleLogger.Warning("Files", $"Skipped folder {ConsoleLogger.ShortPath(dirPath)}: {ex.Message}");
+            StatusText.Text = "Some folders could not be read. See logs for details.";
+        }
     }
 
     private string GetFilterForCurrentMode()
@@ -776,6 +914,7 @@ public partial class MainWindow : Window
             {
                 _filesToConvert.Remove(itemToRemove);
                 RefreshFormatsFromSelectedFiles();
+                UpdateConvertButtonAvailability();
             }
         }
     }
@@ -887,7 +1026,13 @@ public partial class MainWindow : Window
             // Clear error state if valid
             OutputPathBox.BorderBrush = (Brush)FindResource("BorderColor");
             OutputWarningText.Visibility = Visibility.Collapsed;
+            UpdateConvertButtonAvailability();
         }
+    }
+
+    private void OutputPathBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateConvertButtonAvailability();
     }
 
     private void CloseOverlay_Click(object sender, RoutedEventArgs e)
@@ -896,7 +1041,7 @@ public partial class MainWindow : Window
         StatusText.Text = "Ready";
         ConversionProgress.Value = 0;
         _filesToConvert.Clear();
-        ConvertButton.IsEnabled = true;
+        UpdateConvertButtonAvailability();
     }
 
     private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
@@ -909,8 +1054,96 @@ public partial class MainWindow : Window
         return int.TryParse(value, out int parsed) && parsed > 0 ? parsed : null;
     }
 
+    private void UpdateConvertButtonAvailability()
+    {
+        if (ConvertButton == null || _isConverting)
+        {
+            return;
+        }
+
+        bool hasFiles = _filesToConvert.Count > 0;
+        bool hasOutput = !string.IsNullOrWhiteSpace(OutputPathBox?.Text);
+        bool hasFormat = FormatComboBox?.SelectedItem is ComboBoxItem item &&
+                         item.Content != null &&
+                         !item.Content.ToString()!.Contains("Ready", StringComparison.OrdinalIgnoreCase) &&
+                         !item.Content.ToString()!.Contains("No common", StringComparison.OrdinalIgnoreCase);
+
+        ConvertButton.IsEnabled = hasFiles && hasOutput && hasFormat;
+        ConvertButton.Content = "CONVERT";
+    }
+
+    private void SetConversionUiState(bool isConverting)
+    {
+        if (isConverting)
+        {
+            _formatWasEnabledBeforeConversion = FormatComboBox.IsEnabled;
+        }
+
+        _isConverting = isConverting;
+        ConvertButton.IsEnabled = true;
+        ConvertButton.Content = isConverting ? "CANCEL" : "CONVERT";
+        BrowseButton.IsEnabled = !isConverting;
+        BackBtn.IsEnabled = !isConverting;
+        DropZone.IsEnabled = !isConverting;
+        FormatComboBox.IsEnabled = isConverting ? false : _formatWasEnabledBeforeConversion;
+
+        if (!isConverting)
+        {
+            UpdateConvertButtonAvailability();
+        }
+    }
+
+    private static string FriendlyErrorMessage(string filePath, string message)
+    {
+        string name = System.IO.Path.GetFileName(filePath);
+
+        if (message.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("Executable", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{name}: a required local tool is missing. Open Settings > Resource Status for the expected Resources layout.";
+        }
+
+        if (message.Contains("Microsoft Office is required", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("COM", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("RPC", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{name}: Microsoft Office could not complete this conversion. Make sure Office is installed, activated, and able to open the file.";
+        }
+
+        if (message.Contains("No engine found", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("not supported", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{name}: this conversion route is not supported yet.";
+        }
+
+        if (message.Contains("cancel", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{name}: conversion was cancelled.";
+        }
+
+        return $"{name}: {message}";
+    }
+
+    private void ShowConversionSummary(int successCount, int errorCount, int totalCount, string? details = null)
+    {
+        bool hadErrors = errorCount > 0;
+        SuccessTitleText.Text = hadErrors ? "Finished with warnings" : "All Tasks Finished!";
+        SuccessMessageText.Text = details ?? (hadErrors
+            ? $"Converted {successCount}/{totalCount} files. {errorCount} failed. See the log for details."
+            : $"Successfully converted {successCount}/{totalCount} files.");
+        SuccessOverlay.Visibility = Visibility.Visible;
+    }
+
     private async void ConvertButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_isConverting)
+        {
+            _cancellationTokenSource?.Cancel();
+            StatusText.Text = "Cancelling...";
+            ConvertButton.IsEnabled = false;
+            return;
+        }
+
         // 1. Validate Output Path
         if (string.IsNullOrWhiteSpace(OutputPathBox.Text))
         {
@@ -926,24 +1159,44 @@ public partial class MainWindow : Window
 
         if (_filesToConvert.Count == 0)
         {
-            MessageBox.Show("Please drop some files first.", "No Files", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Add at least one file before converting.", "No Files", MessageBoxButton.OK, MessageBoxImage.Information);
+            UpdateConvertButtonAvailability();
+            return;
+        }
+
+        if (_filesToConvert.Count > MaxBatchFiles)
+        {
+            MessageBox.Show($"Reduce the batch to {MaxBatchFiles} files or fewer.", "Batch Too Large", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (FormatComboBox.SelectedItem is not ComboBoxItem selectedItem || selectedItem.Content == null)
             return;
 
-        // Cancel existing conversion if running
-        if (_cancellationTokenSource != null)
+        string targetFormat = selectedItem.Content.ToString()!.ToLowerInvariant();
+        if (targetFormat.Contains("ready", StringComparison.OrdinalIgnoreCase) ||
+            targetFormat.Contains("no common", StringComparison.OrdinalIgnoreCase))
         {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
+            MessageBox.Show("Choose a valid output format for the selected files.", "Output Format Needed", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
         }
+
+        string outputDir = OutputPathBox.Text.Trim();
+        try
+        {
+            Directory.CreateDirectory(outputDir);
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogger.Error("Conversion", $"Output folder unavailable: {ex.Message}");
+            MessageBox.Show($"Cortex FX could not use this output folder:\n{outputDir}\n\nChoose another folder and try again.", "Output Folder Unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
 
-        string targetFormat = selectedItem.Content.ToString()!.ToLower();
-        string outputDir = OutputPathBox.Text;
         double qualityLevel = QualitySlider.Value;
 
         // Advanced Settings
@@ -965,275 +1218,162 @@ public partial class MainWindow : Window
             Grayscale: grayscale,
             AutoEnhance: autoEnhance);
 
-        // Routing Logic
-        // Determine which engine to use based on input and output
-        // If Universal Mode, we need strict routing based on extension
-        
-        ConvertButton.IsEnabled = false;
-        
-        // Use 0-100 range for the overall batch progress, but we need per-file granularity
+        bool createSubfolder = chkCreateSubfolder.IsChecked == true;
+        _lastOutputFolder = createSubfolder ? System.IO.Path.Combine(outputDir, "Cortex FX") : outputDir;
+        var files = new List<FileModel>(_filesToConvert);
+        var filePaths = files.Select(f => f.FullPath).ToList();
+        var failedMessages = new List<string>();
+
         ConversionProgress.Value = 0;
-        ConversionProgress.Maximum = _filesToConvert.Count * 100; // 100 points per file for smooth updates
+        ConversionProgress.Maximum = files.Count * 100;
         StatusText.Text = "Converting...";
         ConsoleLogger.Info("Conversion", $"Starting batch: {_filesToConvert.Count} file(s) -> {targetFormat.ToUpperInvariant()}.");
+        SetConversionUiState(true);
 
         try
         {
-            await Task.Run(async () =>
+            bool isMergeChecked = chkMergePdf.IsChecked == true && chkMergePdf.Visibility == Visibility.Visible;
+            bool areAllImages = filePaths.All(f => MediaTypes.RasterImageExtensions.Contains(System.IO.Path.GetExtension(f).ToLowerInvariant()));
+
+            if (filePaths.Count > 1 && areAllImages && targetFormat == "pdf" && isMergeChecked)
             {
-                int processedFiles = 0;
-                int successCount = 0;
-                int errorCount = 0;
-                var files = new List<FileModel>(_filesToConvert);
+                StatusText.Text = "Merging all images...";
+                ConsoleLogger.Info("Conversion", $"Merging {filePaths.Count} image(s) -> PDF.");
 
-                // 1. Collect all file paths
-                var filePaths = files.Select(f => f.FullPath).ToList();
+                string outputFolder = _lastOutputFolder ?? outputDir;
+                Directory.CreateDirectory(outputFolder);
+                string finalPath = System.IO.Path.Combine(outputFolder, $"Merged_Images_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
 
-                // 2. Check for Merge Condition: Multiple Images -> PDF
-                bool isMergeChecked = false;
-                Dispatcher.Invoke(() => isMergeChecked = chkMergePdf.IsChecked == true && chkMergePdf.Visibility == Visibility.Visible);
-                
-                // Strict check: Multiple files + All Images + Target PDF + Merge Checked
-                bool areAllImages = filePaths.All(f => {
-                    string ext = System.IO.Path.GetExtension(f).ToLower();
-                    return MediaTypes.RasterImageExtensions.Contains(ext);
-                });
-
-                if (filePaths.Count > 1 && areAllImages && targetFormat == "pdf" && isMergeChecked)
+                foreach (var f in files)
                 {
-                    // --- MERGE MODE START ---
-                    Dispatcher.Invoke(() => StatusText.Text = "Merging all images...");
-                    ConsoleLogger.Info("Conversion", $"Merging {filePaths.Count} image(s) -> PDF.");
-                    
-                    string outputName = $"Merged_Images_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-                    
-                    // Handle Output Path
-                    string outputFolder = string.IsNullOrWhiteSpace(outputDir) ? (System.IO.Path.GetDirectoryName(filePaths[0]) ?? "") : outputDir;
-                    
-                    bool createSubfolder = false;
-                    Dispatcher.Invoke(() => createSubfolder = chkCreateSubfolder.IsChecked == true);
-                    
-                    if (createSubfolder)
-                    {
-                        outputFolder = System.IO.Path.Combine(outputFolder, "Cortex FX");
-                        if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
-                    }
-                    
-                    string finalPath = System.IO.Path.Combine(outputFolder, outputName);
+                    UpdateFileStatus(f, "Merging...", "#FF8C00");
+                }
 
-                    // Update UI to show working
-                    foreach (var f in files) UpdateFileStatus(f, "Merging...", "#FF8C00");
+                await _magickService.MergeImagesToPdfAsync(filePaths, finalPath, token);
+                foreach (var f in files)
+                {
+                    UpdateFileStatus(f, "Merged", "#4CAF50");
+                }
 
-                    try
+                ConversionProgress.Value = ConversionProgress.Maximum;
+                StatusText.Text = "Merge complete.";
+                ConsoleLogger.Success("Conversion", $"Merged images -> {ConsoleLogger.ShortPath(finalPath)}.");
+                ShowConversionSummary(files.Count, 0, files.Count, $"Merged {files.Count} images into:\n{finalPath}");
+                return;
+            }
+
+            int processedFiles = 0;
+            int successCount = 0;
+            int errorCount = 0;
+
+            foreach (var fileItem in files)
+            {
+                token.ThrowIfCancellationRequested();
+
+                string file = fileItem.FullPath;
+                if (!File.Exists(file))
+                {
+                    UpdateFileStatus(fileItem, "Missing", "#FF5555");
+                    errorCount++;
+                    failedMessages.Add($"{fileItem.FileName}: file was moved or deleted before conversion.");
+                    processedFiles++;
+                    ConversionProgress.Value = processedFiles * 100;
+                    continue;
+                }
+
+                ConsoleLogger.Info("Conversion", $"Converting {ConsoleLogger.ShortPath(file)} -> {targetFormat.ToUpperInvariant()}.");
+                UpdateFileStatus(fileItem, "Processing...", "#007ACC");
+                StatusText.Text = $"Converting {System.IO.Path.GetFileName(file)}...";
+
+                try
+                {
+                    var fileProgress = new Progress<double>(p =>
                     {
-                        await _magickService.MergeImagesToPdfAsync(filePaths, finalPath, token);
-                        
-                        // Update UI to Done
-                        foreach (var f in files) UpdateFileStatus(f, "Merged!", "#4CAF50");
-                        successCount = files.Count;
-                        ConsoleLogger.Success("Conversion", $"Merged images -> {ConsoleLogger.ShortPath(finalPath)}.");
-                    }
-                    catch (Exception ex)
-                    {
-                        foreach (var f in files) UpdateFileStatus(f, "Error", "#FF5555");
-                        errorCount = files.Count;
-                        ConsoleLogger.Error("Conversion", $"Merge failed: {ex.Message}");
-                    }
-                    
-                    Dispatcher.Invoke(() => 
-                    {
-                        ConversionProgress.Value = ConversionProgress.Maximum;
-                        StatusText.Text = "Merge Complete!";
-                        
-                        var overlayStack = FindVisualChild<StackPanel>(SuccessOverlay);
-                        if (overlayStack != null)
-                        {
-                                var textBlocks = new List<TextBlock>();
-                                FindVisualChildren(overlayStack, textBlocks);
-                                if (textBlocks.Count >= 2)
-                                {
-                                    var resultText = textBlocks[1];
-                                    resultText.Text = $"Successfully merged {successCount} images.";
-                                }
-                        }
-                        SuccessOverlay.Visibility = Visibility.Visible;
+                        double totalProgress = (processedFiles * 100) + Math.Clamp(p, 0, 100);
+                        ConversionProgress.Value = Math.Min(totalProgress, ConversionProgress.Maximum);
                     });
 
-                    // CRITICAL: STOP HERE! DO NOT RUN THE REST OF THE FUNCTION
-                    return;
-                    // --- MERGE MODE END ---
-                }
+                    var result = await _conversionRouter.ConvertAsync(new ConversionJob
+                    {
+                        InputPath = file,
+                        OutputDirectory = outputDir,
+                        TargetFormat = targetFormat,
+                        QualityLevel = qualityLevel,
+                        CreateSubfolder = createSubfolder,
+                        ImageOptions = imageOptions
+                    }, token, fileProgress);
 
-                // 3. FALLBACK LOOP: Single File Conversions
-                // This will ONLY run if the above block did NOT execute (i.e., not a batch merge)
-                foreach (var fileItem in files)
+                    if (!result.Success)
+                    {
+                        throw new InvalidOperationException(result.ErrorMessage ?? "Conversion failed.");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(result.OutputPath))
+                    {
+                        string resultFolder = Directory.Exists(result.OutputPath)
+                            ? result.OutputPath
+                            : (System.IO.Path.GetDirectoryName(result.OutputPath) ?? _lastOutputFolder ?? outputDir);
+                        _lastOutputFolder = resultFolder;
+                    }
+
+                    UpdateFileStatus(fileItem, "Done", "#4CAF50");
+                    successCount++;
+                    ConsoleLogger.Success("Conversion", $"Done {ConsoleLogger.ShortPath(file)}.");
+                }
+                catch (OperationCanceledException)
                 {
-                    if (token.IsCancellationRequested) break;
-
-                    string file = fileItem.FullPath;
-                    string extension = System.IO.Path.GetExtension(file).ToLower();
-                    ConsoleLogger.Info("Conversion", $"Converting {ConsoleLogger.ShortPath(file)} -> {targetFormat.ToUpperInvariant()}.");
-                    
-                    UpdateFileStatus(fileItem, "Processing...", "#007ACC"); // Blue
-
-                    try 
-                    {
-                        Dispatcher.Invoke(() => StatusText.Text = $"Converting {System.IO.Path.GetFileName(file)}...");
-
-                        string? dirName = System.IO.Path.GetDirectoryName(file);
-                        string userOutputDir = string.IsNullOrWhiteSpace(outputDir) ? (dirName ?? "") : outputDir;
-                        
-                        // Checkbox Logic: Use "Cortex FX" subfolder only if checked
-                        bool createSubfolder = false;
-                        Dispatcher.Invoke(() => createSubfolder = chkCreateSubfolder.IsChecked == true);
-
-                        // Progress Reporter for this specific file
-                        var fileProgress = new Progress<double>(p => 
-                        {
-                            double totalProgress = (processedFiles * 100) + p;
-                            Dispatcher.Invoke(() => ConversionProgress.Value = totalProgress);
-                        });
-
-                        var result = await _conversionRouter.ConvertAsync(new ConversionJob
-                        {
-                            InputPath = file,
-                            OutputDirectory = userOutputDir,
-                            TargetFormat = targetFormat,
-                            QualityLevel = qualityLevel,
-                            CreateSubfolder = createSubfolder,
-                            ImageOptions = imageOptions
-                        }, token, fileProgress);
-
-                        if (!result.Success)
-                        {
-                            throw new InvalidOperationException(result.ErrorMessage ?? "Conversion failed.");
-                        }
-
-                        UpdateFileStatus(fileItem, "Done", "#4CAF50"); // Green
-                        successCount++;
-                        ConsoleLogger.Success("Conversion", $"Done {ConsoleLogger.ShortPath(file)}.");
-                    }
-                    catch (Exception ex)
-                    {
-                         UpdateFileStatus(fileItem, "Error", "#FF5555"); // Red
-                         errorCount++;
-                         ConsoleLogger.Error("Conversion", $"Failed {ConsoleLogger.ShortPath(file)}: {ex.Message}");
-                         // Optional: Store error message in model
-                         
-                         Dispatcher.Invoke(() => 
-                         {
-                             StatusText.Text = $"Error: {System.IO.Path.GetFileName(file)}";
-                             // Don't popup for every error in batch, maybe just log or show at end
-                             // MessageBox.Show($"Error converting {System.IO.Path.GetFileName(file)}:\n\n{ex.Message}", "Conversion Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                         });
-                    }
-                    
-                    processedFiles++;
-                    // Ensure we hit the exact checkpoint for this file
-                    Dispatcher.Invoke(() => ConversionProgress.Value = processedFiles * 100);
+                    UpdateFileStatus(fileItem, "Cancelled", "#AAAAAA");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    UpdateFileStatus(fileItem, "Error", "#FF5555");
+                    errorCount++;
+                    string friendly = FriendlyErrorMessage(file, ex.Message);
+                    failedMessages.Add(friendly);
+                    ConsoleLogger.Error("Conversion", $"Failed {ConsoleLogger.ShortPath(file)}: {ex}");
+                    StatusText.Text = $"Error: {System.IO.Path.GetFileName(file)}";
                 }
 
-                Dispatcher.Invoke(() => {
-                    StatusText.Text = "Conversion Complete!";
-                    ConsoleLogger.Success("Conversion", $"Batch complete: {successCount} succeeded, {errorCount} failed.");
-                    
-                    // Final Report
-                    var overlayStack = FindVisualChild<StackPanel>(SuccessOverlay);
-                    if (overlayStack != null)
-                    {
-                         var textBlocks = new List<TextBlock>();
-                         FindVisualChildren(overlayStack, textBlocks);
-                         if (textBlocks.Count >= 2)
-                         {
-                             var resultText = textBlocks[1];
-                             resultText.Text = $"Successfully converted {successCount}/{_filesToConvert.Count} files.";
-                             if (errorCount > 0)
-                             {
-                                 resultText.Text += $"\n({errorCount} failed)";
-                             }
-                         }
-                    }
-                    
-                    SuccessOverlay.Visibility = Visibility.Visible;
-                });
-            });
+                processedFiles++;
+                ConversionProgress.Value = processedFiles * 100;
+            }
+
+            StatusText.Text = errorCount > 0 ? "Finished with warnings." : "Conversion complete.";
+            ConsoleLogger.Success("Conversion", $"Batch complete: {successCount} succeeded, {errorCount} failed.");
+
+            string? detail = failedMessages.Count > 0
+                ? $"Converted {successCount}/{files.Count} files.\n\n{string.Join("\n", failedMessages.Take(3))}" +
+                  (failedMessages.Count > 3 ? $"\n...and {failedMessages.Count - 3} more. See logs for details." : "")
+                : null;
+            ShowConversionSummary(successCount, errorCount, files.Count, detail);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText.Text = "Conversion cancelled.";
+            ConsoleLogger.Warning("Conversion", "Batch cancelled by user.");
+            ShowConversionSummary(0, files.Count, files.Count, "Conversion was cancelled. Partial output files may exist in the output folder.");
         }
         catch (Exception ex)
         {
-            ConsoleLogger.Error("Conversion", $"Critical error: {ex.Message}");
-            MessageBox.Show($"Critical Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            ConsoleLogger.Error("Conversion", $"Critical error: {ex}");
+            MessageBox.Show(
+                "Cortex FX could not complete the batch.\n\n" +
+                $"Details were written to:\n{ConsoleLogger.LogFilePath}",
+                "Conversion Failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {
-             ConvertButton.IsEnabled = true;
+            SetConversionUiState(false);
         }
-    }
-
-    // Helper to prevent crashes 
-    private T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject 
-    { 
-        if (parent == null) return null;
-        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++) 
-        { 
-            var child = VisualTreeHelper.GetChild(parent, i); 
-            if (child is T result) return result; 
-            var descendant = FindVisualChild<T>(child); 
-            if (descendant != null) return descendant; 
-        } 
-        return null; 
-    }
-
-    // Recursive helper to find all children of a specific type
-    private void FindVisualChildren<T>(DependencyObject depObj, List<T> results) where T : DependencyObject 
-    { 
-        if (depObj == null) return; 
-        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++) 
-        { 
-            var child = VisualTreeHelper.GetChild(depObj, i); 
-            if (child is T t) results.Add(t); 
-            FindVisualChildren(child, results); 
-        } 
     }
 
     private void UpdateFileStatus(FileModel file, string status, string color)
     {
-        // 1. Update Model (MVVM Persistence)
         file.Status = status;
         file.StatusColor = color;
-
-        // 2. Safe UI Update (FINAL FIX)
-        Dispatcher.Invoke(() => 
-        { 
-            try 
-            { 
-                var container = FilesList.ItemContainerGenerator.ContainerFromItem(file) as ListBoxItem;
-                if (container == null) return; 
-
-                // Use the safe helper to find the TextBlock holding the status
-                // We assume it's one of the TextBlocks in the template
-                var allTextBlocks = new List<TextBlock>(); 
-                FindVisualChildren(container, allTextBlocks); 
-                
-                // Robustness: Identify the correct block. 
-                // If your XAML template has 3 TextBlocks (Icon, Name, Status), use the last one.
-                // Or try to match by current status text if needed, but last is usually safe for this simple template.
-                var statusBlock = allTextBlocks.LastOrDefault(); 
-
-                if (statusBlock != null) 
-                { 
-                    statusBlock.Text = status; 
-                    if (new BrushConverter().ConvertFromString(color) is Brush brush)
-                    {
-                        statusBlock.Foreground = brush;
-                    }
-                }
-            } 
-            catch (Exception ex) 
-            { 
-                // Log silent failure but do not crash
-                Debug.WriteLine($"UI Update Failed: {ex.Message}"); 
-            } 
-        }); 
     }
 
     private void FormatComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1253,6 +1393,8 @@ public partial class MainWindow : Window
                  chkMergePdf.IsChecked = false;
             }
         }
+
+        UpdateConvertButtonAvailability();
     }
 
     // --- Audio Editor Implementation ---

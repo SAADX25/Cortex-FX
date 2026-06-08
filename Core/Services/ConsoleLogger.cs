@@ -17,11 +17,16 @@ public static class ConsoleLogger
     private static bool _initialized;
     private static bool _enabled;
     private static readonly object _lock = new();
+    private static string _logFilePath = string.Empty;
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool AttachConsole(int dwProcessId);
 
     public static bool IsEnabled => _enabled;
+
+    public static string LogDirectory { get; private set; } = string.Empty;
+
+    public static string LogFilePath => _logFilePath;
 
     public static void Initialize()
     {
@@ -34,11 +39,19 @@ public static class ConsoleLogger
 
             _initialized = true;
             _enabled = AttachConsole(AttachParentProcess);
+            LogDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Cortex FX",
+                "Logs");
+            Directory.CreateDirectory(LogDirectory);
+            _logFilePath = Path.Combine(LogDirectory, $"cortexfx-{DateTime.Now:yyyyMMdd}.log");
 
             if (_enabled)
             {
                 Console.WriteLine();
             }
+
+            Write(ConsoleLogLevel.Info, "Log", $"Logging to {_logFilePath}");
         }
     }
 
@@ -52,22 +65,8 @@ public static class ConsoleLogger
 
     public static void Write(ConsoleLogLevel level, string area, string message)
     {
-        if (!_enabled)
-        {
-            return;
-        }
-
         lock (_lock)
         {
-            var oldColor = Console.ForegroundColor;
-            Console.ForegroundColor = level switch
-            {
-                ConsoleLogLevel.Success => ConsoleColor.Green,
-                ConsoleLogLevel.Warning => ConsoleColor.Yellow,
-                ConsoleLogLevel.Error => ConsoleColor.Red,
-                _ => ConsoleColor.Cyan
-            };
-
             string prefix = level switch
             {
                 ConsoleLogLevel.Success => "OK",
@@ -76,8 +75,34 @@ public static class ConsoleLogger
                 _ => "INFO"
             };
 
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} > [{prefix}] [{area}] {message}");
-            Console.ForegroundColor = oldColor;
+            string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} > [{prefix}] [{area}] {message}";
+
+            if (_enabled)
+            {
+                var oldColor = Console.ForegroundColor;
+                Console.ForegroundColor = level switch
+                {
+                    ConsoleLogLevel.Success => ConsoleColor.Green,
+                    ConsoleLogLevel.Warning => ConsoleColor.Yellow,
+                    ConsoleLogLevel.Error => ConsoleColor.Red,
+                    _ => ConsoleColor.Cyan
+                };
+
+                Console.WriteLine(line);
+                Console.ForegroundColor = oldColor;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_logFilePath))
+            {
+                try
+                {
+                    File.AppendAllText(_logFilePath, line + Environment.NewLine);
+                }
+                catch
+                {
+                    // Logging must never crash the app.
+                }
+            }
         }
     }
 

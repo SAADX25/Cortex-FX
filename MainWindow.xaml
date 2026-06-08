@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CortexFX"
+        xmlns:conv="clr-namespace:CortexFX.Converters"
         xmlns:ctrl="clr-namespace:CortexFX.Controls"
         xmlns:views="clr-namespace:CortexFX.Views"
         xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
@@ -25,6 +26,7 @@
     <Window.Resources>
         <!-- Converters -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <conv:StringToBrushConverter x:Key="StringToBrushConverter"/>
 
         <!-- Colors -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#181818"/>
@@ -307,7 +309,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="📄" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="16"/>
                                 <TextBlock Text="{Binding FileName}" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Grid.Column="1"/>
-                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor}" VerticalAlignment="Center" Margin="10,0,10,0" Grid.Column="2" FontSize="12"/>
+                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor, Converter={StaticResource StringToBrushConverter}}" VerticalAlignment="Center" Margin="10,0,10,0" Grid.Column="2" FontSize="12"/>
                                 <Button Content="✕" Grid.Column="3" Click="RemoveFile_Click" Tag="{Binding FullPath}"
                                         Background="Transparent" Foreground="#FF5555" BorderThickness="0" Padding="8,0" Cursor="Hand"
                                         FontSize="14" FontWeight="Bold"/>
@@ -765,7 +767,9 @@
                                     </Grid.ColumnDefinitions>
                                     
                                     <TextBox x:Name="OutputPathBox" Grid.Column="0" Height="35" VerticalContentAlignment="Center" 
-                                             Background="#1E1E1E" Foreground="#E0E0E0" BorderThickness="0" Padding="10,0" Margin="0,0,10,0">
+                                             Background="#1E1E1E" Foreground="#E0E0E0" BorderThickness="0" Padding="10,0" Margin="0,0,10,0"
+                                             TextChanged="OutputPathBox_TextChanged"
+                                             ToolTip="Choose where converted files should be saved.">
                                         <TextBox.Resources>
                                             <Style TargetType="{x:Type Border}">
                                                 <Setter Property="CornerRadius" Value="8"/>
@@ -788,7 +792,8 @@
                                     </TextBlock>
 
                                     <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" 
-                                            Height="35" Padding="15,0" Cursor="Hand" BorderThickness="0">
+                                            Height="35" Padding="15,0" Cursor="Hand" BorderThickness="0"
+                                            ToolTip="Select an output folder.">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border x:Name="ButtonBorder" CornerRadius="8" BorderBrush="#FFA000" BorderThickness="1">
@@ -897,7 +902,9 @@
                             <Button x:Name="ConvertButton" Grid.Column="1" Content="CONVERT" 
                                     Click="ConvertButton_Click" 
                                     MinWidth="130" Height="60" VerticalAlignment="Center" Margin="20,0,0,0"
-                                    FontSize="16" FontWeight="Bold" Foreground="White" BorderThickness="0">
+                                    FontSize="16" FontWeight="Bold" Foreground="White" BorderThickness="0"
+                                    IsEnabled="False"
+                                    ToolTip="Add files and choose an output folder to convert.">
                                 <Button.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                         <GradientStop Color="#007ACC" Offset="0.0"/>
@@ -941,8 +948,12 @@
             <Border Background="#252525" CornerRadius="10" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="40" BorderBrush="{StaticResource AccentColor}" BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="🎉" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                    <TextBlock Text="All Tasks Finished!" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
-                    <Button Content="Great!" Click="CloseOverlay_Click" Width="150" Height="40" FontSize="16"/>
+                    <TextBlock x:Name="SuccessTitleText" Text="All Tasks Finished!" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="SuccessMessageText" Text="Your converted files are ready." FontSize="14" Foreground="{StaticResource TextSecondary}" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Open Folder" Click="OpenOutputFolder_Click" Width="130" Height="40" FontSize="14" Margin="0,0,10,0"/>
+                        <Button Content="Done" Click="CloseOverlay_Click" Width="100" Height="40" FontSize="14"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
         </Grid>
@@ -1047,6 +1058,9 @@
                             <ScaleTransform ScaleX="1.2" ScaleY="1.2"/>
                         </CheckBox.LayoutTransform>
                     </CheckBox>
+
+                    <Button Content="Resource Status" Click="ShowResourceStatus_Click" Height="35" Margin="0,0,0,10"/>
+                    <Button Content="Open Log Folder" Click="OpenLogFolder_Click" Height="35" Margin="0,0,0,20"/>
 
                     <Button Content="Close" Click="CloseSettings_Click" Width="100" HorizontalAlignment="Right"/>
                 </StackPanel>

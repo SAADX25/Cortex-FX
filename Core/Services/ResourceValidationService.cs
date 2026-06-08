@@ -20,7 +20,9 @@ public sealed class ResourceValidationService : IResourceValidationService
             return new ResourceValidationResult(
                 _config.ResourcesDirectory,
                 ResourcesDirectoryExists: false,
-                MissingTools: Array.Empty<string>());
+                MissingTools: Array.Empty<string>(),
+                FFmpegLibsDirectory: _config.FFmpegLibsDirectory,
+                MissingFFmpegDlls: Array.Empty<string>());
         }
 
         var requiredTools = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -35,9 +37,33 @@ public sealed class ResourceValidationService : IResourceValidationService
             .Select(tool => tool.Key)
             .ToList();
 
+        string[] requiredFfmpegDlls =
+        [
+            "avcodec-58.dll",
+            "avformat-58.dll",
+            "avutil-56.dll",
+            "swresample-3.dll",
+            "swscale-5.dll"
+        ];
+
+        var missingFfmpegDlls = requiredFfmpegDlls
+            .Where(dll => !File.Exists(Path.Combine(_config.FFmpegLibsDirectory, dll)))
+            .ToList();
+
         return new ResourceValidationResult(
             _config.ResourcesDirectory,
             ResourcesDirectoryExists: true,
-            MissingTools: missing);
+            MissingTools: missing,
+            FFmpegLibsDirectory: _config.FFmpegLibsDirectory,
+            MissingFFmpegDlls: missingFfmpegDlls);
+    }
+
+    public Task<ResourceValidationResult> ValidateCoreResourcesAsync(CancellationToken ct = default)
+    {
+        return Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return ValidateCoreResources();
+        }, ct);
     }
 }

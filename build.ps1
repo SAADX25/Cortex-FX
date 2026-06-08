@@ -3,7 +3,8 @@ param(
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [bool]$SelfContained = $true,
-    [switch]$SkipInstaller
+    [switch]$SkipInstaller,
+    [switch]$CreatePortableZip
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,6 +74,19 @@ dotnet publish $ProjectFile `
     -p:ReadyToRun=true
 
 Write-Host "Publish output: $PublishDir" -ForegroundColor Green
+
+if ($CreatePortableZip) {
+    $ZipPath = Join-Path $PublishRoot "CortexFX_Portable_v$Version-$Runtime.zip"
+    Assert-InProject -Path $ZipPath -ProjectRoot $ProjectRoot
+
+    if (Test-Path -LiteralPath $ZipPath) {
+        Remove-Item -LiteralPath $ZipPath -Force
+    }
+
+    Write-Step "Creating portable ZIP"
+    Compress-Archive -Path (Join-Path $PublishDir "*") -DestinationPath $ZipPath -Force
+    Write-Host "Portable ZIP: $ZipPath" -ForegroundColor Green
+}
 
 if ($SkipInstaller) {
     Write-Host "Installer step skipped." -ForegroundColor Yellow
