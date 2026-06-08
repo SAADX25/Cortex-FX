@@ -20,9 +20,6 @@ public partial class MainViewModel : ObservableObject
     private bool _isConversionViewVisible;
 
     [ObservableProperty]
-    private bool _isWatermarkEditorVisible;
-
-    [ObservableProperty]
     private bool _isVideoCompressorVisible;
 
     [ObservableProperty]
@@ -85,15 +82,6 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NavigateToWatermarkEditor()
-    {
-        HideAllViews();
-        IsWatermarkEditorVisible = true;
-        IsTopNavVisible = true;
-        CurrentToolTitle = "Watermark Remover";
-    }
-
-    [RelayCommand]
     private void NavigateToVideoCompressor()
     {
         HideAllViews();
@@ -122,7 +110,6 @@ public partial class MainViewModel : ObservableObject
     {
         IsDashboardVisible = false;
         IsConversionViewVisible = false;
-        IsWatermarkEditorVisible = false;
         IsVideoCompressorVisible = false;
         IsSettingsVisible = false;
         AudioEditor.Close();

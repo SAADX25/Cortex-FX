@@ -9,7 +9,6 @@ namespace CortexFX.Core.Services;
 /// Unified process execution and lifecycle manager.
 /// Absorbs:
 ///   - MainWindow.RunExternalProcess()           (sync execution)
-///   - WatermarkProcessor.RunFFmpegAsync()        (async execution)
 ///   - CortexEngine._managedPids                  (PID tracking)
 ///   - CortexEngine.GlobalCleanup()               (shutdown kill)
 ///   - CortexEngine.PreLaunchCleanup()            (zombie kill)

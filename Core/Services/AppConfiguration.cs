@@ -15,7 +15,6 @@ public sealed class AppConfiguration : IAppConfiguration
     public string FFmpegPath { get; }
     public string MagickPath { get; }
     public string PdfToCairoPath { get; }
-    public string ThumbnailsDirectory { get; }
     public string FFmpegLibsDirectory { get; }
 
     public AppConfiguration()
@@ -24,7 +23,6 @@ public sealed class AppConfiguration : IAppConfiguration
         FFmpegPath = Path.Combine(ResourcesDirectory, "ffmpeg.exe");
         MagickPath = Path.Combine(ResourcesDirectory, "magick.exe");
         PdfToCairoPath = Path.Combine(ResourcesDirectory, "pdftocairo.exe");
-        ThumbnailsDirectory = Path.Combine(ResourcesDirectory, "Temp_Thumbs");
         FFmpegLibsDirectory = ResolveFFmpegLibsDirectory();
     }
 

@@ -21,7 +21,7 @@ namespace CortexFX.Views;
 public partial class VideoCompressorView : UserControl
 {
     // ------------------------------------------------------------------
-    // Public surface (mirrors WatermarkRemoverView pattern)
+    // Public surface used by MainWindow.
     // ------------------------------------------------------------------
 
     /// <summary>Raised when the user clicks the back arrow.</summary>

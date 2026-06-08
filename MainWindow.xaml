@@ -16,7 +16,7 @@
         FontFamily="Segoe UI"
         Icon="logo.ico"
         Loaded="MainWindow_Loaded"
-        KeyDown="Window_KeyDown">
+        >
 
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="35" ResizeBorderThickness="5" CornerRadius="10" GlassFrameThickness="0"/>
@@ -445,35 +445,6 @@
                                     </ctrl:ToolCard.IconData>
                                 </ctrl:ToolCard>
 
-                                <!-- Watermark Remover -->
-                                <Border Background="#252525" CornerRadius="15" Width="150" Height="150" Margin="0,0,15,15" Cursor="Hand" Tag="WATERMARK_REMOVER" MouseDown="ToolCard_MouseDown">
-                                    <Border.Effect>
-                                        <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
-                                    </Border.Effect>
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Opacity" Value="1.0"/>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Opacity" Value="0.8"/>
-                                                    <Setter Property="Effect">
-                                                        <Setter.Value>
-                                                            <DropShadowEffect Color="Black" BlurRadius="15" ShadowDepth="4" Opacity="0.5"/>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                        <Border Width="50" Height="50" CornerRadius="25" Background="#FF2D55" Margin="0,0,0,10">
-                                            <Path Data="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" 
-                                                  Fill="White" Stretch="Uniform" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Text="Watermark Remover" Foreground="White" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" FontSize="14" FontWeight="SemiBold"/>
-                                    </StackPanel>
-                                </Border>
-
                                 <!-- Video Compressor -->
                                 <Border Background="#252525" CornerRadius="15" Width="150" Height="150" Margin="0,0,15,15" Cursor="Hand" Tag="VIDEO_COMPRESSOR" MouseDown="ToolCard_MouseDown">
                                     <Border.Effect>
@@ -726,9 +697,6 @@
                         </Grid>
     
                     </Grid>
-
-                    <!-- Watermark Remover View (extracted to Views/WatermarkRemoverView.xaml) -->
-                    <views:WatermarkRemoverView x:Name="WatermarkEditor" Visibility="Collapsed"/>
 
                     <!-- Video Compressor View -->
                     <views:VideoCompressorView x:Name="VideoCompressorEditor" Visibility="Collapsed"/>

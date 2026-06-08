@@ -18,9 +18,6 @@ public interface IAppConfiguration
     /// <summary>Full path to pdftocairo.exe.</summary>
     string PdfToCairoPath { get; }
 
-    /// <summary>Directory for temporary thumbnails.</summary>
-    string ThumbnailsDirectory { get; }
-
     /// <summary>Directory containing FFmpeg shared libraries (avcodec-58.dll etc.).</summary>
     string FFmpegLibsDirectory { get; }
 }

@@ -7,8 +7,8 @@ public record ProcessResult(int ExitCode, string StdOut, string StdErr);
 
 /// <summary>
 /// Unified abstraction for all external process execution and lifecycle management.
-/// Replaces: MainWindow.RunExternalProcess(), WatermarkProcessor.RunFFmpegAsync(),
-/// CortexEngine._managedPids, CortexEngine.KillGhostPowerPoint(), 
+/// Replaces: MainWindow.RunExternalProcess(), CortexEngine._managedPids,
+/// CortexEngine.KillGhostPowerPoint(),
 /// CortexEngine.GlobalCleanup(), CortexEngine.PreLaunchCleanup().
 /// </summary>
 public interface IProcessManager : IDisposable

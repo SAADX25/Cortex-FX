@@ -67,7 +67,6 @@ public partial class MainWindow : Window
     }
 
     private string FFmpegPath => System.IO.Path.Combine(ResourcesDirectory, "ffmpeg.exe");
-    private string ThumbnailsDirectory => System.IO.Path.Combine(ResourcesDirectory, "Temp_Thumbs");
 
     public MainWindow(string? startupFile = null)
     {
@@ -113,10 +112,6 @@ public partial class MainWindow : Window
                 MessageBox.Show($"FFmpeg Critical Error!\n\nTarget Path: {targetFolder}\nError: {ffmpegEx.Message}\n\nFiles found in folder: {folderContent}", "Startup Error");
             }
             // --- SMART FFMPEG LOADING END ---
-
-            // Initialize the Watermark Remover view with resolved paths
-            WatermarkEditor.Initialize(FFmpegPath, ThumbnailsDirectory);
-            WatermarkEditor.CloseRequested += (s, e) => UpdateUIMode(false);
 
             // Initialize the Video Compressor view
             VideoCompressorEditor.Initialize(FFmpegPath);
@@ -171,15 +166,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Window_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Delete && WatermarkEditor.Visibility == Visibility.Visible)
-        {
-            WatermarkEditor.DeleteSelectedRegion();
-            e.Handled = true;
-        }
-    }
-
     private void ShowConversionView(string? toolTag = null)
     {
         DashboardView.Visibility = Visibility.Collapsed;
@@ -196,7 +182,6 @@ public partial class MainWindow : Window
         PptToPdf,
         ExcelToPdf,
         PdfToImage,
-        WatermarkRemover,
         VideoCompressor,
         Unknown
     }
@@ -267,12 +252,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Centralized view switcher for the Watermark Remover editor.
-    /// true  = show editor (WatermarkRemoverView), hide dashboard.
-    /// false = hide editor, show dashboard.
-    /// </summary>
-    private void UpdateUIMode(bool isEditing, string tool = "WatermarkRemover")
+    private void UpdateUIMode(bool isEditing, string tool = "VideoCompressor")
     {
         if (isEditing)
         {
@@ -280,8 +260,6 @@ public partial class MainWindow : Window
             if (ConversionView != null) ConversionView.Visibility = Visibility.Collapsed;
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
 
-            // Hide all tool views first
-            if (WatermarkEditor != null) WatermarkEditor.Visibility = Visibility.Collapsed;
             if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
 
             // Show the requested tool
@@ -290,15 +268,9 @@ public partial class MainWindow : Window
                 if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Visible;
                 CurrentToolTitle.Text = "Video Compressor";
             }
-            else
-            {
-                if (WatermarkEditor != null) WatermarkEditor.Visibility = Visibility.Visible;
-                CurrentToolTitle.Text = "Watermark Remover";
-            }
         }
         else
         {
-            if (WatermarkEditor != null) WatermarkEditor.Visibility = Visibility.Collapsed;
             if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
             if (DashboardView != null) DashboardView.Visibility = Visibility.Visible;
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
@@ -322,7 +294,6 @@ public partial class MainWindow : Window
         {
             DashboardView.Visibility = Visibility.Visible;
             ConversionView.Visibility = Visibility.Collapsed;
-            if (WatermarkEditor != null) WatermarkEditor.Visibility = Visibility.Collapsed;
             if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
             CurrentToolTitle.Text = "Select Tool";
             FormatComboBox.IsEnabled = true;
@@ -340,7 +311,6 @@ public partial class MainWindow : Window
         {
             DashboardView.Visibility = Visibility.Collapsed;
             ConversionView.Visibility = Visibility.Visible;
-            if (WatermarkEditor != null) WatermarkEditor.Visibility = Visibility.Collapsed;
             if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
 
             // Show Top Nav for Universal Mode
@@ -356,10 +326,6 @@ public partial class MainWindow : Window
             }
             
             // _filesToConvert.Clear(); // PERSISTENCE FIX: Do not clear files when switching tabs
-        }
-        else if (mode == AppMode.WatermarkRemover)
-        {
-            UpdateUIMode(true);
         }
         else if (mode == AppMode.VideoCompressor)
         {
@@ -425,7 +391,6 @@ public partial class MainWindow : Window
             "PPTX_PDF" => AppMode.PptToPdf,
             "XLSX_PDF" => AppMode.ExcelToPdf,
             "PDF_JPG" => AppMode.PdfToImage,
-            "WATERMARK_REMOVER" => AppMode.WatermarkRemover,
             "VIDEO_COMPRESSOR" => AppMode.VideoCompressor,
             "MORE_TOOLS" => AppMode.Universal, // Changed from AdvancedGallery to Universal
             _ => AppMode.Unknown
