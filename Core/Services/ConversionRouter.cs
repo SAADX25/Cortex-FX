@@ -12,8 +12,7 @@ namespace CortexFX.Core.Services;
 ///   - True parallel batch processing with configurable concurrency
 ///   - Unified engine selection: determines which service handles each conversion
 ///
-/// Replaces: MainWindow.ConvertButton_Click() routing block (200+ lines)
-///           + DocumentConverter.cs (82 lines)
+/// Replaces the legacy document/media routing that used to live in MainWindow.
 /// </summary>
 public sealed class ConversionRouter : IConversionRouter
 {
@@ -336,9 +335,7 @@ public sealed class ConversionRouter : IConversionRouter
                 await _office.ConvertPdfToPowerPointAsync(inputFile, outputPath, ct, progress);
                 break;
             case "xlsx":
-                // Excel doesn't have a direct PDF import — go through Word bridge
-                await _office.ConvertPdfToWordAsync(inputFile, outputPath, ct, progress);
-                break;
+                return ConversionResult.Fail("PDF to XLSX is not supported yet. Convert the PDF to DOCX first, then extract tables manually.");
         }
         return ConversionResult.Ok(outputPath);
     }

@@ -7,9 +7,7 @@ public record ProcessResult(int ExitCode, string StdOut, string StdErr);
 
 /// <summary>
 /// Unified abstraction for all external process execution and lifecycle management.
-/// Replaces: MainWindow.RunExternalProcess(), CortexEngine._managedPids,
-/// CortexEngine.KillGhostPowerPoint(),
-/// CortexEngine.GlobalCleanup(), CortexEngine.PreLaunchCleanup().
+/// Replaces legacy external-process execution and Office process cleanup helpers.
 /// </summary>
 public interface IProcessManager : IDisposable
 {

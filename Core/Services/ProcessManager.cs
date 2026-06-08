@@ -7,12 +7,7 @@ namespace CortexFX.Core.Services;
 
 /// <summary>
 /// Unified process execution and lifecycle manager.
-/// Absorbs:
-///   - MainWindow.RunExternalProcess()           (sync execution)
-///   - CortexEngine._managedPids                  (PID tracking)
-///   - CortexEngine.GlobalCleanup()               (shutdown kill)
-///   - CortexEngine.PreLaunchCleanup()            (zombie kill)
-///   - CortexEngine.KillGhostPowerPoint()         (Office zombie kill)
+/// Absorbs legacy external-process execution and Office process cleanup.
 /// </summary>
 public sealed class ProcessManager : IProcessManager
 {

@@ -29,6 +29,8 @@ using System.Threading;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
+using Microsoft.Extensions.DependencyInjection;
+using CortexFX.Core.Interfaces;
 using CortexFX.Models;
 
 namespace CortexFX;
@@ -400,6 +402,31 @@ public partial class MainWindow : Window
         {
             SwitchToMode(mode);
         }
+    }
+
+    private static bool IsOfficeRoutedConversion(string extension, string targetFormat)
+    {
+        bool isWord = extension is ".docx" or ".doc";
+        bool isExcel = extension is ".xlsx" or ".xls";
+        bool isPowerPoint = extension is ".pptx" or ".ppt";
+        bool isPdf = extension == ".pdf";
+
+        if (targetFormat == "pdf" && (isWord || isExcel || isPowerPoint))
+        {
+            return true;
+        }
+
+        if (isPdf && targetFormat is "docx" or "pptx" or "xlsx")
+        {
+            return true;
+        }
+
+        if (isWord && targetFormat == "pptx")
+        {
+            return true;
+        }
+
+        return isPowerPoint && targetFormat == "docx";
     }
 
     private void BackToHome_Click(object sender, RoutedEventArgs e)
@@ -876,6 +903,7 @@ public partial class MainWindow : Window
         string targetFormat = selectedItem.Content.ToString()!.ToLower();
         string outputDir = OutputPathBox.Text;
         double qualityLevel = QualitySlider.Value;
+        var conversionRouter = App.Services.GetRequiredService<IConversionRouter>();
 
         // Advanced Settings
         string resizeW = ResizeWidthBox.Text;
@@ -1042,37 +1070,21 @@ public partial class MainWindow : Window
 
                         // --- INTELLIGENT ROUTING START ---
                         
-                        // 1. Document Routing (CortexEngine)
-                        if (extension == ".docx" || extension == ".doc" || extension == ".xlsx" || extension == ".xls" || extension == ".pptx" || extension == ".ppt" || (extension == ".pdf" && (targetFormat == "docx" || targetFormat == "pptx" || targetFormat == "xlsx")))
+                        // 1. Document routing through the STA-safe Office interop pipeline.
+                        if (IsOfficeRoutedConversion(extension, targetFormat))
                         {
-                             // ... (Document Logic)
-                             if (targetFormat == "pdf")
+                             var result = await conversionRouter.ConvertAsync(new ConversionJob
                              {
-                                 int engineQuality = qualityLevel < 30 ? 0 : 1;
-                                 await DocumentConverter.ConvertDocumentAsync(file, newFileName, "pdf", engineQuality, token, fileProgress);
-                             }
-                             else if (targetFormat == "pptx" && (extension == ".docx" || extension == ".doc"))
+                                 InputPath = file,
+                                 OutputDirectory = userOutputDir,
+                                 TargetFormat = targetFormat,
+                                 QualityLevel = qualityLevel,
+                                 CreateSubfolder = createSubfolder
+                             }, token, fileProgress);
+
+                             if (!result.Success)
                              {
-                                 // ... (Word to PPT Logic)
-                                 // Note: finalOutputDir is already set to ".../Cortex FX" or ".../Cortex FX/Filename"
-                                 // We don't need to append Cortex FX again inside here
-                                 
-                                 string pptxFileName = $"{fileNameWithoutExt}.pptx";
-                                 string pptxOutputPath = System.IO.Path.Combine(finalOutputDir, pptxFileName);
-                                 await DocumentConverter.ConvertWordToPowerPointAsync(file, pptxOutputPath, fileProgress);
-                             }
-                             else if (targetFormat == "docx" && (extension == ".pptx" || extension == ".ppt"))
-                             {
-                                 // ... (PPT to Word Logic)
-                                 string docxFileName = $"{fileNameWithoutExt}.docx";
-                                 string docxOutputPath = System.IO.Path.Combine(finalOutputDir, docxFileName);
-                                 await DocumentConverter.ConvertPowerPointToWordAsync(file, docxOutputPath, fileProgress);
-                             }
-                             else if (extension == ".pdf")
-                             {
-                                 string officeFileName = $"{fileNameWithoutExt}.{targetFormat}";
-                                 string officeOutputPath = System.IO.Path.Combine(finalOutputDir, officeFileName);
-                                 await DocumentConverter.ConvertPdfToOfficeAsync(file, officeOutputPath, targetFormat, fileProgress);
+                                 throw new InvalidOperationException(result.ErrorMessage ?? "Office conversion failed.");
                              }
                         }
                         // 2. JPG/PNG -> PDF Conversion Logic

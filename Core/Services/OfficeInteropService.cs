@@ -20,8 +20,7 @@ namespace CortexFX.Core.Services;
 
 /// <summary>
 /// Thread-safe Office COM interop service.
-/// Absorbs the entire static CortexEngine class (660 lines) into a proper
-/// injectable, testable service with:
+/// Injectable, testable Office conversion service with:
 ///   - STA thread enforcement for COM operations
 ///   - PID tracking via IProcessManager for guaranteed cleanup
 ///   - Per-operation semaphore to prevent "Server Busy" / RPC_E_CALL_REJECTED

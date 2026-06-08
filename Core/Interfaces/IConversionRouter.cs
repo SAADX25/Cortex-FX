@@ -4,8 +4,7 @@ namespace CortexFX.Core.Interfaces;
 
 /// <summary>
 /// Central routing engine that determines which service handles a given conversion.
-/// Replaces the 200+ line routing block in MainWindow.ConvertButton_Click()
-/// and the entirety of DocumentConverter.cs.
+/// Replaces the legacy routing block in MainWindow.ConvertButton_Click().
 /// </summary>
 public interface IConversionRouter
 {

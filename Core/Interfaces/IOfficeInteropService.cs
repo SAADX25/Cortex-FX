@@ -2,7 +2,7 @@ namespace CortexFX.Core.Interfaces;
 
 /// <summary>
 /// Contract for all Microsoft Office COM interop operations via NetOffice.
-/// Replaces the static CortexEngine class.
+/// Contract for Office document conversions.
 /// </summary>
 public interface IOfficeInteropService
 {
