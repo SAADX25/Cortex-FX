@@ -7,7 +7,6 @@ namespace CortexFX.Core.Services;
 /// Centralized configuration implementation.
 /// Resolves all tool paths relative to the application base directory,
 /// with a dev-time fallback for the IDE scenario.
-/// Replaces the hardcoded path logic previously in MainWindow.ResourcesDirectory (L79-92).
 /// </summary>
 public sealed class AppConfiguration : IAppConfiguration
 {
@@ -32,14 +31,15 @@ public sealed class AppConfiguration : IAppConfiguration
     /// </summary>
     private static string ResolveResourcesDirectory()
     {
-        string baseDirResources = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
+        string baseDirResources = Path.Combine(AppContext.BaseDirectory, "Resources");
         if (Directory.Exists(baseDirResources))
         {
             return baseDirResources;
         }
 
+#if DEBUG
         // Dev-time fallback: walk up from bin/Debug/net10.0-windows to project root
-        string? projectRoot = FindProjectRoot(AppDomain.CurrentDomain.BaseDirectory);
+        string? projectRoot = FindProjectRoot(AppContext.BaseDirectory);
         if (projectRoot != null)
         {
             string devResources = Path.Combine(projectRoot, "Resources");
@@ -48,6 +48,7 @@ public sealed class AppConfiguration : IAppConfiguration
                 return devResources;
             }
         }
+#endif
 
         // Return the standard path even if it doesn't exist yet —
         // MainWindow_Loaded will warn the user.
@@ -69,7 +70,7 @@ public sealed class AppConfiguration : IAppConfiguration
         }
 
         // Auto-discovery: search recursively from base directory
-        string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        string baseDir = AppContext.BaseDirectory;
         try
         {
             string? foundFile = Directory.GetFiles(baseDir, "avcodec-58.dll", SearchOption.AllDirectories)
@@ -96,10 +97,18 @@ public sealed class AppConfiguration : IAppConfiguration
         DirectoryInfo? dir = new DirectoryInfo(startDir);
         while (dir != null)
         {
-            if (dir.GetFiles("*.csproj").Length > 0)
+            try
             {
-                return dir.FullName;
+                if (dir.GetFiles("*.csproj").Length > 0)
+                {
+                    return dir.FullName;
+                }
             }
+            catch
+            {
+                return null;
+            }
+
             dir = dir.Parent;
         }
         return null;

@@ -1,40 +1,104 @@
-# Cortex FX Build & Installer Script
+[CmdletBinding()]
+param(
+    [string]$Configuration = "Release",
+    [string]$Runtime = "win-x64",
+    [bool]$SelfContained = $true,
+    [switch]$SkipInstaller
+)
 
-$projectPath = "e:\Code-Setup\Cortex FX"
-$releasePath = "$projectPath\Release"
-$isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+$ErrorActionPreference = "Stop"
 
-Write-Host "Starting Cortex FX Build Process..." -ForegroundColor Cyan
+function Write-Step {
+    param([string]$Message)
+    Write-Host "==> $Message" -ForegroundColor Cyan
+}
 
-# 1. Clean previous build
-Write-Host "Cleaning previous builds..." -ForegroundColor Yellow
-if (Test-Path "bin\Release") { Remove-Item "bin\Release" -Recurse -Force }
-if (Test-Path $releasePath) { Remove-Item $releasePath -Recurse -Force }
+function Assert-InProject {
+    param(
+        [string]$Path,
+        [string]$ProjectRoot
+    )
 
-# 2. Publish .NET App
-Write-Host "Publishing .NET Application..." -ForegroundColor Yellow
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:ReadyToRun=true
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $fullRoot = [System.IO.Path]::GetFullPath($ProjectRoot)
+    if (!$fullPath.StartsWith($fullRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to operate outside project root: $fullPath"
+    }
+}
+
+$ProjectRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
+$ProjectFile = Join-Path $ProjectRoot "CortexFX.csproj"
+$InstallerScript = Join-Path $ProjectRoot "setup.iss"
+$PublishRoot = Join-Path $ProjectRoot "Publish"
+
+if (!(Test-Path -LiteralPath $ProjectFile)) {
+    throw "Project file not found: $ProjectFile"
+}
+
+[xml]$ProjectXml = Get-Content -LiteralPath $ProjectFile
+$Version = $ProjectXml.Project.PropertyGroup.Version | Select-Object -First 1
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = "0.0.0"
+}
+
+$PublishDir = Join-Path $PublishRoot "CortexFX_v$Version"
+Assert-InProject -Path $PublishRoot -ProjectRoot $ProjectRoot
+Assert-InProject -Path $PublishDir -ProjectRoot $ProjectRoot
+
+Write-Step "Cortex FX build started"
+Write-Host "Project: $ProjectFile"
+Write-Host "Configuration: $Configuration"
+Write-Host "Runtime: $Runtime"
+Write-Host "Version: $Version"
+
+Write-Step "Cleaning publish directory"
+if (Test-Path -LiteralPath $PublishDir) {
+    Remove-Item -LiteralPath $PublishDir -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
+
+Write-Step "Restoring packages"
+dotnet restore $ProjectFile
+
+Write-Step "Building"
+dotnet build $ProjectFile -c $Configuration --no-restore
+
+Write-Step "Publishing"
+dotnet publish $ProjectFile `
+    -c $Configuration `
+    -r $Runtime `
+    --self-contained $SelfContained `
+    -o $PublishDir `
+    -p:PublishSingleFile=false `
+    -p:ReadyToRun=true
+
+Write-Host "Publish output: $PublishDir" -ForegroundColor Green
+
+if ($SkipInstaller) {
+    Write-Host "Installer step skipped." -ForegroundColor Yellow
+    exit 0
+}
+
+$InnoCandidates = @(
+    (Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"),
+    (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe")
+) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+
+if ($InnoCandidates.Count -eq 0) {
+    Write-Host "Inno Setup 6 was not found. Publish succeeded; installer was not created." -ForegroundColor Yellow
+    exit 0
+}
+
+if (!(Test-Path -LiteralPath $InstallerScript)) {
+    Write-Host "setup.iss was not found. Publish succeeded; installer was not created." -ForegroundColor Yellow
+    exit 0
+}
+
+Write-Step "Building installer"
+& $InnoCandidates[0] "/DMyBuildPath=$PublishDir" "/DMyOutputDir=$PublishRoot" $InstallerScript
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build Failed!" -ForegroundColor Red
-    exit
+    throw "Installer compilation failed with exit code $LASTEXITCODE."
 }
 
-Write-Host "Build Successful!" -ForegroundColor Green
-
-# 3. Compile Installer
-Write-Host "Checking for Inno Setup..." -ForegroundColor Yellow
-if (Test-Path $isccPath) {
-    Write-Host "Compiling Installer with Inno Setup..." -ForegroundColor Cyan
-    & $isccPath "setup.iss"
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "Installer Created Successfully!" -ForegroundColor Green
-        Invoke-Item $releasePath
-    } else {
-        Write-Host "Installer Compilation Failed!" -ForegroundColor Red
-    }
-} else {
-    Write-Host "Inno Setup Compiler (ISCC.exe) not found at: $isccPath" -ForegroundColor Red
-    Write-Host "Please install Inno Setup 6+" -ForegroundColor Red
-}
+Write-Host "Build and installer completed successfully." -ForegroundColor Green

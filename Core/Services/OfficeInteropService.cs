@@ -44,7 +44,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
     public OfficeInteropService(IProcessManager processManager)
     {
         _processManager = processManager;
-        _logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cortex_log.txt");
+        _logPath = Path.Combine(AppContext.BaseDirectory, "cortex_log.txt");
     }
 
     // ------------------------------------------------------------------

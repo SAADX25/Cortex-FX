@@ -42,9 +42,12 @@ public partial class App : Application
 
         // 3. Resolve and show MainWindow
         string? startupFile = e.Args.Length > 0 ? e.Args[0] : null;
+        object[] startupParameters = startupFile == null
+            ? Array.Empty<object>()
+            : [startupFile];
 
         // MainWindow still accepts a startup file for context menu integration
-        var mainWindow = new MainWindow(startupFile);
+        var mainWindow = ActivatorUtilities.CreateInstance<MainWindow>(Services, startupParameters);
         mainWindow.Show();
         ConsoleLogger.Success("App", "Main window ready.");
     }
@@ -75,6 +78,7 @@ public partial class App : Application
         services.AddSingleton<IOfficeInteropService, OfficeInteropService>();
         services.AddSingleton<IPdfRenderService, PdfRenderService>();
         services.AddSingleton<IOptionalConversionService, OptionalConversionService>();
+        services.AddSingleton<IResourceValidationService, ResourceValidationService>();
 
         // --- Routing (Singleton — the brain of the conversion pipeline) ---
         services.AddSingleton<IConversionRouter, ConversionRouter>();
@@ -84,5 +88,6 @@ public partial class App : Application
         services.AddTransient<ConversionViewModel>();
         services.AddTransient<AudioEditorViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<MainWindow>();
     }
 }

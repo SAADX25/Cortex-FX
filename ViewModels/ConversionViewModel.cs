@@ -19,12 +19,14 @@ public partial class ConversionViewModel : ObservableObject
 {
     private readonly IConversionRouter _router;
     private readonly ConversionRouter _routerConcrete;
+    private readonly IMagickService _magickService;
     private CancellationTokenSource? _cts;
 
-    public ConversionViewModel(IConversionRouter router)
+    public ConversionViewModel(IConversionRouter router, IMagickService magickService)
     {
         _router = router;
         _routerConcrete = (router as ConversionRouter)!;
+        _magickService = magickService;
     }
 
     // ------------------------------------------------------------------
@@ -186,7 +188,7 @@ public partial class ConversionViewModel : ObservableObject
 
             if (shouldMerge)
             {
-                await HandleMergeModeAsync(targetFormat, ct);
+                await HandleMergeModeAsync(ct);
                 return;
             }
 
@@ -403,7 +405,7 @@ public partial class ConversionViewModel : ObservableObject
             AutoEnhance: AutoEnhance);
     }
 
-    private async Task HandleMergeModeAsync(string targetFormat, CancellationToken ct)
+    private async Task HandleMergeModeAsync(CancellationToken ct)
     {
         StatusText = "Merging all images...";
         foreach (var f in Files) { f.Status = "Merging..."; f.StatusColor = "#FF8C00"; }
@@ -424,20 +426,7 @@ public partial class ConversionViewModel : ObservableObject
         try
         {
             var imagePaths = Files.Select(f => f.FullPath).ToList();
-            await _routerConcrete!.ConvertBatchAsync([new ConversionJob
-            {
-                InputPath = imagePaths[0],
-                OutputDirectory = outputFolder,
-                TargetFormat = "pdf",
-                QualityLevel = QualityLevel,
-                CreateSubfolder = false
-            }], ct);
-
-            // Actually use the merge function directly
-            var magickService = (IMagickService)_routerConcrete.GetType()
-                .GetField("_magick", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
-                .GetValue(_routerConcrete)!;
-            await magickService.MergeImagesToPdfAsync(imagePaths, finalPath, ct);
+            await _magickService.MergeImagesToPdfAsync(imagePaths, finalPath, ct);
 
             foreach (var f in Files) { f.Status = "Merged!"; f.StatusColor = "#4CAF50"; }
             SuccessMessage = $"Successfully merged {Files.Count} images.";

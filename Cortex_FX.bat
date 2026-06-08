@@ -1,5 +1,6 @@
 @echo off
-cd /d "e:\Code-Setup\Cortex FX"
+setlocal
+cd /d "%~dp0"
 echo Starting Cortex FX...
-dotnet run
+dotnet run --project "%~dp0CortexFX.csproj"
 pause

@@ -18,9 +18,6 @@ using Microsoft.Win32;
 using System.Collections.ObjectModel;
 
 using System.Reflection;
-using PdfiumViewer;
-using ImageMagick;
-using System.Drawing.Imaging;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -29,7 +26,7 @@ using System.Threading;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-using Microsoft.Extensions.DependencyInjection;
+using CortexFX.Core.Configuration;
 using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
 using CortexFX.Core.Services;
@@ -42,6 +39,11 @@ namespace CortexFX;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private readonly IAppConfiguration _config;
+    private readonly IConversionRouter _conversionRouter;
+    private readonly IProcessManager _processManager;
+    private readonly IMagickService _magickService;
+    private readonly IResourceValidationService _resourceValidator;
     private ObservableCollection<FileModel> _filesToConvert = new ObservableCollection<FileModel>();
     private CancellationTokenSource? _cancellationTokenSource;
     // Audio Editor State
@@ -54,46 +56,27 @@ public partial class MainWindow : Window
     private System.Windows.Threading.DispatcherTimer? _playbackTimer;
 
     // FFME
-    private string _ffmpegBinPath;
-    private string ResourcesDirectory
+    private string _ffmpegBinPath = string.Empty;
+    public MainWindow(
+        IAppConfiguration config,
+        IConversionRouter conversionRouter,
+        IProcessManager processManager,
+        IMagickService magickService,
+        IResourceValidationService resourceValidator,
+        string? startupFile = null)
     {
-        get
-        {
-            string baseDirResources = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
-            if (Directory.Exists(baseDirResources))
-            {
-                return baseDirResources;
-            }
+        _config = config;
+        _conversionRouter = conversionRouter;
+        _processManager = processManager;
+        _magickService = magickService;
+        _resourceValidator = resourceValidator;
 
-            string absoluteResources = @"E:\Code-Setup\Cortex FX\Resources";
-            return Directory.Exists(absoluteResources) ? absoluteResources : baseDirResources;
-        }
-    }
-
-    private string FFmpegPath => System.IO.Path.Combine(ResourcesDirectory, "ffmpeg.exe");
-
-    public MainWindow(string? startupFile = null)
-    {
         try
         {
             InitializeComponent();
             
             // --- SMART FFMPEG LOADING START ---
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            // 1. Try standard path first
-            string targetFolder = System.IO.Path.Combine(baseDir, "Resources", "ffmpeg_libs");
-
-            // 2. Auto-Discovery: If not found, search for the DLL recursively
-            if (!File.Exists(System.IO.Path.Combine(targetFolder, "avcodec-58.dll")))
-            {
-                var foundFile = Directory.GetFiles(baseDir, "avcodec-58.dll", SearchOption.AllDirectories).FirstOrDefault();
-                if (foundFile != null)
-                {
-                    targetFolder = System.IO.Path.GetDirectoryName(foundFile)!;
-                }
-            }
-
-            // 3. Attempt to Load
+            string targetFolder = _config.FFmpegLibsDirectory;
             _ffmpegBinPath = targetFolder;
             try
             {
@@ -120,7 +103,7 @@ public partial class MainWindow : Window
             // --- SMART FFMPEG LOADING END ---
 
             // Initialize the Video Compressor view
-            VideoCompressorEditor.Initialize(FFmpegPath);
+            VideoCompressorEditor.Initialize(_config.FFmpegPath);
             VideoCompressorEditor.CloseRequested += (s, e) => UpdateUIMode(false);
 
             FilesList.ItemsSource = _filesToConvert;
@@ -160,24 +143,31 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        if (!Directory.Exists(ResourcesDirectory))
+        var resourceStatus = _resourceValidator.ValidateCoreResources();
+        if (!resourceStatus.ResourcesDirectoryExists)
         {
-            ConsoleLogger.Warning("Resources", $"Resources folder missing: {ResourcesDirectory}");
-            MessageBox.Show($"Resources folder not found.\nPlace tools in:\n{ResourcesDirectory}", "Resources Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ConsoleLogger.Warning("Resources", $"Resources folder missing: {resourceStatus.ResourcesDirectory}");
+            MessageBox.Show(
+                $"Resources folder not found.\n\nExpected location:\n{resourceStatus.ResourcesDirectory}\n\nInstall or publish the app with its Resources folder.",
+                "Resources Missing",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
-        string[] requiredFiles = { "ffmpeg.exe", "magick.exe", "pdftocairo.exe" };
-        var missing = requiredFiles.Where(file => !File.Exists(System.IO.Path.Combine(ResourcesDirectory, file))).ToList();
-        if (missing.Count > 0)
+        if (resourceStatus.MissingTools.Count > 0)
         {
-            string missingList = string.Join("\n", missing);
-            ConsoleLogger.Warning("Resources", $"Missing tools: {string.Join(", ", missing)}");
-            MessageBox.Show($"Missing tools in Resources:\n{missingList}\n\nPath:\n{ResourcesDirectory}", "Resources Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+            string missingList = string.Join("\n", resourceStatus.MissingTools);
+            ConsoleLogger.Warning("Resources", $"Missing tools: {string.Join(", ", resourceStatus.MissingTools)}");
+            MessageBox.Show(
+                $"Missing required tools in Resources:\n{missingList}\n\nResources path:\n{resourceStatus.ResourcesDirectory}",
+                "Resources Missing",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
         else
         {
-            ConsoleLogger.Success("Resources", $"Core tools ready at {ConsoleLogger.ShortPath(ResourcesDirectory)}.");
+            ConsoleLogger.Success("Resources", $"Core tools ready at {ConsoleLogger.ShortPath(resourceStatus.ResourcesDirectory)}.");
         }
     }
 
@@ -383,55 +373,6 @@ public partial class MainWindow : Window
         {
             SwitchToMode(mode);
         }
-    }
-
-    private static bool IsOfficeRoutedConversion(string extension, string targetFormat)
-    {
-        bool isWord = extension is ".docx" or ".doc";
-        bool isExcel = extension is ".xlsx" or ".xls";
-        bool isPowerPoint = extension is ".pptx" or ".ppt";
-        bool isPdf = extension == ".pdf";
-
-        if (targetFormat == "pdf" && (isWord || isExcel || isPowerPoint))
-        {
-            return true;
-        }
-
-        if (isPdf && targetFormat is "docx" or "pptx" or "xlsx")
-        {
-            return true;
-        }
-
-        if (isWord && targetFormat == "pptx")
-        {
-            return true;
-        }
-
-        return isPowerPoint && targetFormat == "docx";
-    }
-
-    private static bool ShouldUseConversionRouter(string extension, string targetFormat)
-    {
-        if (extension == ".pdf" &&
-            (MediaTypes.MagickOutputFormats.Contains(targetFormat) ||
-             MediaTypes.EbookOutputFormats.Contains(targetFormat)))
-        {
-            return true;
-        }
-
-        if (MediaTypes.DocumentExtensions.Contains(extension) &&
-            MediaTypes.LibreOfficeOutputFormats.Contains(targetFormat))
-        {
-            return true;
-        }
-
-        if (MediaTypes.ArchiveExtensions.Contains(extension) ||
-            MediaTypes.EbookExtensions.Contains(extension))
-        {
-            return true;
-        }
-
-        return false;
     }
 
     private void RefreshFormatsFromSelectedFiles()
@@ -963,6 +904,11 @@ public partial class MainWindow : Window
         e.Handled = new System.Text.RegularExpressions.Regex("[^0-9]+").IsMatch(e.Text);
     }
 
+    private static int? TryParseOptionalInt(string value)
+    {
+        return int.TryParse(value, out int parsed) && parsed > 0 ? parsed : null;
+    }
+
     private async void ConvertButton_Click(object sender, RoutedEventArgs e)
     {
         // 1. Validate Output Path
@@ -999,7 +945,6 @@ public partial class MainWindow : Window
         string targetFormat = selectedItem.Content.ToString()!.ToLower();
         string outputDir = OutputPathBox.Text;
         double qualityLevel = QualitySlider.Value;
-        var conversionRouter = App.Services.GetRequiredService<IConversionRouter>();
 
         // Advanced Settings
         string resizeW = ResizeWidthBox.Text;
@@ -1010,14 +955,15 @@ public partial class MainWindow : Window
         bool grayscale = GrayscaleCheckBox.IsChecked == true;
         bool autoEnhance = AutoEnhanceCheckBox.IsChecked == true;
 
-        // Tool Paths
-        string resourcesPath = ResourcesDirectory;
-        string magickPath = System.IO.Path.Combine(resourcesPath, "magick.exe");
-        string ffmpegPath = FFmpegPath;
-        string pdftocairoPath = System.IO.Path.Combine(resourcesPath, "pdftocairo.exe");
-
-        bool useFFmpeg = MediaTypes.FFmpegOutputFormats.Contains(targetFormat);
-        bool useMagick = MediaTypes.MagickOutputFormats.Contains(targetFormat);
+        var imageOptions = new ImageConversionOptions(
+            Quality: Math.Clamp((int)qualityLevel, 1, 100),
+            ResizeWidth: TryParseOptionalInt(resizeW),
+            ResizeHeight: TryParseOptionalInt(resizeH),
+            MaintainAspectRatio: maintainAspect,
+            Dpi: TryParseOptionalInt(dpi),
+            Sharpen: sharpen,
+            Grayscale: grayscale,
+            AutoEnhance: autoEnhance);
 
         // Routing Logic
         // Determine which engine to use based on input and output
@@ -1080,7 +1026,7 @@ public partial class MainWindow : Window
 
                     try
                     {
-                        MergeImagesToOnePdf(filePaths, finalPath);
+                        await _magickService.MergeImagesToPdfAsync(filePaths, finalPath, token);
                         
                         // Update UI to Done
                         foreach (var f in files) UpdateFileStatus(f, "Merged!", "#4CAF50");
@@ -1137,30 +1083,9 @@ public partial class MainWindow : Window
                         string? dirName = System.IO.Path.GetDirectoryName(file);
                         string userOutputDir = string.IsNullOrWhiteSpace(outputDir) ? (dirName ?? "") : outputDir;
                         
-                        string finalOutputDir = userOutputDir;
-                        
                         // Checkbox Logic: Use "Cortex FX" subfolder only if checked
                         bool createSubfolder = false;
                         Dispatcher.Invoke(() => createSubfolder = chkCreateSubfolder.IsChecked == true);
-                        
-                        if (createSubfolder)
-                        {
-                            finalOutputDir = System.IO.Path.Combine(finalOutputDir, "Cortex FX");
-                            if (!Directory.Exists(finalOutputDir)) Directory.CreateDirectory(finalOutputDir);
-                        }
-
-                        string fileNameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(file);
-                        string outputFileName = fileNameWithoutExt + "." + targetFormat;
-                        string fullOutputPath = System.IO.Path.Combine(finalOutputDir, outputFileName);
-                        
-                        // Avoid overwriting input if same path (though we force subfolder now so less likely)
-                        if (string.Equals(file, fullOutputPath, StringComparison.OrdinalIgnoreCase))
-                        {
-                            fileNameWithoutExt += "_optimized";
-                            outputFileName = fileNameWithoutExt + "." + targetFormat;
-                        }
-
-                        string newFileName = System.IO.Path.Combine(finalOutputDir, outputFileName);
 
                         // Progress Reporter for this specific file
                         var fileProgress = new Progress<double>(p => 
@@ -1169,186 +1094,19 @@ public partial class MainWindow : Window
                             Dispatcher.Invoke(() => ConversionProgress.Value = totalProgress);
                         });
 
-                        // --- INTELLIGENT ROUTING START ---
-                        
-                        // 1. Document routing through the STA-safe Office interop pipeline.
-                        if (IsOfficeRoutedConversion(extension, targetFormat))
+                        var result = await _conversionRouter.ConvertAsync(new ConversionJob
                         {
-                             var result = await conversionRouter.ConvertAsync(new ConversionJob
-                             {
-                                 InputPath = file,
-                                 OutputDirectory = userOutputDir,
-                                 TargetFormat = targetFormat,
-                                 QualityLevel = qualityLevel,
-                                 CreateSubfolder = createSubfolder
-                             }, token, fileProgress);
+                            InputPath = file,
+                            OutputDirectory = userOutputDir,
+                            TargetFormat = targetFormat,
+                            QualityLevel = qualityLevel,
+                            CreateSubfolder = createSubfolder,
+                            ImageOptions = imageOptions
+                        }, token, fileProgress);
 
-                             if (!result.Success)
-                             {
-                                 throw new InvalidOperationException(result.ErrorMessage ?? "Office conversion failed.");
-                             }
-                        }
-                        else if (ShouldUseConversionRouter(extension, targetFormat))
+                        if (!result.Success)
                         {
-                             var result = await conversionRouter.ConvertAsync(new ConversionJob
-                             {
-                                 InputPath = file,
-                                 OutputDirectory = userOutputDir,
-                                 TargetFormat = targetFormat,
-                                 QualityLevel = qualityLevel,
-                                 CreateSubfolder = createSubfolder
-                             }, token, fileProgress);
-
-                             if (!result.Success)
-                             {
-                                 throw new InvalidOperationException(result.ErrorMessage ?? "Conversion failed.");
-                             }
-                        }
-                        // 2. Image -> PDF Conversion Logic
-                        else if (MediaTypes.RasterImageExtensions.Contains(extension) && targetFormat == "pdf")
-                        {
-                             Dispatcher.Invoke(() => StatusText.Text = $"Converting {System.IO.Path.GetFileName(file)} to PDF...");
-                             UpdateFileStatus(fileItem, "Converting to PDF...", "#FF8C00"); // Orange
-
-                             // Use Magick to convert Image to PDF
-                             string arguments = $"\"{file}\" \"{newFileName}\"";
-                             if (!File.Exists(magickPath)) throw new FileNotFoundException($"Magick not found at: {magickPath}");
-                             RunExternalProcess(magickPath, arguments);
-                            
-                             ((IProgress<double>)fileProgress).Report(100);
-                             UpdateFileStatus(fileItem, "Done", "#4CAF50");
-                        }
-                        // 3. PDF -> JPG/PNG Conversion Logic (Explicit)
-                        else if (extension == ".pdf" && (targetFormat == "jpg" || targetFormat == "png"))
-                        {
-                             Dispatcher.Invoke(() => StatusText.Text = $"Rendering {System.IO.Path.GetFileName(file)} to {targetFormat.ToUpper()}...");
-                             UpdateFileStatus(fileItem, $"Rendering to {targetFormat.ToUpper()}...", "#FF8C00");
-
-                             using (var document = PdfiumViewer.PdfDocument.Load(file))
-                             {
-                                 int dpiValue = 150; 
-                                 if (!string.IsNullOrWhiteSpace(dpi) && int.TryParse(dpi, out int customDpi)) dpiValue = customDpi;
-                                 else dpiValue = 72 + (int)((qualityLevel / 100.0) * (300 - 72));
-
-                                 for (int i = 0; i < document.PageCount; i++)
-                                 {
-                                     if (token.IsCancellationRequested) break;
-                                     string pageFileName = $"{fileNameWithoutExt}_Page{i + 1}.{targetFormat}";
-                                     string pageOutputPath = System.IO.Path.Combine(finalOutputDir, pageFileName);
-
-                                     var pageSize = document.PageSizes[i];
-                                     int width = (int)(pageSize.Width / 72.0 * dpiValue);
-                                     int height = (int)(pageSize.Height / 72.0 * dpiValue);
-
-                                     using (var image = document.Render(i, width, height, dpiValue, dpiValue, false))
-                                     {
-                                         ImageFormat format = targetFormat == "png" ? ImageFormat.Png : ImageFormat.Jpeg;
-                                         image.Save(pageOutputPath, format);
-                                     }
-                                     
-                                     double pagePercent = ((double)(i + 1) / document.PageCount) * 100;
-                                     ((IProgress<double>)fileProgress).Report(pagePercent);
-                                 }
-                             }
-                             
-                             UpdateFileStatus(fileItem, "Done", "#4CAF50");
-                        }
-                        // 4. Other PDF to Image (Fallback for BMP, WEBP, ICO)
-                        else if (extension == ".pdf" && useMagick) 
-                        {
-                             // PDF to Image Logic (Pdfium)
-                             // Use finalOutputDir directly
-                             
-                             using (var document = PdfiumViewer.PdfDocument.Load(file))
-                             {
-                                 int dpiValue = 150; 
-                                 if (!string.IsNullOrWhiteSpace(dpi) && int.TryParse(dpi, out int customDpi)) dpiValue = customDpi;
-                                 else dpiValue = 72 + (int)((qualityLevel / 100.0) * (300 - 72));
-
-                                 for (int i = 0; i < document.PageCount; i++)
-                                 {
-                                     if (token.IsCancellationRequested) break;
-                                     string pageFileName = $"{fileNameWithoutExt}_Page{i + 1}.{targetFormat}";
-                                     string pageOutputPath = System.IO.Path.Combine(finalOutputDir, pageFileName);
-
-                                     var pageSize = document.PageSizes[i];
-                                     int width = (int)(pageSize.Width / 72.0 * dpiValue);
-                                     int height = (int)(pageSize.Height / 72.0 * dpiValue);
-
-                                     using (var image = document.Render(i, width, height, dpiValue, dpiValue, false))
-                                     {
-                                         ImageFormat format = targetFormat == "png" ? ImageFormat.Png : ImageFormat.Jpeg; // Default to Jpeg if others
-                                         if (targetFormat == "bmp") format = ImageFormat.Bmp;
-                                         else if (targetFormat == "gif") format = ImageFormat.Gif;
-                                         
-                                         image.Save(pageOutputPath, format);
-                                     }
-                                     
-                                     double pagePercent = ((double)(i + 1) / document.PageCount) * 100;
-                                     ((IProgress<double>)fileProgress).Report(pagePercent);
-                                 }
-                             }
-                        }
-                        // 3. Media Conversion (FFmpeg)
-                        else if (useFFmpeg || (useMagick && MediaTypes.VideoExtensions.Contains(extension)))
-                        {
-                            // FFmpeg Logic (Video/Audio)
-                            string arguments = "";
-                            int crf = 28 - (int)((qualityLevel / 100.0) * 10);
-                            string preset = qualityLevel < 40 ? "fast" : (qualityLevel < 80 ? "medium" : "slow");
-                            string qualityArgs = $"-crf {crf} -preset {preset}";   
-
-                            if (targetFormat == "gif")
-                                arguments = $"-i \"{file}\" -vf \"fps=10,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 -y \"{newFileName}\"";
-                            else if (MediaTypes.AudioOutputFormats.Contains(targetFormat))
-                                arguments = $"-i \"{file}\" -vn -y \"{newFileName}\""; // Audio extraction
-                            else
-                                arguments = $"-i \"{file}\" {qualityArgs} -y \"{newFileName}\"";
-                                
-                            if (!File.Exists(ffmpegPath)) throw new FileNotFoundException($"FFmpeg not found at: {ffmpegPath}");
-                            RunExternalProcess(ffmpegPath, arguments);
-                            ((IProgress<double>)fileProgress).Report(100);
-                        }
-                        // 4. Image Conversion (Magick)
-                        else if (useMagick)
-                        {
-                            // Magick Logic (Image to Image AND Image to PDF)
-                            int q = Math.Max(40, (int)qualityLevel);
-                            string qualityArgs = $"-quality {q}";
-                            if (qualityLevel < 30) qualityArgs += " -resize 80%";       
-
-                            StringBuilder advancedArgs = new StringBuilder();
-                            // ... existing args logic ...
-                            if (!string.IsNullOrWhiteSpace(resizeW) && !string.IsNullOrWhiteSpace(resizeH))
-                            {
-                                advancedArgs.Append($" -resize {resizeW}x{resizeH}");
-                                if (!maintainAspect) advancedArgs.Append("!");
-                                advancedArgs.Append(" ");
-                                if (qualityLevel < 30) qualityArgs = qualityArgs.Replace("-resize 80%", "");
-                            }
-                            if (!string.IsNullOrWhiteSpace(dpi)) advancedArgs.Append($" -density {dpi} -units PixelsPerInch ");
-                            if (sharpen) advancedArgs.Append("-sharpen 0x1 ");
-                            if (grayscale) advancedArgs.Append("-colorspace Gray ");
-                            if (autoEnhance) advancedArgs.Append("-normalize -auto-level ");
-
-                            string arguments = $"\"{file}\" {qualityArgs} {advancedArgs} ";
-                            if (targetFormat == "ico") arguments += "-resize 256x256 ";
-                            arguments += $"\"{newFileName}\"";
-                            
-                            // Image to PDF specific (Magick handles this natively, but we ensure args are clean)
-                            if (targetFormat == "pdf")
-                            {
-                                // For PDF, we might want to ensure page size or just default
-                                arguments = $"\"{file}\" {qualityArgs} {advancedArgs} \"{newFileName}\"";
-                            }
-                            
-                            if (!File.Exists(magickPath)) throw new FileNotFoundException($"Magick not found at: {magickPath}");
-                            RunExternalProcess(magickPath, arguments);
-                            ((IProgress<double>)fileProgress).Report(100);
-                        }
-                        else
-                        {
-                            throw new Exception($"No suitable engine found for converting {extension} to {targetFormat}");
+                            throw new InvalidOperationException(result.ErrorMessage ?? "Conversion failed.");
                         }
 
                         UpdateFileStatus(fileItem, "Done", "#4CAF50"); // Green
@@ -1411,37 +1169,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RunExternalProcess(string exePath, string arguments)
-    {
-        ProcessStartInfo psi = new ProcessStartInfo
-        {
-            FileName = exePath,
-            Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden
-        };
-
-        using (Process? process = Process.Start(psi))
-        {
-            if (process == null)
-            {
-                 throw new Exception("Failed to start external process.");
-            }
-
-            // Read standard error before waiting for exit to prevent deadlocks
-            string error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
-            
-            if (process.ExitCode != 0)
-            {
-                throw new Exception($"Process exited with code {process.ExitCode}:\n{error}");
-            }
-        }
-    }
-
     // Helper to prevent crashes 
     private T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject 
     { 
@@ -1495,7 +1222,10 @@ public partial class MainWindow : Window
                 if (statusBlock != null) 
                 { 
                     statusBlock.Text = status; 
-                    statusBlock.Foreground = (Brush)new BrushConverter().ConvertFromString(color); 
+                    if (new BrushConverter().ConvertFromString(color) is Brush brush)
+                    {
+                        statusBlock.Foreground = brush;
+                    }
                 }
             } 
             catch (Exception ex) 
@@ -1522,23 +1252,6 @@ public partial class MainWindow : Window
                  chkMergePdf.Visibility = Visibility.Collapsed;
                  chkMergePdf.IsChecked = false;
             }
-        }
-    }
-
-    private void MergeImagesToOnePdf(List<string> imagePaths, string outputPath)
-    {
-        // Using Magick.NET to merge images into a single PDF
-        // This is preferred over PdfSharp as we already have Magick.NET and it handles more formats
-        using (var collection = new MagickImageCollection())
-        {
-            foreach (var imgPath in imagePaths)
-            {
-                var img = new MagickImage(imgPath);
-                collection.Add(img);
-            }
-            
-            // Write to PDF
-            collection.Write(outputPath);
         }
     }
 
@@ -1594,7 +1307,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Error loading audio: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            CloseAudioEditor_Click(null, null);
+            CloseAudioEditor();
         }
     }
 
@@ -1783,9 +1496,9 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (!File.Exists(FFmpegPath))
+            if (!File.Exists(_config.FFmpegPath))
             {
-                 MessageBox.Show($"FFmpeg not found.\nPlace ffmpeg.exe in:\n{FFmpegPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                 MessageBox.Show($"FFmpeg not found.\nExpected location:\n{_config.FFmpegPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                  return;
             }
             
@@ -1798,7 +1511,7 @@ public partial class MainWindow : Window
             
             try 
             {
-                RunExternalProcess(FFmpegPath, args);
+                _processManager.RunSync(_config.FFmpegPath, args);
                 MessageBox.Show($"Saved Trimmed Audio:\n{outputFile}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -1809,6 +1522,11 @@ public partial class MainWindow : Window
     }
 
     private void CloseAudioEditor_Click(object sender, RoutedEventArgs e)
+    {
+        CloseAudioEditor();
+    }
+
+    private void CloseAudioEditor()
     {
         if (_waveOut != null)
         {

@@ -17,35 +17,7 @@ public sealed class ProcessManager : IProcessManager
     /// <inheritdoc />
     public ProcessResult RunSync(string exePath, string arguments, CancellationToken ct = default)
     {
-        if (!File.Exists(exePath))
-            throw new FileNotFoundException($"Executable not found: {exePath}");
-
-        var psi = CreateStartInfo(exePath, arguments);
-
-        using var process = Process.Start(psi)
-            ?? throw new InvalidOperationException($"Failed to start process: {exePath}");
-
-        TrackProcess(process.Id);
-
-        // Read stderr before WaitForExit to prevent deadlocks on large output
-        string stderr = process.StandardError.ReadToEnd();
-        string stdout = process.StandardOutput.ReadToEnd();
-
-        process.WaitForExit();
-
-        if (ct.IsCancellationRequested)
-        {
-            KillSafe(process);
-            ct.ThrowIfCancellationRequested();
-        }
-
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException(
-                $"Process exited with code {process.ExitCode}:\n{stderr}");
-        }
-
-        return new ProcessResult(process.ExitCode, stdout, stderr);
+        return RunAsync(exePath, arguments, ct).GetAwaiter().GetResult();
     }
 
     /// <inheritdoc />
@@ -56,48 +28,27 @@ public sealed class ProcessManager : IProcessManager
 
         var psi = CreateStartInfo(exePath, arguments);
 
-        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        var tcs = new TaskCompletionSource<ProcessResult>();
-
-        var stderrBuilder = new System.Text.StringBuilder();
-        var stdoutBuilder = new System.Text.StringBuilder();
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data != null) stdoutBuilder.AppendLine(e.Data);
-        };
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data != null) stderrBuilder.AppendLine(e.Data);
-        };
-
-        process.Exited += (_, _) =>
-        {
-            // Small delay to let buffered output flush
-            try
-            {
-                var result = new ProcessResult(process.ExitCode, stdoutBuilder.ToString(), stderrBuilder.ToString());
-                tcs.TrySetResult(result);
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetException(ex);
-            }
-        };
+        using var process = new Process { StartInfo = psi };
 
         process.Start();
         TrackProcess(process.Id);
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
 
-        // Wire cancellation to kill the process
-        await using var ctRegistration = ct.Register(() =>
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync(ct);
+
+        try
+        {
+            await process.WaitForExitAsync(ct);
+        }
+        catch (OperationCanceledException)
         {
             KillSafe(process);
-            tcs.TrySetCanceled(ct);
-        });
+            throw;
+        }
 
-        var result = await tcs.Task;
+        string stdout = await stdoutTask;
+        string stderr = await stderrTask;
+        var result = new ProcessResult(process.ExitCode, stdout, stderr);
 
         if (result.ExitCode != 0)
         {
