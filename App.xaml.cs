@@ -48,7 +48,7 @@ public partial class App : Application
         Version? version = typeof(App).Assembly.GetName().Version;
         string versionText = version != null
             ? $"v{version.Major}.{version.Minor}.{version.Build}"
-            : "v0.6.0";
+            : "v1.0.0";
 
         ConsoleLogger.Info("App", $"Cortex FX {versionText} starting...");
 

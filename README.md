@@ -90,7 +90,7 @@ dotnet run --project .\CortexFX.csproj
 Manual publish:
 
 ```powershell
-dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v0.6.0
+dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.0.0
 ```
 
 Use the build script:
@@ -120,7 +120,7 @@ Before tagging a release:
 ```powershell
 dotnet restore .\CortexFX.csproj
 dotnet build .\CortexFX.csproj -c Release --no-restore
-dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v0.6.0
+dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.0.0
 ```
 
 Recommended release build:

@@ -89,7 +89,7 @@ public partial class MainWindow : Window
 
             // Set Version
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.6.0";
+            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.0.0";
             ConsoleLogger.Info("UI", $"Version label set to {VersionText.Text}.");
 
             // Handle context menu startup file
