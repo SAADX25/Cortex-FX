@@ -296,23 +296,74 @@
             <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </Setter.Value>
+            </Setter>
             <Setter Property="ItemTemplate">
                 <Setter.Value>
                     <DataTemplate>
-                        <Border Background="#2D2D30" CornerRadius="4" BorderBrush="#3E3E42" BorderThickness="1" Margin="0,2">
-                            <Grid Margin="10,5">
+                        <Border Background="#20242C" CornerRadius="6" BorderBrush="#2D3D4E" BorderThickness="1" Margin="0,3">
+                            <Grid Margin="7" MinHeight="46" ClipToBounds="True">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/> <!-- Icon -->
-                                    <ColumnDefinition Width="*"/>    <!-- Name -->
-                                    <ColumnDefinition Width="Auto"/> <!-- Status -->
-                                    <ColumnDefinition Width="Auto"/> <!-- Remove -->
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="32"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="📄" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="16"/>
-                                <TextBlock Text="{Binding FileName}" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Grid.Column="1"/>
-                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor, Converter={StaticResource StringToBrushConverter}}" VerticalAlignment="Center" Margin="10,0,10,0" Grid.Column="2" FontSize="12"/>
-                                <Button Content="✕" Grid.Column="3" Click="RemoveFile_Click" Tag="{Binding FullPath}"
-                                        Background="Transparent" Foreground="#FF5555" BorderThickness="0" Padding="8,0" Cursor="Hand"
-                                        FontSize="14" FontWeight="Bold"/>
+
+                                <Border Width="48" Height="40" CornerRadius="5" Background="#101820" BorderBrush="#33485D" BorderThickness="1" ClipToBounds="True" Margin="0,0,8,0">
+                                    <Grid>
+                                        <Image Source="{Binding ThumbnailPath}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality">
+                                            <Image.Style>
+                                                <Style TargetType="Image">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Image.Style>
+                                        </Image>
+                                        <TextBlock Text="{Binding FileIcon}" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentColor}"
+                                                   FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
+
+                                <Grid Grid.Column="1" VerticalAlignment="Center" MinWidth="0" Margin="0,0,6,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="{Binding FileName}" ToolTip="{Binding FileName}" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                    <Grid Grid.Row="1" Margin="0,3,0,0">
+                                        <TextBlock Text="{Binding FileDetails}" Foreground="{StaticResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,58,0"/>
+                                        <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor, Converter={StaticResource StringToBrushConverter}}" FontSize="11" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </Grid>
+                                <Button Content="✕" Grid.Column="2" Click="RemoveFile_Click" Tag="{Binding FullPath}"
+                                        Background="Transparent" Foreground="#FF5555" BorderThickness="0" Padding="4,0" Cursor="Hand"
+                                        FontSize="13" FontWeight="Bold" Width="28" Height="28"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
                     </DataTemplate>
@@ -364,9 +415,15 @@
                             <DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.5"/>
                         </TextBlock.Effect>
                     </TextBlock>
+                    <TextBlock x:Name="CurrentToolTitle" Visibility="Collapsed"/>
 
                     <!-- Window Controls -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="BackBtn" Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
+                                Background="Transparent" Foreground="#00A8FF" FontSize="14"
+                                Click="BackToHome_Click" Padding="10,0" Width="40"
+                                Visibility="Collapsed" ToolTip="Back"
+                                WindowChrome.IsHitTestVisibleInChrome="True"/>
                         <Button Content="⚙️" Background="Transparent" Foreground="#AAAAAA" FontSize="14" Click="SettingsButton_Click" Padding="10,0" Width="40" WindowChrome.IsHitTestVisibleInChrome="True"/>
                         <Button Content="_" Click="MinimizeButton_Click" Background="Transparent" Foreground="White" FontSize="14" Padding="10,0" Width="40" WindowChrome.IsHitTestVisibleInChrome="True"/>
                         <Button Content="✕" Click="CloseButton_Click" Background="Transparent" Foreground="White" FontSize="14" Padding="10,0" Width="40" WindowChrome.IsHitTestVisibleInChrome="True">
@@ -384,7 +441,7 @@
                 </Grid>
 
                 <!-- Category Selector (Row 1) -->
-                <StackPanel x:Name="TopNavPanel" Grid.Row="1" Orientation="Horizontal" Margin="20,15,20,15" Visibility="Collapsed">
+                <StackPanel x:Name="TopNavPanel" Grid.Row="1" Orientation="Horizontal" Margin="8,10,8,8" Visibility="Collapsed">
                     <RadioButton x:Name="RadioImage" Style="{StaticResource ImageNavStyle}" GroupName="Category" Click="Category_Click" Tag="Image">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE91B;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -429,7 +486,7 @@
                 </StackPanel>
 
                 <!-- Scrollable Content (Row 2) -->
-                <Grid Grid.Row="2" Margin="20,0,10,0">
+                <Grid Grid.Row="2" Margin="8,0,8,8">
                     <!-- Dashboard View -->
                     <ScrollViewer x:Name="DashboardView" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
                         <StackPanel>
@@ -530,70 +587,248 @@
                     </ScrollViewer>
 
                     <!-- Conversion View (Hidden by default) -->
-                    <Grid x:Name="ConversionView" Margin="0,0,10,0" Visibility="Collapsed">
+                    <Grid x:Name="ConversionView" Margin="0" Visibility="Collapsed">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/> <!-- Header -->
-                            <RowDefinition Height="Auto"/> <!-- DropZone -->
-                            <RowDefinition Height="*"/>    <!-- FileList -->
+                            <RowDefinition Height="0"/>
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Back Button Header -->
-                        <Grid Grid.Row="0" Margin="0,0,0,15">
-                            <Button x:Name="BackBtn" HorizontalAlignment="Left" Background="Transparent" 
-                                    BorderThickness="0" Padding="0" Click="BackToHome_Click" Cursor="Hand" Width="30" Height="30">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="BackBorder" CornerRadius="15" Background="Transparent">
-                                            <TextBlock Text="🡠" FontSize="20" Foreground="{StaticResource AccentColor}" 
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,2,2"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="BackBorder" Property="Background" Value="#33FFFFFF"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                            <TextBlock x:Name="CurrentToolTitle" Text="PDF to Word" HorizontalAlignment="Center" FontWeight="Bold" FontSize="18" Foreground="White" VerticalAlignment="Center"/>
-                        </Grid>
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.35*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                                <ColumnDefinition Width="0.95*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Drop Zone -->
-                        <Border Grid.Row="1" x:Name="DropZone" 
-                                Height="160"
-                                Background="#05FFFFFF" 
-                                BorderBrush="{StaticResource AccentColor}" 
-                                BorderThickness="2" 
-                                CornerRadius="16" 
-                                AllowDrop="True"
-                                Drop="DropZone_Drop"
-                                DragEnter="DropZone_DragEnter"
-                                DragLeave="DropZone_DragLeave"
-                                MouseLeftButtonUp="DropZone_Click"
-                                Cursor="Hand"
-                                Margin="0,0,0,25">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="15" ShadowDepth="0" Opacity="0.25" Color="Black"/>
-                            </Border.Effect>
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                                <TextBlock Text="☁" FontSize="56" HorizontalAlignment="Center" Foreground="{StaticResource AccentColor}"/>
-                                <TextBlock Text="Drag &amp; Drop Files Here" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,15,0,0"/>
-                            </StackPanel>
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <!-- StrokeDashArray is not a property of Border in WPF, removing it -->
-                                </Style>
-                            </Border.Style>
-                        </Border>
-    
-                        <!-- File List Preview -->
-                        <Grid Grid.Row="2" Margin="0,0,0,20">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Selected Files" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
-                            <ListBox Grid.Row="1" x:Name="FilesList" VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="#1A1A1A" BorderThickness="0" Foreground="#CCCCCC" Padding="5"/>
+                            <!-- Left: Drop zone and selected files -->
+                            <Border Grid.Column="0" Background="#101820" BorderBrush="#163A5C" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,6,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Border Grid.Row="0" x:Name="DropZone"
+                                            Background="#121922"
+                                            BorderBrush="#263647"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="8"
+                                            AllowDrop="True"
+                                            Drop="DropZone_Drop"
+                                            DragEnter="DropZone_DragEnter"
+                                            DragLeave="DropZone_DragLeave">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                                <TextBlock Text="Selected Files" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="SelectedFilesCountText" Text="0" Foreground="{StaticResource AccentColor}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+
+                                            <ListBox Grid.Row="1" x:Name="FilesList" VerticalAlignment="Stretch"
+                                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                     Background="Transparent" BorderThickness="0" Foreground="#CCCCCC" Padding="0"/>
+
+                                            <Border Grid.Row="2" Height="38" CornerRadius="7" BorderBrush="#27435D" BorderThickness="1"
+                                                    Background="#0D1824" Margin="0,10,0,0" Cursor="Hand" MouseLeftButtonUp="DropZone_Click">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                    <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentColor}" FontSize="15" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="Add more files" Foreground="#26A8FF" FontSize="13"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Middle: output and conversion options -->
+                            <Grid Grid.Column="1" Margin="0,0,6,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Background="#121922" BorderBrush="#263647" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                            <TextBlock Text="Output" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Output Folder" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="OutputPathBox" Grid.Column="0" Height="34" VerticalContentAlignment="Center"
+                                                     Background="#0D1118" Foreground="#E0E0E0" BorderBrush="#263647" BorderThickness="1"
+                                                     Padding="10,0" Margin="0,0,10,0" TextChanged="OutputPathBox_TextChanged"
+                                                     ToolTip="Choose where converted files should be saved."/>
+                                            <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" Height="34" Padding="14,0" ToolTip="Select an output folder.">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Browse" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock x:Name="OutputWarningText" Text="Select output folder" Foreground="#FF5555" FontSize="11"
+                                                       VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="2,0,0,-17" Visibility="Collapsed"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="1" Background="#121922" BorderBrush="#263647" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <TextBlock Text="&#xE771;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                            <TextBlock Text="Format and Quality" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <TextBlock Text="Output Format" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                        <ComboBox x:Name="FormatComboBox" Height="34" SelectedIndex="0" SelectionChanged="FormatComboBox_SelectionChanged" Margin="0,0,0,14"/>
+
+                                        <TextBlock Text="Quality" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                        <Slider x:Name="QualitySlider" Minimum="0" Maximum="100" Value="75"
+                                                AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" TickFrequency="5"/>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Small" FontSize="10" Foreground="#8D9AA8" HorizontalAlignment="Left"/>
+                                            <TextBlock Text="Balanced" FontSize="10" Foreground="{StaticResource AccentColor}" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Best" FontSize="10" Foreground="#8D9AA8" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="2" Background="#121922" BorderBrush="#263647" BorderThickness="1" CornerRadius="8" Padding="12">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <TextBlock Text="&#xE7A8;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                            <TextBlock Text="Resize and Advanced" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <Grid Margin="0,0,0,14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox x:Name="AspectRatioCheckBox" Content="Keep Ratio" Foreground="{StaticResource TextSecondary}" IsChecked="True" VerticalAlignment="Center"/>
+                                            <CheckBox x:Name="chkCreateSubfolder" Grid.Column="1" Content="Save in Subfolder" Foreground="{StaticResource TextSecondary}" IsChecked="True" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                        </Grid>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Width" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                                <TextBox x:Name="ResizeWidthBox" Height="32" VerticalContentAlignment="Center" Background="#0D1118" Foreground="White"
+                                                         BorderBrush="#263647" BorderThickness="1" Padding="10,0" PreviewTextInput="NumberValidationTextBox"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Foreground="#6E7D8D" VerticalAlignment="Bottom" Margin="10,0,10,8"/>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Height" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                                <TextBox x:Name="ResizeHeightBox" Height="32" VerticalContentAlignment="Center" Background="#0D1118" Foreground="White"
+                                                         BorderBrush="#263647" BorderThickness="1" Padding="10,0" PreviewTextInput="NumberValidationTextBox"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <CheckBox x:Name="chkMergePdf" Content="Merge PDF" Foreground="{StaticResource TextSecondary}" Margin="0,14,0,0"/>
+
+                                        <!-- Extra hidden but required fields to avoid build errors -->
+                                        <StackPanel Orientation="Horizontal" Visibility="Collapsed">
+                                            <TextBox x:Name="DpiBox" Text="300"/>
+                                            <CheckBox x:Name="SharpenCheckBox"/>
+                                            <CheckBox x:Name="GrayscaleCheckBox"/>
+                                            <CheckBox x:Name="AutoEnhanceCheckBox"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Right: action and summary -->
+                            <Grid Grid.Column="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="170"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Background="#121922" BorderBrush="#263647" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,10">
+                                    <Button x:Name="ConvertButton" Content="CONVERT" Click="ConvertButton_Click"
+                                            Height="68" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"
+                                            BorderThickness="0" IsEnabled="False" ToolTip="Add files and choose an output folder to convert.">
+                                        <Button.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#0B8DFF" Offset="0.0"/>
+                                                <GradientStop Color="#005A9E" Offset="1.0"/>
+                                            </LinearGradientBrush>
+                                        </Button.Background>
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="12" BorderBrush="#2CB3FF" BorderThickness="1">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Opacity" Value="0.92"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Opacity" Value="0.45"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <Button.Effect>
+                                            <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.55" Color="#007ACC"/>
+                                        </Button.Effect>
+                                    </Button>
+                                </Border>
+
+                                <Border Grid.Row="1" Background="#121922" BorderBrush="#263647" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,10" Cursor="Hand" MouseLeftButtonUp="OpenOutputFolderCard_MouseLeftButtonUp">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="Open Output Folder" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Converted files location" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Row="2" Background="#121922" BorderBrush="#263647" BorderThickness="1" CornerRadius="8" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Summary" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                                        <Grid Margin="0,0,0,10">
+                                            <TextBlock Text="Mode:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryModeText" Text="-" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,10">
+                                            <TextBlock Text="Files:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryFilesText" Text="0" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,10">
+                                            <TextBlock Text="Output:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryOutputText" Text="-" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <TextBlock Text="Estimated Result:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryEstimateText" Text="Pending" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <ProgressBar x:Name="ConversionProgress" Height="5" Background="#0D1118" BorderThickness="0" Foreground="{StaticResource AccentColor}"/>
+                                        <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,8,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </Grid>
 
                         <!-- Audio Editor Grid (Replaces DropZone/Files when active) -->
@@ -740,206 +975,6 @@
                     <views:VideoCompressorView x:Name="VideoCompressorEditor" Visibility="Collapsed"/>
                 </Grid>
 
-                <!-- Fixed Footer (Row 3) -->
-                <Border Grid.Row="3" Visibility="{Binding Visibility, ElementName=ConversionView}" Background="#252526" CornerRadius="16,16,0,0" Padding="20" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,1,0,0">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        
-                        <Grid Grid.Row="0" Margin="0,0,0,15">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Column 0: Configurations -->
-                            <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                                <!-- Row 0: Output Path -->
-                                <Grid Margin="0,0,0,15">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    
-                                    <TextBox x:Name="OutputPathBox" Grid.Column="0" Height="35" VerticalContentAlignment="Center" 
-                                             Background="#1E1E1E" Foreground="#E0E0E0" BorderThickness="0" Padding="10,0" Margin="0,0,10,0"
-                                             TextChanged="OutputPathBox_TextChanged"
-                                             ToolTip="Choose where converted files should be saved.">
-                                        <TextBox.Resources>
-                                            <Style TargetType="{x:Type Border}">
-                                                <Setter Property="CornerRadius" Value="8"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <!-- Placeholder Text using a trick (optional but nice) -->
-                                    </TextBox>
-                                    <!-- Placeholder Text Overlay -->
-                                    <TextBlock Text="Select Output Folder..." Foreground="#666666" IsHitTestVisible="False" VerticalAlignment="Center" Margin="12,0,0,0">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Text, ElementName=OutputPathBox}" Value="">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-
-                                    <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" 
-                                            Height="35" Padding="15,0" Cursor="Hand" BorderThickness="0"
-                                            ToolTip="Select an output folder.">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border x:Name="ButtonBorder" CornerRadius="8" BorderBrush="#FFA000" BorderThickness="1">
-                                                    <Border.Background>
-                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                            <GradientStop Color="#FFD54F" Offset="0"/>
-                                                            <GradientStop Color="#FFC107" Offset="1"/>
-                                                        </LinearGradientBrush>
-                                                    </Border.Background>
-                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="ButtonBorder" Property="Background">
-                                                            <Setter.Value>
-                                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                                    <GradientStop Color="#FFE082" Offset="0"/>
-                                                                    <GradientStop Color="#FFC107" Offset="1"/>
-                                                                </LinearGradientBrush>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="&#xED25;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#3E2723" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Browse" FontSize="14" FontWeight="SemiBold" Foreground="#3E2723" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                        </StackPanel>
-                                    </Button>
-                                    
-                                    <TextBlock x:Name="OutputWarningText" Text="⚠️ Select output folder" Foreground="#FF5555" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,100,0" Visibility="Collapsed"/>
-                                </Grid>
-
-                                <!-- Row 1: Format & Quality & Advanced -->
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/> <!-- Format -->
-                                        <ColumnDefinition Width="Auto"/> <!-- Quality -->
-                                        <ColumnDefinition Width="*"/>    <!-- Advanced -->
-                                    </Grid.ColumnDefinitions>
-                                    
-                                    <!-- Format Selector -->
-                                    <StackPanel Margin="0,0,20,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Format" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5" FontSize="12"/>
-                                        <ComboBox x:Name="FormatComboBox" Width="100" Height="35" 
-                                                  SelectedIndex="0" SelectionChanged="FormatComboBox_SelectionChanged"/>
-                                    </StackPanel>
-
-                                    <!-- Quality -->
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,20,0">
-                                        <TextBlock Text="Quality" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,5" FontSize="12"/>
-                                        <Grid Width="250">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Size" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <Slider Grid.Column="1" x:Name="QualitySlider" Minimum="0" Maximum="100" Value="75" 
-                                                    AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" TickFrequency="5" 
-                                                    VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2" Text="Quality" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                        </Grid>
-                                    </StackPanel>
-
-                                    <!-- Advanced Settings (Expand Up) -->
-                                    <Expander Grid.Column="2" Header="Advanced" ExpandDirection="Up" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Right">
-                                        <Border Background="#1E1E1E" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#333333" BorderThickness="1">
-                                            <StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                                    <CheckBox x:Name="chkCreateSubfolder" Content="Subfolder" Foreground="{StaticResource TextSecondary}" IsChecked="True" Margin="0,0,15,0"/>
-                                                    <CheckBox x:Name="chkMergePdf" Content="Merge PDF" Foreground="{StaticResource TextSecondary}" Margin="0,0,15,0"/>
-                                                </StackPanel>
-                                                
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    
-                                                    <!-- Resize -->
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,20,0">
-                                                        <TextBlock Text="Resize:" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                        <TextBox x:Name="ResizeWidthBox" Width="50" Height="25" VerticalContentAlignment="Center" Background="#101010" Foreground="White" BorderThickness="0" PreviewTextInput="NumberValidationTextBox"/>
-                                                        <TextBlock Text="x" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="5,0"/>
-                                                        <TextBox x:Name="ResizeHeightBox" Width="50" Height="25" VerticalContentAlignment="Center" Background="#101010" Foreground="White" BorderThickness="0" PreviewTextInput="NumberValidationTextBox"/>
-                                                        <CheckBox x:Name="AspectRatioCheckBox" Content="Ratio" Foreground="{StaticResource TextSecondary}" IsChecked="True" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="11"/>
-                                                    </StackPanel>
-
-                                                    <!-- Extra hidden but required fields to avoid build errors -->
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Visibility="Collapsed">
-                                                        <TextBox x:Name="DpiBox" Text="300"/>
-                                                        <CheckBox x:Name="SharpenCheckBox"/>
-                                                        <CheckBox x:Name="GrayscaleCheckBox"/>
-                                                        <CheckBox x:Name="AutoEnhanceCheckBox"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </StackPanel>
-                                        </Border>
-                                    </Expander>
-                                </Grid>
-                            </StackPanel>
-
-                            <!-- Column 1: Big Action Button -->
-                            <Button x:Name="ConvertButton" Grid.Column="1" Content="CONVERT" 
-                                    Click="ConvertButton_Click" 
-                                    MinWidth="130" Height="60" VerticalAlignment="Center" Margin="20,0,0,0"
-                                    FontSize="16" FontWeight="Bold" Foreground="White" BorderThickness="0"
-                                    IsEnabled="False"
-                                    ToolTip="Add files and choose an output folder to convert.">
-                                <Button.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#007ACC" Offset="0.0"/>
-                                        <GradientStop Color="#005A9E" Offset="1.0"/>
-                                    </LinearGradientBrush>
-                                </Button.Background>
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}" CornerRadius="12">
-                                            <Grid>
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.9"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                                <Button.Effect>
-                                    <DropShadowEffect BlurRadius="15" ShadowDepth="0" Opacity="0.4" Color="Black"/>
-                                </Button.Effect>
-                            </Button>
-                        </Grid>
-
-                        <!-- Progress Section (Row 1) -->
-                        <StackPanel Grid.Row="1">
-                             <ProgressBar x:Name="ConversionProgress" Height="4" Background="#333333" BorderThickness="0" Foreground="{StaticResource AccentColor}"/>
-                             <Grid Margin="0,5,0,0">
-                                <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
-                             </Grid>
-                        </StackPanel>
-                    </Grid>
-                </Border>
             </Grid>
         </Border>
 
@@ -952,6 +987,7 @@
                     <TextBlock x:Name="SuccessMessageText" Text="Your converted files are ready." FontSize="14" Foreground="{StaticResource TextSecondary}" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Content="Open Folder" Click="OpenOutputFolder_Click" Width="130" Height="40" FontSize="14" Margin="0,0,10,0"/>
+                        <Button x:Name="OpenLogsButton" Content="Open Logs Folder" Click="OpenLogFolder_Click" Width="150" Height="40" FontSize="14" Margin="0,0,10,0" Visibility="Collapsed"/>
                         <Button Content="Done" Click="CloseOverlay_Click" Width="100" Height="40" FontSize="14"/>
                     </StackPanel>
                 </StackPanel>

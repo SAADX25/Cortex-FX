@@ -58,9 +58,9 @@ public sealed class ProcessManager : IProcessManager
         if (result.ExitCode != 0)
         {
             string details = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
-            ConsoleLogger.Error("Process", $"{Path.GetFileName(exePath)} exited with code {result.ExitCode}: {details}");
-            throw new InvalidOperationException(
-                $"{Path.GetFileName(exePath)} exited with code {result.ExitCode}: {details}");
+            string executableName = Path.GetFileName(exePath);
+            ConsoleLogger.Error("Process", $"{executableName} exited with code {result.ExitCode}: {details}");
+            throw new ProcessExecutionException(executableName, result.ExitCode, result.StdOut, result.StdErr);
         }
 
         ConsoleLogger.Success("Process", $"{Path.GetFileName(exePath)} completed.");

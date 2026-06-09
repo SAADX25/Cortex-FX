@@ -14,6 +14,9 @@ public class FileModel : INotifyPropertyChanged
 
     public string FileName { get; set; } = string.Empty;
     public string FullPath { get; set; } = string.Empty;
+    public string FileDetails { get; set; } = string.Empty;
+    public string FileIcon { get; set; } = "\uE8A5";
+    public string? ThumbnailPath { get; set; }
 
     public string Status
     {

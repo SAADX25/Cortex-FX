@@ -135,7 +135,16 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputDir); // Multiple output files
             }
 
-            // 6. Video/Audio → GIF (special FFmpeg pipeline)
+            // 6. Image -> Image (Magick). Keep still images off the FFmpeg video/GIF path.
+            if (MediaTypes.RasterImageExtensions.Contains(ext) && MediaTypes.MagickOutputFormats.Contains(target))
+            {
+                var options = job.ImageOptions ?? new ImageConversionOptions(Quality: (int)job.QualityLevel);
+                await _magick.ConvertImageAsync(job.InputPath, outputPath, options, ct);
+                progress?.Report(100);
+                return ConversionResult.Ok(outputPath);
+            }
+
+            // 7. Video/Audio → GIF (special FFmpeg pipeline)
             if (target == "gif" && (MediaTypes.VideoExtensions.Contains(ext) || MediaTypes.AudioExtensions.Contains(ext)))
             {
                 await _ffmpeg.ConvertToGifAsync(job.InputPath, outputPath, ct);
@@ -143,7 +152,7 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 7. Media → Audio extraction (FFmpeg -vn)
+            // 8. Media → Audio extraction (FFmpeg -vn)
             if (MediaTypes.VideoExtensions.Contains(ext) && MediaTypes.AudioOutputFormats.Contains(target))
             {
                 await _ffmpeg.ExtractAudioAsync(job.InputPath, outputPath, ct);
@@ -151,7 +160,7 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 8. FFmpeg media conversion (video↔video, audio↔audio)
+            // 9. FFmpeg media conversion (video↔video, audio↔audio)
             if (MediaTypes.FFmpegOutputFormats.Contains(target))
             {
                 string args = _ffmpegConcrete.BuildVideoArguments(job.InputPath, outputPath,
@@ -160,20 +169,19 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 9. Image → Image (Magick)
-            if (MediaTypes.MagickOutputFormats.Contains(target))
-            {
-                var options = job.ImageOptions ?? new ImageConversionOptions(Quality: (int)job.QualityLevel);
-                await _magick.ConvertImageAsync(job.InputPath, outputPath, options, ct);
-                progress?.Report(100);
-                return ConversionResult.Ok(outputPath);
-            }
-
             return ConversionResult.Fail($"No engine found for {ext} → {target}");
         }
         catch (OperationCanceledException)
         {
             return ConversionResult.Fail("Conversion cancelled.");
+        }
+        catch (ProcessExecutionException ex) when (ex.ExecutableName.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) && ex.ExitCode == -22)
+        {
+            return ConversionResult.Fail("Invalid conversion arguments. This file could not be converted with the selected output format.");
+        }
+        catch (ProcessExecutionException ex)
+        {
+            return ConversionResult.Fail($"{ex.ExecutableName} failed with exit code {ex.ExitCode}. See the log for technical details.");
         }
         catch (Exception ex)
         {

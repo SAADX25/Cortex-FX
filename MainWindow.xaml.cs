@@ -244,6 +244,7 @@ public partial class MainWindow : Window
     {
         DashboardView.Visibility = Visibility.Collapsed;
         ConversionView.Visibility = Visibility.Visible;
+        BackBtn.Visibility = Visibility.Visible;
     }
 
     public enum AppMode
@@ -307,6 +308,7 @@ public partial class MainWindow : Window
             {
                 if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Visible;
                 CurrentToolTitle.Text = "Video Compressor";
+                BackBtn.Visibility = Visibility.Visible;
             }
         }
         else
@@ -315,6 +317,7 @@ public partial class MainWindow : Window
             if (DashboardView != null) DashboardView.Visibility = Visibility.Visible;
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
             CurrentToolTitle.Text = "Select Tool";
+            BackBtn.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -337,6 +340,7 @@ public partial class MainWindow : Window
             if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
             CurrentToolTitle.Text = "Select Tool";
             FormatComboBox.IsEnabled = true;
+            BackBtn.Visibility = Visibility.Collapsed;
 
             // Hide Top Nav
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
@@ -354,6 +358,7 @@ public partial class MainWindow : Window
             DashboardView.Visibility = Visibility.Collapsed;
             ConversionView.Visibility = Visibility.Visible;
             if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
+            BackBtn.Visibility = Visibility.Visible;
 
             // Show Top Nav for Universal Mode
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Visible;
@@ -377,6 +382,7 @@ public partial class MainWindow : Window
         {
             DashboardView.Visibility = Visibility.Collapsed;
             ConversionView.Visibility = Visibility.Visible;
+            BackBtn.Visibility = Visibility.Visible;
 
             // Hide Top Nav for specific single-purpose tools (keep it clean)
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
@@ -580,12 +586,73 @@ public partial class MainWindow : Window
             _filesToConvert.Add(new FileModel
             {
                 FileName = System.IO.Path.GetFileName(file),
-                FullPath = file
+                FullPath = file,
+                FileDetails = BuildFileDetails(file),
+                FileIcon = GetFileIcon(file),
+                ThumbnailPath = GetThumbnailPath(file)
             });
 
             RefreshFormatsFromSelectedFiles();
             UpdateConvertButtonAvailability();
         }
+    }
+
+    private static string BuildFileDetails(string file)
+    {
+        string ext = System.IO.Path.GetExtension(file).TrimStart('.').ToUpperInvariant();
+        string size = "";
+
+        try
+        {
+            var info = new FileInfo(file);
+            size = FormatFileSize(info.Length);
+        }
+        catch
+        {
+            // Best-effort display only.
+        }
+
+        return string.IsNullOrWhiteSpace(size) ? ext : $"{ext} - {size}";
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes >= 1024L * 1024L * 1024L)
+        {
+            return $"{bytes / (1024d * 1024d * 1024d):0.##} GB";
+        }
+
+        if (bytes >= 1024L * 1024L)
+        {
+            return $"{bytes / (1024d * 1024d):0.##} MB";
+        }
+
+        if (bytes >= 1024L)
+        {
+            return $"{bytes / 1024d:0.##} KB";
+        }
+
+        return $"{bytes} B";
+    }
+
+    private static string GetFileIcon(string file)
+    {
+        string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+
+        if (MediaTypes.ImageExtensions.Contains(ext)) return "\uE91B";
+        if (MediaTypes.VideoExtensions.Contains(ext)) return "\uE714";
+        if (MediaTypes.AudioExtensions.Contains(ext)) return "\uE8D6";
+        if (MediaTypes.ArchiveExtensions.Contains(ext)) return "\uE7B8";
+        if (MediaTypes.EbookExtensions.Contains(ext)) return "\uE82D";
+        return "\uE8A5";
+    }
+
+    private static string? GetThumbnailPath(string file)
+    {
+        string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+        return ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".tif" or ".tiff" or ".ico"
+            ? file
+            : null;
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
@@ -620,6 +687,11 @@ public partial class MainWindow : Window
         {
             OpenFolder(_lastOutputFolder);
         }
+    }
+
+    private void OpenOutputFolderCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        OpenOutputFolder_Click(sender, e);
     }
 
     private static void OpenFolder(string? folderPath)
@@ -1057,9 +1129,43 @@ public partial class MainWindow : Window
         return int.TryParse(value, out int parsed) && parsed > 0 ? parsed : null;
     }
 
+    private void UpdateConversionSummary()
+    {
+        if (SelectedFilesCountText == null || SummaryModeText == null)
+        {
+            return;
+        }
+
+        int fileCount = _filesToConvert.Count;
+        string outputFormat = "-";
+
+        if (FormatComboBox?.SelectedItem is ComboBoxItem item && item.Content != null)
+        {
+            string selectedFormat = item.Content.ToString() ?? string.Empty;
+            if (!selectedFormat.Contains("Ready", StringComparison.OrdinalIgnoreCase) &&
+                !selectedFormat.Contains("No common", StringComparison.OrdinalIgnoreCase))
+            {
+                outputFormat = selectedFormat.ToUpperInvariant();
+            }
+        }
+
+        SelectedFilesCountText.Text = fileCount.ToString();
+        SummaryModeText.Text = CurrentToolTitle?.Text ?? "-";
+        SummaryFilesText.Text = fileCount.ToString();
+        SummaryOutputText.Text = outputFormat;
+        SummaryEstimateText.Text = fileCount > 0 && outputFormat != "-" ? "Ready" : "Pending";
+    }
+
     private void UpdateConvertButtonAvailability()
     {
-        if (ConvertButton == null || _isConverting)
+        if (ConvertButton == null)
+        {
+            return;
+        }
+
+        UpdateConversionSummary();
+
+        if (_isConverting)
         {
             return;
         }
@@ -1096,14 +1202,29 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string FriendlyErrorMessage(string filePath, string message)
+    private static string FriendlyErrorMessage(string filePath, string targetFormat, string message)
     {
         string name = System.IO.Path.GetFileName(filePath);
+        string target = targetFormat.ToUpperInvariant();
 
         if (message.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("Executable", StringComparison.OrdinalIgnoreCase))
         {
             return $"{name}: a required local tool is missing. Open Settings > Resource Status for the expected Resources layout.";
+        }
+
+        if (message.Contains("invalid conversion", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("invalid argument", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("exit code -22", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Conversion failed: {name} could not be converted to {target}. The conversion arguments were invalid for this file.";
+        }
+
+        if (message.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("magick", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("exit code", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Conversion failed: {name} could not be converted to {target}. See the log for technical details.";
         }
 
         if (message.Contains("Microsoft Office is required", StringComparison.OrdinalIgnoreCase) ||
@@ -1116,7 +1237,7 @@ public partial class MainWindow : Window
         if (message.Contains("No engine found", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("not supported", StringComparison.OrdinalIgnoreCase))
         {
-            return $"{name}: this conversion route is not supported yet.";
+            return $"Conversion failed: {name} could not be converted to {target}. This conversion route is not supported yet.";
         }
 
         if (message.Contains("cancel", StringComparison.OrdinalIgnoreCase))
@@ -1124,7 +1245,7 @@ public partial class MainWindow : Window
             return $"{name}: conversion was cancelled.";
         }
 
-        return $"{name}: {message}";
+        return $"Conversion failed: {name} could not be converted to {target}.";
     }
 
     private void ShowConversionSummary(int successCount, int errorCount, int totalCount, string? details = null)
@@ -1134,6 +1255,7 @@ public partial class MainWindow : Window
         SuccessMessageText.Text = details ?? (hadErrors
             ? $"Converted {successCount}/{totalCount} files. {errorCount} failed. See the log for details."
             : $"Successfully converted {successCount}/{totalCount} files.");
+        OpenLogsButton.Visibility = hadErrors ? Visibility.Visible : Visibility.Collapsed;
         SuccessOverlay.Visibility = Visibility.Visible;
     }
 
@@ -1332,7 +1454,7 @@ public partial class MainWindow : Window
                 {
                     UpdateFileStatus(fileItem, "Error", "#FF5555");
                     errorCount++;
-                    string friendly = FriendlyErrorMessage(file, ex.Message);
+                    string friendly = FriendlyErrorMessage(file, targetFormat, ex.Message);
                     failedMessages.Add(friendly);
                     ConsoleLogger.Error("Conversion", $"Failed {ConsoleLogger.ShortPath(file)}: {ex}");
                     StatusText.Text = $"Error: {System.IO.Path.GetFileName(file)}";

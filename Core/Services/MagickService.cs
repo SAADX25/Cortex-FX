@@ -129,6 +129,8 @@ public sealed class MagickService : IMagickService
         using var image = new MagickImage(inputFile);
         ct.ThrowIfCancellationRequested();
 
+        image.AutoOrient();
+
         // Quality
         image.Quality = (uint)Math.Clamp(options.Quality, 1, 100);
 
@@ -194,6 +196,7 @@ public sealed class MagickService : IMagickService
 
         var args = new System.Text.StringBuilder();
         args.Append($"\"{inputFile}\" ");
+        args.Append("-auto-orient ");
 
         // Quality
         int q = Math.Clamp(options.Quality, 1, 100);
