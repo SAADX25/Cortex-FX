@@ -688,7 +688,10 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(_lastOutputFolder))
         {
             OpenFolder(_lastOutputFolder);
+            return;
         }
+
+        OpenFolder(OutputPathBox?.Text);
     }
 
     private void OpenOutputFolderCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -708,7 +711,8 @@ public partial class MainWindow : Window
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = folderPath,
+                FileName = "explorer.exe",
+                Arguments = $"\"{folderPath}\"",
                 UseShellExecute = true
             });
         }
@@ -1116,8 +1120,6 @@ public partial class MainWindow : Window
     {
         SuccessOverlay.Visibility = Visibility.Collapsed;
         StatusText.Text = "Ready";
-        ConversionProgress.Value = 0;
-        _filesToConvert.Clear();
         UpdateConvertButtonAvailability();
     }
 
