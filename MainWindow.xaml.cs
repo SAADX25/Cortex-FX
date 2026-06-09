@@ -48,6 +48,8 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _cancellationTokenSource;
     private bool _isConverting;
     private bool _formatWasEnabledBeforeConversion;
+    private int _activeConversionTotalFiles;
+    private int _activeConversionCompletedFiles;
     private string? _lastOutputFolder;
     private const int MaxBatchFiles = 100;
     // Audio Editor State
@@ -1186,6 +1188,9 @@ public partial class MainWindow : Window
         if (isConverting)
         {
             _formatWasEnabledBeforeConversion = FormatComboBox.IsEnabled;
+            ConversionOverlay.Visibility = Visibility.Visible;
+            ConversionOverlayCancelButton.IsEnabled = true;
+            UpdateConversionProgressUi("Preparing conversion...", 0, _activeConversionTotalFiles);
         }
 
         _isConverting = isConverting;
@@ -1193,12 +1198,59 @@ public partial class MainWindow : Window
         ConvertButton.Content = isConverting ? "CANCEL" : "CONVERT";
         BrowseButton.IsEnabled = !isConverting;
         BackBtn.IsEnabled = !isConverting;
-        DropZone.IsEnabled = !isConverting;
+        DropZone.IsHitTestVisible = !isConverting;
         FormatComboBox.IsEnabled = isConverting ? false : _formatWasEnabledBeforeConversion;
 
         if (!isConverting)
         {
+            ConversionOverlay.Visibility = Visibility.Collapsed;
+            ConversionOverlayCancelButton.IsEnabled = true;
+            _activeConversionCompletedFiles = 0;
+            _activeConversionTotalFiles = 0;
             UpdateConvertButtonAvailability();
+        }
+    }
+
+    private void UpdateConversionProgressUi(string message, int completedFiles, int totalFiles, double currentFilePercent = 0)
+    {
+        StatusText.Text = message;
+        _activeConversionCompletedFiles = Math.Max(0, completedFiles);
+        _activeConversionTotalFiles = Math.Max(0, totalFiles);
+
+        if (ConversionOverlayMessageText == null)
+        {
+            return;
+        }
+
+        double percent = 0;
+        if (_activeConversionTotalFiles > 0)
+        {
+            double fileProgress = Math.Clamp(currentFilePercent, 0, 100);
+            double completedUnits = (_activeConversionCompletedFiles * 100) + fileProgress;
+            percent = Math.Clamp(completedUnits / (_activeConversionTotalFiles * 100) * 100, 0, 100);
+        }
+
+        ConversionOverlayMessageText.Text = message;
+        ConversionOverlayPercentText.Text = $"{percent:0}%";
+        ConversionOverlayDetailText.Text = _activeConversionTotalFiles > 0
+            ? $"{_activeConversionCompletedFiles}/{_activeConversionTotalFiles} files - {percent:0}%"
+            : "Preparing files...";
+    }
+
+    private void RequestConversionCancel()
+    {
+        _cancellationTokenSource?.Cancel();
+        ConvertButton.IsEnabled = false;
+        ConversionOverlayCancelButton.IsEnabled = false;
+        UpdateConversionProgressUi("Cancelling...", _activeConversionCompletedFiles, _activeConversionTotalFiles);
+        ConversionOverlayDetailText.Text = "Stopping after the current file...";
+    }
+
+    private void CancelConversion_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isConverting)
+        {
+            RequestConversionCancel();
         }
     }
 
@@ -1263,9 +1315,7 @@ public partial class MainWindow : Window
     {
         if (_isConverting)
         {
-            _cancellationTokenSource?.Cancel();
-            StatusText.Text = "Cancelling...";
-            ConvertButton.IsEnabled = false;
+            RequestConversionCancel();
             return;
         }
 
@@ -1349,9 +1399,11 @@ public partial class MainWindow : Window
         var filePaths = files.Select(f => f.FullPath).ToList();
         var failedMessages = new List<string>();
 
+        _activeConversionCompletedFiles = 0;
+        _activeConversionTotalFiles = files.Count;
         ConversionProgress.Value = 0;
         ConversionProgress.Maximum = files.Count * 100;
-        StatusText.Text = "Converting...";
+        UpdateConversionProgressUi("Preparing conversion...", 0, files.Count);
         ConsoleLogger.Info("Conversion", $"Starting batch: {_filesToConvert.Count} file(s) -> {targetFormat.ToUpperInvariant()}.");
         SetConversionUiState(true);
 
@@ -1362,7 +1414,7 @@ public partial class MainWindow : Window
 
             if (filePaths.Count > 1 && areAllImages && targetFormat == "pdf" && isMergeChecked)
             {
-                StatusText.Text = "Merging all images...";
+                UpdateConversionProgressUi("Merging all images...", 0, files.Count);
                 ConsoleLogger.Info("Conversion", $"Merging {filePaths.Count} image(s) -> PDF.");
 
                 string outputFolder = _lastOutputFolder ?? outputDir;
@@ -1381,7 +1433,7 @@ public partial class MainWindow : Window
                 }
 
                 ConversionProgress.Value = ConversionProgress.Maximum;
-                StatusText.Text = "Merge complete.";
+                UpdateConversionProgressUi("Merge complete.", files.Count, files.Count, 100);
                 ConsoleLogger.Success("Conversion", $"Merged images -> {ConsoleLogger.ShortPath(finalPath)}.");
                 ShowConversionSummary(files.Count, 0, files.Count, $"Merged {files.Count} images into:\n{finalPath}");
                 return;
@@ -1403,12 +1455,14 @@ public partial class MainWindow : Window
                     failedMessages.Add($"{fileItem.FileName}: file was moved or deleted before conversion.");
                     processedFiles++;
                     ConversionProgress.Value = processedFiles * 100;
+                    UpdateConversionProgressUi($"Skipped missing file: {fileItem.FileName}", processedFiles, files.Count);
                     continue;
                 }
 
                 ConsoleLogger.Info("Conversion", $"Converting {ConsoleLogger.ShortPath(file)} -> {targetFormat.ToUpperInvariant()}.");
                 UpdateFileStatus(fileItem, "Processing...", "#007ACC");
-                StatusText.Text = $"Converting {System.IO.Path.GetFileName(file)}...";
+                string currentFileMessage = $"Converting {System.IO.Path.GetFileName(file)}...";
+                UpdateConversionProgressUi(currentFileMessage, processedFiles, files.Count);
 
                 try
                 {
@@ -1416,6 +1470,7 @@ public partial class MainWindow : Window
                     {
                         double totalProgress = (processedFiles * 100) + Math.Clamp(p, 0, 100);
                         ConversionProgress.Value = Math.Min(totalProgress, ConversionProgress.Maximum);
+                        UpdateConversionProgressUi(currentFileMessage, processedFiles, files.Count, p);
                     });
 
                     var result = await _conversionRouter.ConvertAsync(new ConversionJob
@@ -1457,14 +1512,15 @@ public partial class MainWindow : Window
                     string friendly = FriendlyErrorMessage(file, targetFormat, ex.Message);
                     failedMessages.Add(friendly);
                     ConsoleLogger.Error("Conversion", $"Failed {ConsoleLogger.ShortPath(file)}: {ex}");
-                    StatusText.Text = $"Error: {System.IO.Path.GetFileName(file)}";
+                    UpdateConversionProgressUi($"Error: {System.IO.Path.GetFileName(file)}", processedFiles, files.Count);
                 }
 
                 processedFiles++;
                 ConversionProgress.Value = processedFiles * 100;
+                UpdateConversionProgressUi($"{processedFiles}/{files.Count} files processed.", processedFiles, files.Count, 0);
             }
 
-            StatusText.Text = errorCount > 0 ? "Finished with warnings." : "Conversion complete.";
+            UpdateConversionProgressUi(errorCount > 0 ? "Finished with warnings." : "Conversion complete.", files.Count, files.Count, 100);
             ConsoleLogger.Success("Conversion", $"Batch complete: {successCount} succeeded, {errorCount} failed.");
 
             string? detail = failedMessages.Count > 0
@@ -1475,7 +1531,7 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "Conversion cancelled.";
+            UpdateConversionProgressUi("Conversion cancelled.", _activeConversionCompletedFiles, files.Count);
             ConsoleLogger.Warning("Conversion", "Batch cancelled by user.");
             ShowConversionSummary(0, files.Count, files.Count, "Conversion was cancelled. Partial output files may exist in the output folder.");
         }
