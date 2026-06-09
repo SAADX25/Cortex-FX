@@ -147,7 +147,7 @@ public sealed class ConversionRouter : IConversionRouter
             // 7. Video/Audio → GIF (special FFmpeg pipeline)
             if (target == "gif" && (MediaTypes.VideoExtensions.Contains(ext) || MediaTypes.AudioExtensions.Contains(ext)))
             {
-                await _ffmpeg.ConvertToGifAsync(job.InputPath, outputPath, ct);
+                await _ffmpeg.ConvertToGifAsync(job.InputPath, outputPath, ct, progress);
                 progress?.Report(100);
                 return ConversionResult.Ok(outputPath);
             }
@@ -155,17 +155,35 @@ public sealed class ConversionRouter : IConversionRouter
             // 8. Media → Audio extraction (FFmpeg -vn)
             if (MediaTypes.VideoExtensions.Contains(ext) && MediaTypes.AudioOutputFormats.Contains(target))
             {
-                await _ffmpeg.ExtractAudioAsync(job.InputPath, outputPath, ct);
+                await _ffmpeg.ExtractAudioAsync(job.InputPath, outputPath, ct, progress);
                 progress?.Report(100);
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 9. FFmpeg media conversion (video↔video, audio↔audio)
-            if (MediaTypes.FFmpegOutputFormats.Contains(target))
+            // 9. Audio -> Audio (FFmpeg audio codecs only)
+            if (MediaTypes.AudioExtensions.Contains(ext) && MediaTypes.AudioOutputFormats.Contains(target))
+            {
+                string args = _ffmpegConcrete.BuildAudioArguments(job.InputPath, outputPath, target);
+                await _ffmpeg.ConvertAsync(job.InputPath, outputPath, args, ct, progress);
+                return ConversionResult.Ok(outputPath);
+            }
+
+            // 10. Video -> Video (container-specific FFmpeg arguments)
+            if (MediaTypes.VideoExtensions.Contains(ext) && MediaTypes.VideoOutputFormats.Contains(target))
             {
                 string args = _ffmpegConcrete.BuildVideoArguments(job.InputPath, outputPath,
                     job.QualityLevel, target);
-                await _ffmpeg.ConvertAsync(job.InputPath, outputPath, args, ct, progress);
+                try
+                {
+                    await _ffmpeg.ConvertAsync(job.InputPath, outputPath, args, ct, progress);
+                }
+                catch (ProcessExecutionException ex) when (_ffmpegConcrete.UsesHardwareEncoder(args))
+                {
+                    ConsoleLogger.Warning("Conversion", $"Hardware video encoder failed ({ex.ExitCode}); retrying with software encoder.");
+                    string softwareArgs = _ffmpegConcrete.BuildVideoArguments(job.InputPath, outputPath,
+                        job.QualityLevel, target, preferHardware: false);
+                    await _ffmpeg.ConvertAsync(job.InputPath, outputPath, softwareArgs, ct, progress);
+                }
                 return ConversionResult.Ok(outputPath);
             }
 

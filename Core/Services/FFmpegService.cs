@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Interfaces;
@@ -14,6 +16,10 @@ public sealed class FFmpegService : IFFmpegService
 {
     private readonly IAppConfiguration _config;
     private readonly IProcessManager _processManager;
+    private static readonly Regex DurationRegex = new(@"Duration:\s*(?<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex StatusTimeRegex = new(@"\btime=(?<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     // Cached HW encoder probe result (lazy, thread-safe)
     private readonly Lazy<HardwareCapabilities> _hwCaps;
@@ -37,7 +43,7 @@ public sealed class FFmpegService : IFFmpegService
                                     CancellationToken ct = default, IProgress<double>? progress = null)
     {
         EnsureFFmpeg();
-        await _processManager.RunAsync(_config.FFmpegPath, arguments, ct);
+        await RunFFmpegAsync(arguments, ct, progress);
         progress?.Report(100);
     }
 
@@ -49,24 +55,29 @@ public sealed class FFmpegService : IFFmpegService
         string ss = start.ToString(@"hh\:mm\:ss\.fff");
         string to = end.ToString(@"hh\:mm\:ss\.fff");
         string args = $"-i \"{inputFile}\" -ss {ss} -to {to} -c copy -y \"{outputFile}\"";
-        await _processManager.RunAsync(_config.FFmpegPath, args, ct);
+        await RunFFmpegAsync(args, ct);
     }
 
     /// <inheritdoc />
-    public async Task ExtractAudioAsync(string inputFile, string outputFile, CancellationToken ct = default)
+    public async Task ExtractAudioAsync(string inputFile, string outputFile, CancellationToken ct = default,
+                                        IProgress<double>? progress = null)
     {
         EnsureFFmpeg();
-        string args = $"-i \"{inputFile}\" -vn -y \"{outputFile}\"";
-        await _processManager.RunAsync(_config.FFmpegPath, args, ct);
+        string targetFormat = Path.GetExtension(outputFile).TrimStart('.');
+        string args = BuildAudioArguments(inputFile, outputFile, targetFormat);
+        await RunFFmpegAsync(args, ct, progress);
+        progress?.Report(100);
     }
 
     /// <inheritdoc />
-    public async Task ConvertToGifAsync(string inputFile, string outputFile, CancellationToken ct = default)
+    public async Task ConvertToGifAsync(string inputFile, string outputFile, CancellationToken ct = default,
+                                        IProgress<double>? progress = null)
     {
         EnsureFFmpeg();
         // Two-pass palette generation for high-quality GIF output
         string args = $"-i \"{inputFile}\" -vf \"fps=10,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 -y \"{outputFile}\"";
-        await _processManager.RunAsync(_config.FFmpegPath, args, ct);
+        await RunFFmpegAsync(args, ct, progress);
+        progress?.Report(100);
     }
 
     // ------------------------------------------------------------------
@@ -78,7 +89,8 @@ public sealed class FFmpegService : IFFmpegService
     /// and optional hardware acceleration.
     /// </summary>
     public string BuildVideoArguments(string inputFile, string outputFile,
-                                       double qualityLevel, string targetFormat)
+                                       double qualityLevel, string targetFormat,
+                                       bool preferHardware = true)
     {
         if (targetFormat.Equals("gif", StringComparison.OrdinalIgnoreCase))
         {
@@ -88,35 +100,43 @@ public sealed class FFmpegService : IFFmpegService
         int crf = 28 - (int)((qualityLevel / 100.0) * 10);
         string preset = qualityLevel < 40 ? "fast" : (qualityLevel < 80 ? "medium" : "slow");
 
-        // Try hardware-accelerated encoding for H.264/H.265 targets
-        string encoder = SelectEncoder(targetFormat);
-        string qualityArgs;
-
-        if (encoder.Contains("nvenc"))
+        return targetFormat.ToLowerInvariant() switch
         {
-            // NVENC uses -cq (constant quality) instead of -crf
-            int cq = Math.Max(18, 35 - (int)((qualityLevel / 100.0) * 17));
-            qualityArgs = $"-c:v {encoder} -cq {cq} -preset p4";
-        }
-        else if (encoder.Contains("qsv"))
-        {
-            qualityArgs = $"-c:v {encoder} -global_quality {crf} -preset medium";
-        }
-        else
-        {
-            // Software fallback (libx264/libx265)
-            qualityArgs = $"-crf {crf} -preset {preset}";
-        }
-
-        return $"-i \"{inputFile}\" {qualityArgs} -y \"{outputFile}\"";
+            "avi" => BuildAviArguments(inputFile, outputFile, qualityLevel),
+            "webm" => BuildWebmArguments(inputFile, outputFile, qualityLevel),
+            "mp4" or "mov" or "mkv" => BuildH264ContainerArguments(inputFile, outputFile, targetFormat, crf, preset, qualityLevel, preferHardware),
+            _ => BuildH264ContainerArguments(inputFile, outputFile, targetFormat, crf, preset, qualityLevel, preferHardware)
+        };
     }
 
     /// <summary>
     /// Build FFmpeg arguments for audio conversion (format change, not extraction).
     /// </summary>
-    public string BuildAudioArguments(string inputFile, string outputFile)
+    public string BuildAudioArguments(string inputFile, string outputFile, string? targetFormat = null)
     {
-        return $"-i \"{inputFile}\" -vn -y \"{outputFile}\"";
+        string target = string.IsNullOrWhiteSpace(targetFormat)
+            ? Path.GetExtension(outputFile).TrimStart('.').ToLowerInvariant()
+            : targetFormat.TrimStart('.').ToLowerInvariant();
+
+        string codecArgs = target switch
+        {
+            "mp3" => $"-c:a libmp3lame -q:a {QualityToAudioVbr(75)}",
+            "wav" => "-c:a pcm_s16le",
+            "flac" => "-c:a flac",
+            "m4a" or "aac" => "-c:a aac -b:a 192k",
+            "ogg" => "-c:a libvorbis -q:a 5",
+            _ => string.Empty
+        };
+
+        return $"-i \"{inputFile}\" -vn {codecArgs} -y \"{outputFile}\"";
+    }
+
+    /// <summary>Whether generated arguments use a hardware encoder that can be retried in software.</summary>
+    public bool UsesHardwareEncoder(string arguments)
+    {
+        return arguments.Contains("_nvenc", StringComparison.OrdinalIgnoreCase) ||
+               arguments.Contains("_qsv", StringComparison.OrdinalIgnoreCase) ||
+               arguments.Contains("_amf", StringComparison.OrdinalIgnoreCase);
     }
 
     // ------------------------------------------------------------------
@@ -152,25 +172,254 @@ public sealed class FFmpegService : IFFmpegService
         return caps;
     }
 
-    /// <summary>Select the best available encoder for the target format.</summary>
-    private string SelectEncoder(string targetFormat)
+    /// <summary>Select the best available H.264 encoder for MP4/MOV/MKV outputs.</summary>
+    private string SelectH264Encoder(bool preferHardware)
     {
-        var caps = HwCapabilities;
-        bool isHevc = targetFormat.Equals("mkv", StringComparison.OrdinalIgnoreCase);
-
-        if (isHevc)
+        if (!preferHardware)
         {
-            if (caps.HasNvencHevc) return "hevc_nvenc";
-            if (caps.HasQuickSyncHevc) return "hevc_qsv";
+            return "libx264";
         }
 
-        // H.264 targets (mp4, avi, mov, webm)
+        var caps = HwCapabilities;
         if (caps.HasNvenc) return "h264_nvenc";
         if (caps.HasQuickSync) return "h264_qsv";
         if (caps.HasAmf) return "h264_amf";
+        return "libx264";
+    }
 
-        // Software fallback
-        return isHevc ? "libx265" : "libx264";
+    private string BuildH264ContainerArguments(string inputFile, string outputFile, string targetFormat,
+                                               int crf, string preset, double qualityLevel,
+                                               bool preferHardware)
+    {
+        string encoder = SelectH264Encoder(preferHardware);
+        string videoArgs = BuildH264QualityArguments(encoder, crf, preset, qualityLevel);
+        string fastStart = targetFormat.Equals("mp4", StringComparison.OrdinalIgnoreCase) ||
+                           targetFormat.Equals("mov", StringComparison.OrdinalIgnoreCase)
+            ? "-movflags +faststart"
+            : string.Empty;
+
+        return $"-i \"{inputFile}\" -map 0:v:0 -map 0:a? {videoArgs} -pix_fmt yuv420p -c:a aac -b:a 192k {fastStart} -y \"{outputFile}\"";
+    }
+
+    private static string BuildH264QualityArguments(string encoder, int crf, string preset, double qualityLevel)
+    {
+        if (encoder.Contains("nvenc", StringComparison.OrdinalIgnoreCase))
+        {
+            int cq = Math.Max(18, 35 - (int)((qualityLevel / 100.0) * 17));
+            return $"-c:v {encoder} -cq {cq} -preset p4";
+        }
+
+        if (encoder.Contains("qsv", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"-c:v {encoder} -global_quality {crf} -preset medium";
+        }
+
+        if (encoder.Contains("amf", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"-c:v {encoder} -quality balanced -rc cqp -qp_i {crf} -qp_p {crf}";
+        }
+
+        return $"-c:v libx264 -crf {crf} -preset {preset}";
+    }
+
+    private static string BuildAviArguments(string inputFile, string outputFile, double qualityLevel)
+    {
+        int qscale = Math.Clamp(31 - (int)((qualityLevel / 100.0) * 26), 2, 31);
+        return $"-i \"{inputFile}\" -map 0:v:0 -map 0:a? -c:v mpeg4 -qscale:v {qscale} -c:a libmp3lame -b:a 192k -y \"{outputFile}\"";
+    }
+
+    private static string BuildWebmArguments(string inputFile, string outputFile, double qualityLevel)
+    {
+        int crf = Math.Clamp(42 - (int)((qualityLevel / 100.0) * 24), 18, 42);
+        return $"-i \"{inputFile}\" -map 0:v:0 -map 0:a? -c:v libvpx-vp9 -crf {crf} -b:v 0 -deadline good -cpu-used 4 -row-mt 1 -c:a libopus -b:a 128k -y \"{outputFile}\"";
+    }
+
+    private static int QualityToAudioVbr(double qualityLevel)
+    {
+        return Math.Clamp(9 - (int)((qualityLevel / 100.0) * 7), 2, 9);
+    }
+
+    private async Task<ProcessResult> RunFFmpegAsync(string arguments, CancellationToken ct,
+                                                     IProgress<double>? progress = null)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = _config.FFmpegPath,
+            Arguments = BuildExecutionArguments(arguments, progress != null),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+
+        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        var stdout = new StringBuilder();
+        var stderr = new StringBuilder();
+        TimeSpan? duration = null;
+        double lastProgress = 0;
+        object progressLock = new();
+
+        void ReportProgress(TimeSpan? position)
+        {
+            if (progress == null)
+            {
+                return;
+            }
+
+            lock (progressLock)
+            {
+                double nextProgress;
+                if (position.HasValue && duration.HasValue && duration.Value.TotalMilliseconds > 0)
+                {
+                    nextProgress = Math.Clamp(position.Value.TotalMilliseconds / duration.Value.TotalMilliseconds * 100, 0, 99);
+                }
+                else
+                {
+                    nextProgress = Math.Min(lastProgress + 0.25, 95);
+                }
+
+                if (nextProgress > lastProgress)
+                {
+                    lastProgress = nextProgress;
+                    progress.Report(nextProgress);
+                }
+            }
+        }
+
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(e.Data))
+            {
+                return;
+            }
+
+            stdout.AppendLine(e.Data);
+            if (TryParseProgressTimestamp(e.Data, out var position))
+            {
+                ReportProgress(position);
+            }
+            else if (!duration.HasValue && e.Data.StartsWith("progress=", StringComparison.OrdinalIgnoreCase))
+            {
+                ReportProgress(null);
+            }
+        };
+
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(e.Data))
+            {
+                return;
+            }
+
+            stderr.AppendLine(e.Data);
+            duration ??= TryParseDuration(e.Data);
+            if (TryParseStatusTimestamp(e.Data, out var position))
+            {
+                ReportProgress(position);
+            }
+        };
+
+        ConsoleLogger.Info("Process", $"Starting {Path.GetFileName(_config.FFmpegPath)}.");
+        process.Start();
+        _processManager.TrackProcess(process.Id);
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        try
+        {
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            process.WaitForExit();
+        }
+        catch (OperationCanceledException)
+        {
+            KillSafe(process);
+            ConsoleLogger.Warning("Process", $"Cancelled {Path.GetFileName(_config.FFmpegPath)}.");
+            throw;
+        }
+
+        var result = new ProcessResult(process.ExitCode, stdout.ToString(), stderr.ToString());
+        if (result.ExitCode != 0)
+        {
+            string details = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
+            string executableName = Path.GetFileName(_config.FFmpegPath);
+            ConsoleLogger.Error("Process", $"{executableName} exited with code {result.ExitCode}: {details}");
+            throw new ProcessExecutionException(executableName, result.ExitCode, result.StdOut, result.StdErr);
+        }
+
+        ConsoleLogger.Success("Process", $"{Path.GetFileName(_config.FFmpegPath)} completed.");
+        return result;
+    }
+
+    private static string BuildExecutionArguments(string arguments, bool enableProgress)
+    {
+        string progressArgs = enableProgress ? "-progress pipe:1 -nostats " : string.Empty;
+        return $"-hide_banner -nostdin {progressArgs}{arguments}";
+    }
+
+    private static bool TryParseProgressTimestamp(string line, out TimeSpan position)
+    {
+        position = default;
+
+        if (line.StartsWith("out_time_ms=", StringComparison.OrdinalIgnoreCase) &&
+            long.TryParse(line["out_time_ms=".Length..], NumberStyles.Integer, CultureInfo.InvariantCulture, out long microseconds))
+        {
+            position = TimeSpan.FromMilliseconds(microseconds / 1000d);
+            return true;
+        }
+
+        if (line.StartsWith("out_time=", StringComparison.OrdinalIgnoreCase))
+        {
+            return TryParseTimestamp(line["out_time=".Length..], out position);
+        }
+
+        return false;
+    }
+
+    private static bool TryParseStatusTimestamp(string line, out TimeSpan position)
+    {
+        position = default;
+        Match match = StatusTimeRegex.Match(line);
+        return match.Success && TryParseTimestamp(match.Groups["time"].Value, out position);
+    }
+
+    private static TimeSpan? TryParseDuration(string line)
+    {
+        Match match = DurationRegex.Match(line);
+        return match.Success && TryParseTimestamp(match.Groups["time"].Value, out var duration)
+            ? duration
+            : null;
+    }
+
+    private static bool TryParseTimestamp(string value, out TimeSpan timestamp)
+    {
+        timestamp = default;
+        string[] parts = value.Split(':');
+        if (parts.Length != 3 ||
+            !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int hours) ||
+            !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int minutes) ||
+            !double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds))
+        {
+            return false;
+        }
+
+        timestamp = TimeSpan.FromHours(hours) + TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(seconds);
+        return true;
+    }
+
+    private static void KillSafe(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch
+        {
+            // Already exited.
+        }
     }
 
     private void EnsureFFmpeg()

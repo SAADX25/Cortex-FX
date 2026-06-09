@@ -85,6 +85,12 @@ public static class MediaTypes
         "mp3", "wav", "aac", "flac", "m4a", "ogg"
     };
 
+    /// <summary>Video container formats produced through FFmpeg.</summary>
+    public static readonly IReadOnlySet<string> VideoOutputFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "mp4", "avi", "mkv", "mov", "webm"
+    };
+
     // --- Magick-handled output formats ---
     public static readonly IReadOnlySet<string> MagickOutputFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {

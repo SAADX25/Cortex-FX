@@ -14,8 +14,10 @@ public interface IFFmpegService
                         TimeSpan start, TimeSpan end, CancellationToken ct = default);
 
     /// <summary>Extract audio from a video file (strips video stream).</summary>
-    Task ExtractAudioAsync(string inputFile, string outputFile, CancellationToken ct = default);
+    Task ExtractAudioAsync(string inputFile, string outputFile, CancellationToken ct = default,
+                           IProgress<double>? progress = null);
 
     /// <summary>Convert video to GIF with palette generation.</summary>
-    Task ConvertToGifAsync(string inputFile, string outputFile, CancellationToken ct = default);
+    Task ConvertToGifAsync(string inputFile, string outputFile, CancellationToken ct = default,
+                           IProgress<double>? progress = null);
 }

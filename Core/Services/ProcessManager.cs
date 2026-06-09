@@ -42,7 +42,7 @@ public sealed class ProcessManager : IProcessManager
 
         try
         {
-            await process.WaitForExitAsync(ct);
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -51,8 +51,8 @@ public sealed class ProcessManager : IProcessManager
             throw;
         }
 
-        string stdout = await stdoutTask;
-        string stderr = await stderrTask;
+        string stdout = await stdoutTask.ConfigureAwait(false);
+        string stderr = await stderrTask.ConfigureAwait(false);
         var result = new ProcessResult(process.ExitCode, stdout, stderr);
 
         if (result.ExitCode != 0)
