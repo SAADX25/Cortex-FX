@@ -7,6 +7,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
@@ -60,6 +61,14 @@ public partial class MainWindow : Window
     private TimeSpan _selectionStart = TimeSpan.Zero;
     private TimeSpan _selectionEnd = TimeSpan.Zero;
     private System.Windows.Threading.DispatcherTimer? _playbackTimer;
+    private bool _isDraggingAudioSelection;
+    private double _audioSelectionDragStartX;
+    private TimeSpan _audioSelectionDragStartTime = TimeSpan.Zero;
+    private CancellationTokenSource? _waveformRenderCts;
+    private string? _waveformCacheFile;
+    private int _waveformCacheBuckets;
+    private double[]? _waveformCachePeaks;
+    private bool _isSavingAudioSelection;
 
     // FFME
     private string _ffmpegBinPath = string.Empty;
@@ -83,7 +92,7 @@ public partial class MainWindow : Window
 
             // Initialize the Video Compressor view
             VideoCompressorEditor.Initialize(_config.FFmpegPath);
-            VideoCompressorEditor.CloseRequested += (s, e) => UpdateUIMode(false);
+            VideoCompressorEditor.CloseRequested += (s, e) => SwitchToMode(AppMode.Dashboard);
 
             FilesList.ItemsSource = _filesToConvert;
             // Trigger initial population
@@ -244,9 +253,75 @@ public partial class MainWindow : Window
 
     private void ShowConversionView(string? toolTag = null)
     {
-        DashboardView.Visibility = Visibility.Collapsed;
-        ConversionView.Visibility = Visibility.Visible;
+        ShowMainContent(ConversionView);
         BackBtn.Visibility = Visibility.Visible;
+    }
+
+    private void ShowMainContent(FrameworkElement activeView)
+    {
+        CollapseMainContent(DashboardView, activeView);
+        CollapseMainContent(ConversionView, activeView);
+        if (AudioEditorGrid != null)
+        {
+            CollapseMainContent(AudioEditorGrid, activeView);
+        }
+
+        if (VideoCompressorEditor != null)
+        {
+            CollapseMainContent(VideoCompressorEditor, activeView);
+        }
+
+        bool wasVisible = activeView.Visibility == Visibility.Visible;
+        activeView.Visibility = Visibility.Visible;
+
+        if (!wasVisible)
+        {
+            AnimateContentIn(activeView);
+        }
+    }
+
+    private static void CollapseMainContent(FrameworkElement? view, FrameworkElement activeView)
+    {
+        if (view == null || ReferenceEquals(view, activeView))
+        {
+            return;
+        }
+
+        view.BeginAnimation(UIElement.OpacityProperty, null);
+        view.Opacity = 1;
+
+        if (view.RenderTransform is TranslateTransform transform)
+        {
+            transform.BeginAnimation(TranslateTransform.YProperty, null);
+            transform.Y = 0;
+        }
+
+        view.Visibility = Visibility.Collapsed;
+    }
+
+    private static void AnimateContentIn(FrameworkElement view)
+    {
+        if (view.RenderTransform is not TranslateTransform transform)
+        {
+            transform = new TranslateTransform();
+            view.RenderTransform = transform;
+        }
+
+        view.Opacity = 0;
+        transform.Y = 10;
+
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(170);
+
+        view.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration)
+        {
+            EasingFunction = easing
+        });
+
+        transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, duration)
+        {
+            EasingFunction = easing
+        });
     }
 
     public enum AppMode
@@ -260,6 +335,7 @@ public partial class MainWindow : Window
         ExcelToPdf,
         PdfToImage,
         VideoCompressor,
+        AudioTrimmer,
         Unknown
     }
 
@@ -268,6 +344,8 @@ public partial class MainWindow : Window
     private AppMode _currentMode = AppMode.Dashboard;
 
     private string? _universalFilterMode = null; // null = All, or "Video", "Audio", "Image", "Document", "Archive", "Ebook"
+    private AppMode _audioReturnMode = AppMode.Universal;
+    private string? _audioReturnFilterMode = null;
 
     private void Category_Click(object sender, RoutedEventArgs e)
     {
@@ -299,24 +377,20 @@ public partial class MainWindow : Window
     {
         if (isEditing)
         {
-            if (DashboardView != null) DashboardView.Visibility = Visibility.Collapsed;
-            if (ConversionView != null) ConversionView.Visibility = Visibility.Collapsed;
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
-
-            if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
 
             // Show the requested tool
             if (tool == "VideoCompressor")
             {
-                if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Visible;
+                if (VideoCompressorEditor != null) ShowMainContent(VideoCompressorEditor);
                 CurrentToolTitle.Text = "Video Compressor";
                 BackBtn.Visibility = Visibility.Visible;
             }
         }
         else
         {
-            if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
-            if (DashboardView != null) DashboardView.Visibility = Visibility.Visible;
+            _currentMode = AppMode.Dashboard;
+            ShowMainContent(DashboardView);
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
             CurrentToolTitle.Text = "Select Tool";
             BackBtn.Visibility = Visibility.Collapsed;
@@ -337,9 +411,7 @@ public partial class MainWindow : Window
 
         if (mode == AppMode.Dashboard)
         {
-            DashboardView.Visibility = Visibility.Visible;
-            ConversionView.Visibility = Visibility.Collapsed;
-            if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
+            ShowMainContent(DashboardView);
             CurrentToolTitle.Text = "Select Tool";
             FormatComboBox.IsEnabled = true;
             BackBtn.Visibility = Visibility.Collapsed;
@@ -357,9 +429,7 @@ public partial class MainWindow : Window
         }
         else if (mode == AppMode.Universal)
         {
-            DashboardView.Visibility = Visibility.Collapsed;
-            ConversionView.Visibility = Visibility.Visible;
-            if (VideoCompressorEditor != null) VideoCompressorEditor.Visibility = Visibility.Collapsed;
+            ShowMainContent(ConversionView);
             BackBtn.Visibility = Visibility.Visible;
 
             // Show Top Nav for Universal Mode
@@ -382,8 +452,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            DashboardView.Visibility = Visibility.Collapsed;
-            ConversionView.Visibility = Visibility.Visible;
+            ShowMainContent(ConversionView);
             BackBtn.Visibility = Visibility.Visible;
 
             // Hide Top Nav for specific single-purpose tools (keep it clean)
@@ -417,23 +486,61 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ToolCard_MouseDown(object sender, MouseButtonEventArgs e)
+    private void ToolCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement element && element.Tag is AppMode mode)
+        AppMode mode = AppMode.Unknown;
+
+        if (sender is FrameworkElement element && element.Tag is AppMode tagMode)
         {
-            SwitchToMode(mode);
+            mode = tagMode;
         }
         // Fallback for XAML Tag strings if binding failed or old XAML
         else if (sender is FrameworkElement el && el.Tag is string tagStr)
         {
-            ConfigureTool(tagStr);
+            mode = GetModeForToolTag(tagStr);
         }
+
+        if (mode != AppMode.Unknown)
+        {
+            SwitchToMode(mode);
+
+            if (IsQuickFilePickerMode(mode))
+            {
+                Dispatcher.BeginInvoke(new Action(OpenFilesForCurrentMode), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            else if (mode == AppMode.VideoCompressor)
+            {
+                Dispatcher.BeginInvoke(new Action(() => VideoCompressorEditor.OpenFilePicker()), System.Windows.Threading.DispatcherPriority.Background);
+            }
+        }
+
+        e.Handled = true;
+    }
+
+    private static bool IsQuickFilePickerMode(AppMode mode)
+    {
+        return mode is AppMode.PdfToWord
+            or AppMode.WordToPdf
+            or AppMode.PdfToPpt
+            or AppMode.PptToPdf
+            or AppMode.ExcelToPdf
+            or AppMode.PdfToImage;
     }
 
     private void ConfigureTool(string tag)
     {
         // Legacy bridge: Map tag to mode and call SwitchToMode
-        var mode = tag switch
+        var mode = GetModeForToolTag(tag);
+
+        if (mode != AppMode.Unknown)
+        {
+            SwitchToMode(mode);
+        }
+    }
+
+    private static AppMode GetModeForToolTag(string tag)
+    {
+        return tag switch
         {
             "PDF_DOCX" => AppMode.PdfToWord,
             "DOCX_PDF" => AppMode.WordToPdf,
@@ -445,11 +552,6 @@ public partial class MainWindow : Window
             "MORE_TOOLS" => AppMode.Universal, // Changed from AdvancedGallery to Universal
             _ => AppMode.Unknown
         };
-
-        if (mode != AppMode.Unknown)
-        {
-            SwitchToMode(mode);
-        }
     }
 
     private void RefreshFormatsFromSelectedFiles()
@@ -539,6 +641,11 @@ public partial class MainWindow : Window
 
     private void BackToHome_Click(object sender, RoutedEventArgs e)
     {
+        if (_currentMode == AppMode.AudioTrimmer)
+        {
+            CloseAudioEditor(returnToPrevious: false);
+        }
+
         SwitchToMode(AppMode.Dashboard);
         _filesToConvert.Clear();
     }
@@ -759,12 +866,12 @@ public partial class MainWindow : Window
 
     private void DropZone_DragLeave(object sender, DragEventArgs e)
     {
-        DropZone.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444444"));
+        DropZone.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#473039"));
     }
 
     private void DropZone_Drop(object sender, DragEventArgs e)
     {
-        DropZone.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444444"));
+        DropZone.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#473039"));
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             string[]? items = e.Data.GetData(DataFormats.FileDrop) as string[];
@@ -938,6 +1045,12 @@ public partial class MainWindow : Window
     }
 
     private void DropZone_Click(object sender, MouseButtonEventArgs e)
+    {
+        OpenFilesForCurrentMode();
+        e.Handled = true;
+    }
+
+    private void OpenFilesForCurrentMode()
     {
         var dialog = new OpenFileDialog
         {
@@ -1324,7 +1437,7 @@ public partial class MainWindow : Window
         // 1. Validate Output Path
         if (string.IsNullOrWhiteSpace(OutputPathBox.Text))
         {
-            OutputPathBox.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF5555"));
+            OutputPathBox.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4D5E"));
             OutputWarningText.Visibility = Visibility.Visible;
             return;
         }
@@ -1425,13 +1538,13 @@ public partial class MainWindow : Window
 
                 foreach (var f in files)
                 {
-                    UpdateFileStatus(f, "Merging...", "#FF8C00");
+                    UpdateFileStatus(f, "Merging...", "#F59E0B");
                 }
 
                 await _magickService.MergeImagesToPdfAsync(filePaths, finalPath, token);
                 foreach (var f in files)
                 {
-                    UpdateFileStatus(f, "Merged", "#4CAF50");
+                    UpdateFileStatus(f, "Merged", "#2ED47A");
                 }
 
                 ConversionProgress.Value = ConversionProgress.Maximum;
@@ -1452,7 +1565,7 @@ public partial class MainWindow : Window
                 string file = fileItem.FullPath;
                 if (!File.Exists(file))
                 {
-                    UpdateFileStatus(fileItem, "Missing", "#FF5555");
+                    UpdateFileStatus(fileItem, "Missing", "#FF4D5E");
                     errorCount++;
                     failedMessages.Add($"{fileItem.FileName}: file was moved or deleted before conversion.");
                     processedFiles++;
@@ -1462,7 +1575,7 @@ public partial class MainWindow : Window
                 }
 
                 ConsoleLogger.Info("Conversion", $"Converting {ConsoleLogger.ShortPath(file)} -> {targetFormat.ToUpperInvariant()}.");
-                UpdateFileStatus(fileItem, "Processing...", "#007ACC");
+                UpdateFileStatus(fileItem, "Processing...", "#E11D2E");
                 string currentFileMessage = $"Converting {System.IO.Path.GetFileName(file)}...";
                 UpdateConversionProgressUi(currentFileMessage, processedFiles, files.Count);
 
@@ -1498,7 +1611,7 @@ public partial class MainWindow : Window
                         _lastOutputFolder = resultFolder;
                     }
 
-                    UpdateFileStatus(fileItem, "Done", "#4CAF50");
+                    UpdateFileStatus(fileItem, "Done", "#2ED47A");
                     successCount++;
                     ConsoleLogger.Success("Conversion", $"Done {ConsoleLogger.ShortPath(file)}.");
                 }
@@ -1509,7 +1622,7 @@ public partial class MainWindow : Window
                 }
                 catch (Exception ex)
                 {
-                    UpdateFileStatus(fileItem, "Error", "#FF5555");
+                    UpdateFileStatus(fileItem, "Error", "#FF4D5E");
                     errorCount++;
                     string friendly = FriendlyErrorMessage(file, targetFormat, ex.Message);
                     failedMessages.Add(friendly);
@@ -1587,20 +1700,34 @@ public partial class MainWindow : Window
         try
         {
             _currentAudioFile = filePath;
+            CancelWaveformRender();
+            _waveformCacheFile = null;
+            _waveformCacheBuckets = 0;
+            _waveformCachePeaks = null;
 
             // Switch UI
-            DropZone.Visibility = Visibility.Collapsed;
-            FilesList.Visibility = Visibility.Collapsed;
-            AudioEditorGrid.Visibility = Visibility.Visible;
+            if (_currentMode != AppMode.AudioTrimmer)
+            {
+                _audioReturnMode = _currentMode;
+                _audioReturnFilterMode = _universalFilterMode;
+            }
+
+            _currentMode = AppMode.AudioTrimmer;
+            if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+            BackBtn.Visibility = Visibility.Visible;
+            ShowMainContent(AudioEditorGrid);
             CurrentToolTitle.Text = $"Audio Editor - {System.IO.Path.GetFileName(filePath)}";
+            AudioEditorFileNameText.Text = System.IO.Path.GetFileName(filePath);
 
             // Initialize Audio
+            _playbackTimer?.Stop();
             if (_audioReader != null) { _audioReader.Dispose(); }
             if (_waveOut != null) { _waveOut.Dispose(); }
 
             _audioReader = new AudioFileReader(filePath);
-            _waveOut = new WaveOutEvent();
+            _waveOut = new WaveOutEvent { DesiredLatency = 80 };
             _waveOut.Init(_audioReader);
+            _audioReader.Volume = 1;
 
             // Reset Volume Slider
             if (VolumeSlider != null)
@@ -1608,60 +1735,274 @@ public partial class MainWindow : Window
                 VolumeSlider.Value = 1;
             }
 
+            // Reset Selection
+            _selectionStart = TimeSpan.Zero;
+            _selectionEnd = _audioReader.TotalTime;
+            _isDraggingAudioSelection = false;
+            _audioSelectionDragStartTime = TimeSpan.Zero;
+            _audioSelectionDragStartX = 0;
+
             // Wait for layout update to draw waveform correctly
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
             {
                 DrawWaveform();
                 UpdateSelectionVisuals();
                 UpdateTimeDisplay();
+                UpdatePlaybackCursor();
             }));
-
-            // Reset Selection
-            _selectionStart = TimeSpan.Zero;
-            _selectionEnd = _audioReader.TotalTime;
 
             // Setup Timer
             if (_playbackTimer == null)
             {
                 _playbackTimer = new System.Windows.Threading.DispatcherTimer();
-                _playbackTimer.Interval = TimeSpan.FromMilliseconds(30);
+                _playbackTimer.Interval = TimeSpan.FromMilliseconds(16);
                 _playbackTimer.Tick += (s, e) => UpdatePlaybackCursor();
             }
-            _playbackTimer.Start();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Error loading audio: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            CloseAudioEditor();
+            CloseAudioEditor(returnToPrevious: true);
         }
     }
 
     private void DrawWaveform()
     {
-        if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
-
-        WaveformLine.Points.Clear();
-
-        double width = WaveformContainer.ActualWidth;
-        double height = WaveformContainer.ActualHeight > 0 ? WaveformContainer.ActualHeight : 100; // Fallback
-        double mid = height / 2;
-
-        var points = new PointCollection();
-        Random r = new Random();
-
-        points.Add(new Point(0, mid));
-
-        int steps = (int)width / 2;
-        for (int i = 0; i <= steps; i++)
+        if (_currentAudioFile == null || _audioReader == null || WaveformContainer.ActualWidth <= 0)
         {
-            double x = i * 2;
-            double amplitude = (r.NextDouble() * 0.8 + 0.1) * (mid * 0.9);
-            points.Add(new Point(x, mid - amplitude));
-            points.Add(new Point(x, mid + amplitude));
+            return;
         }
 
-        points.Add(new Point(width, mid));
-        WaveformLine.Points = points;
+        double width = WaveformContainer.ActualWidth;
+        double height = WaveformContainer.ActualHeight > 0 ? WaveformContainer.ActualHeight : 240;
+        int buckets = GetWaveformBucketCount(width);
+
+        if (_waveformCachePeaks != null &&
+            _waveformCacheBuckets == buckets &&
+            string.Equals(_waveformCacheFile, _currentAudioFile, StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyWaveformPeaks(_waveformCachePeaks, width, height);
+            return;
+        }
+
+        CancelWaveformRender();
+        ClearWaveformCanvas();
+
+        var cts = new CancellationTokenSource();
+        _waveformRenderCts = cts;
+        string filePath = _currentAudioFile;
+        _ = RenderWaveformAsync(filePath, buckets, width, height, cts);
+    }
+
+    private async Task RenderWaveformAsync(string filePath, int buckets, double width, double height, CancellationTokenSource cts)
+    {
+        CancellationToken token = cts.Token;
+
+        try
+        {
+            double[] peaks = await Task.Run(() => BuildWaveformPeaks(filePath, buckets, token), token);
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (token.IsCancellationRequested ||
+                    !string.Equals(_currentAudioFile, filePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _waveformCacheFile = filePath;
+                _waveformCacheBuckets = buckets;
+                _waveformCachePeaks = peaks;
+                ApplyWaveformPeaks(peaks, width, height);
+            }, System.Windows.Threading.DispatcherPriority.Render);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (string.Equals(_currentAudioFile, filePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    ClearWaveformCanvas();
+                }
+            }, System.Windows.Threading.DispatcherPriority.Background);
+        }
+        finally
+        {
+            if (ReferenceEquals(_waveformRenderCts, cts))
+            {
+                _waveformRenderCts = null;
+            }
+
+            cts.Dispose();
+        }
+    }
+
+    private void ApplyWaveformPeaks(double[] peaks, double width, double height)
+    {
+        DrawWaveformBars(peaks, width, height);
+        UpdateSelectionVisuals();
+        UpdatePlaybackCursor();
+    }
+
+    private static int GetWaveformBucketCount(double width)
+    {
+        return Math.Max(96, Math.Min(480, (int)(width / 2.5)));
+    }
+
+    private static double[] BuildWaveformPeaks(string filePath, int buckets, CancellationToken token)
+    {
+        using var waveformReader = new AudioFileReader(filePath);
+
+        double totalSeconds = waveformReader.TotalTime.TotalSeconds;
+        if (totalSeconds <= 0 || buckets <= 0)
+        {
+            return Array.Empty<double>();
+        }
+
+        int channels = Math.Max(1, waveformReader.WaveFormat.Channels);
+        int sampleRate = Math.Max(1, waveformReader.WaveFormat.SampleRate);
+        long totalFrames = Math.Max(1, (long)Math.Ceiling(totalSeconds * sampleRate));
+        int bufferFrames = Math.Max(2048, sampleRate / 12);
+        int bufferSize = bufferFrames * channels;
+        float[] buffer = new float[bufferSize];
+        double[] peaks = new double[buckets];
+        double[] energy = new double[buckets];
+        int[] counts = new int[buckets];
+        long frameIndex = 0;
+        int samplesRead;
+
+        while ((samplesRead = waveformReader.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            token.ThrowIfCancellationRequested();
+
+            int framesRead = samplesRead / channels;
+            for (int frame = 0; frame < framesRead; frame++)
+            {
+                double framePeak = 0;
+                int sampleOffset = frame * channels;
+
+                for (int channel = 0; channel < channels; channel++)
+                {
+                    double sample = Math.Abs(buffer[sampleOffset + channel]);
+                    if (sample > framePeak) framePeak = sample;
+                }
+
+                int bucket = (int)Math.Min(buckets - 1, (frameIndex * buckets) / totalFrames);
+                if (framePeak > peaks[bucket])
+                {
+                    peaks[bucket] = framePeak;
+                }
+
+                energy[bucket] += framePeak * framePeak;
+                counts[bucket]++;
+                frameIndex++;
+            }
+        }
+
+        double loudest = 0;
+        for (int i = 0; i < peaks.Length; i++)
+        {
+            double rms = counts[i] > 0 ? Math.Sqrt(energy[i] / counts[i]) : 0;
+            peaks[i] = Math.Min(1, (peaks[i] * 0.72) + (rms * 0.46));
+            if (peaks[i] > loudest) loudest = peaks[i];
+        }
+
+        if (loudest > 0)
+        {
+            for (int i = 0; i < peaks.Length; i++)
+            {
+                double normalized = peaks[i] / loudest;
+                peaks[i] = Math.Min(1, Math.Pow(normalized, 0.72));
+            }
+        }
+
+        return peaks;
+    }
+
+    private void DrawWaveformBars(IReadOnlyList<double> peaks, double width, double height)
+    {
+        ClearWaveformCanvas();
+        if (peaks.Count == 0 || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        double mid = height / 2;
+        double step = width / peaks.Count;
+        double strokeThickness = Math.Max(1, Math.Min(2.4, step * 0.62));
+
+        for (int i = 0; i < peaks.Count; i++)
+        {
+            double x = (i * step) + (step / 2);
+            double amplitude = Math.Max(2, peaks[i] * mid * 0.9);
+            var bar = new Line
+            {
+                X1 = x,
+                X2 = x,
+                Y1 = mid - amplitude,
+                Y2 = mid + amplitude,
+                Stroke = CreateWaveformBrush(peaks[i]),
+                StrokeThickness = strokeThickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Opacity = 0.96,
+                SnapsToDevicePixels = true
+            };
+
+            WaveformCanvas.Children.Add(bar);
+        }
+    }
+
+    private void ClearWaveformCanvas()
+    {
+        WaveformCanvas?.Children.Clear();
+    }
+
+    private static Brush CreateWaveformBrush(double peak)
+    {
+        var brush = new SolidColorBrush(GetWaveformColor(peak));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Color GetWaveformColor(double peak)
+    {
+        peak = Math.Max(0, Math.Min(1, peak));
+
+        if (peak < 0.28)
+        {
+            return LerpColor(Color.FromRgb(0x25, 0x63, 0xEB), Color.FromRgb(0x2D, 0xD4, 0xBF), peak / 0.28);
+        }
+
+        if (peak < 0.66)
+        {
+            return LerpColor(Color.FromRgb(0x2D, 0xD4, 0xBF), Color.FromRgb(0xA3, 0xE6, 0x35), (peak - 0.28) / 0.38);
+        }
+
+        if (peak < 0.9)
+        {
+            return LerpColor(Color.FromRgb(0xA3, 0xE6, 0x35), Color.FromRgb(0xF5, 0x9E, 0x0B), (peak - 0.66) / 0.24);
+        }
+
+        return LerpColor(Color.FromRgb(0xF5, 0x9E, 0x0B), Color.FromRgb(0xFF, 0x4D, 0x5E), (peak - 0.9) / 0.1);
+    }
+
+    private static Color LerpColor(Color from, Color to, double amount)
+    {
+        amount = Math.Max(0, Math.Min(1, amount));
+        byte r = (byte)(from.R + ((to.R - from.R) * amount));
+        byte g = (byte)(from.G + ((to.G - from.G) * amount));
+        byte b = (byte)(from.B + ((to.B - from.B) * amount));
+        return Color.FromRgb(r, g, b);
+    }
+
+    private void CancelWaveformRender()
+    {
+        CancellationTokenSource? cts = _waveformRenderCts;
+        _waveformRenderCts = null;
+        cts?.Cancel();
     }
 
     private void UpdatePlaybackCursor()
@@ -1679,6 +2020,8 @@ public partial class MainWindow : Window
 
         PlaybackCursor.X1 = x;
         PlaybackCursor.X2 = x;
+        PlaybackCursor.Y2 = Math.Max(1, WaveformContainer.ActualHeight);
+        UpdateCurrentTimeDisplay();
 
         if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
         {
@@ -1686,6 +2029,8 @@ public partial class MainWindow : Window
             {
                 _waveOut.Pause();
                 _audioReader.CurrentTime = _selectionEnd;
+                _playbackTimer?.Stop();
+                UpdateCurrentTimeDisplay();
             }
         }
     }
@@ -1695,38 +2040,160 @@ public partial class MainWindow : Window
         if (_audioReader == null) return;
 
         Point p = e.GetPosition(WaveformContainer);
-        double width = WaveformContainer.ActualWidth;
-        if (width <= 0) return;
+        _audioSelectionDragStartX = p.X;
+        _audioSelectionDragStartTime = GetAudioTimeFromWaveformPoint(p);
+        _isDraggingAudioSelection = false;
 
-        double progress = p.X / width;
-        if (progress < 0) progress = 0;
-        if (progress > 1) progress = 1;
-
-        TimeSpan newTime = TimeSpan.FromSeconds(progress * _audioReader.TotalTime.TotalSeconds);
-        _audioReader.CurrentTime = newTime;
+        _audioReader.CurrentTime = _audioSelectionDragStartTime;
         UpdatePlaybackCursor();
+        WaveformContainer.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void Waveform_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_audioReader == null || !WaveformContainer.IsMouseCaptured || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        Point p = e.GetPosition(WaveformContainer);
+        TimeSpan currentTime = GetAudioTimeFromWaveformPoint(p);
+
+        if (!_isDraggingAudioSelection && Math.Abs(p.X - _audioSelectionDragStartX) > 4)
+        {
+            _isDraggingAudioSelection = true;
+        }
+
+        if (_isDraggingAudioSelection)
+        {
+            _selectionStart = MinTime(_audioSelectionDragStartTime, currentTime);
+            _selectionEnd = MaxTime(_audioSelectionDragStartTime, currentTime);
+            NormalizeSelection();
+            UpdateSelectionVisuals();
+            UpdateTimeDisplay();
+        }
+
+        UpdateCurrentTimeDisplay(currentTime);
+        e.Handled = true;
+    }
+
+    private void Waveform_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_audioReader == null) return;
+
+        if (WaveformContainer.IsMouseCaptured)
+        {
+            WaveformContainer.ReleaseMouseCapture();
+        }
+
+        Point p = e.GetPosition(WaveformContainer);
+        TimeSpan currentTime = GetAudioTimeFromWaveformPoint(p);
+
+        if (_isDraggingAudioSelection)
+        {
+            _selectionStart = MinTime(_audioSelectionDragStartTime, currentTime);
+            _selectionEnd = MaxTime(_audioSelectionDragStartTime, currentTime);
+            NormalizeSelection();
+            UpdateSelectionVisuals();
+            UpdateTimeDisplay();
+            _audioReader.CurrentTime = _selectionStart;
+            UpdatePlaybackCursor();
+        }
+        else
+        {
+            _audioReader.CurrentTime = currentTime;
+            UpdatePlaybackCursor();
+        }
+
+        _isDraggingAudioSelection = false;
+        e.Handled = true;
+    }
+
+    private void WaveformContainer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        DrawWaveform();
+        UpdateSelectionVisuals();
+        UpdatePlaybackCursor();
+    }
+
+    private TimeSpan GetAudioTimeFromWaveformPoint(Point point)
+    {
+        if (_audioReader == null || WaveformContainer.ActualWidth <= 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        double progress = point.X / WaveformContainer.ActualWidth;
+        progress = Math.Max(0, Math.Min(1, progress));
+        return TimeSpan.FromSeconds(_audioReader.TotalTime.TotalSeconds * progress);
+    }
+
+    private TimeSpan ClampAudioTime(TimeSpan value)
+    {
+        if (_audioReader == null) return TimeSpan.Zero;
+
+        if (value < TimeSpan.Zero) return TimeSpan.Zero;
+        if (value > _audioReader.TotalTime) return _audioReader.TotalTime;
+        return value;
+    }
+
+    private static TimeSpan MinTime(TimeSpan first, TimeSpan second) => first <= second ? first : second;
+
+    private static TimeSpan MaxTime(TimeSpan first, TimeSpan second) => first >= second ? first : second;
+
+    private static string FormatAudioTime(TimeSpan time)
+    {
+        return time.TotalHours >= 1
+            ? time.ToString(@"hh\:mm\:ss\.fff")
+            : time.ToString(@"mm\:ss\.fff");
+    }
+
+    private void NormalizeSelection()
+    {
+        if (_audioReader == null) return;
+
+        _selectionStart = ClampAudioTime(_selectionStart);
+        _selectionEnd = ClampAudioTime(_selectionEnd);
+
+        if (_selectionEnd < _selectionStart)
+        {
+            (_selectionStart, _selectionEnd) = (_selectionEnd, _selectionStart);
+        }
+    }
+
+    private void UpdateCurrentTimeDisplay(TimeSpan? previewTime = null)
+    {
+        if (CurrentTimeDisplay == null) return;
+
+        CurrentTimeDisplay.Text = _audioReader == null && previewTime == null
+            ? "00:00.000"
+            : FormatAudioTime(previewTime.HasValue ? ClampAudioTime(previewTime.Value) : ClampAudioTime(_audioReader!.CurrentTime));
     }
 
     private void UpdateTimeDisplay()
     {
-        if (TimeDisplay == null) return;
+        NormalizeSelection();
 
         TimeSpan duration = _selectionEnd - _selectionStart;
-        // Ensure duration isn't negative
         if (duration < TimeSpan.Zero) duration = TimeSpan.Zero;
 
-        TimeDisplay.Text = $"Start: {_selectionStart:mm\\:ss\\.fff}  |  End: {_selectionEnd:mm\\:ss\\.fff}  |  Duration: {duration:mm\\:ss\\.fff}";
-
-        // Optional: Change color to Red if duration is 0, Green if valid.
-        TimeDisplay.Foreground = (duration.TotalMilliseconds > 0) ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00E5FF")) : Brushes.Gray;
+        StartTimeDisplay.Text = FormatAudioTime(_selectionStart);
+        EndTimeDisplay.Text = FormatAudioTime(_selectionEnd);
+        DurationTimeDisplay.Text = FormatAudioTime(duration);
+        DurationTimeDisplay.Foreground = duration.TotalMilliseconds > 0
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"))
+            : Brushes.Gray;
+        UpdateCurrentTimeDisplay();
     }
 
     private void SetStart_Click(object sender, RoutedEventArgs e)
     {
         if (_audioReader != null)
         {
-            _selectionStart = _audioReader.CurrentTime;
+            _selectionStart = ClampAudioTime(_audioReader.CurrentTime);
             if (_selectionStart > _selectionEnd) _selectionEnd = _audioReader.TotalTime;
+            NormalizeSelection();
             UpdateSelectionVisuals();
             UpdateTimeDisplay();
         }
@@ -1736,8 +2203,9 @@ public partial class MainWindow : Window
     {
         if (_audioReader != null)
         {
-            _selectionEnd = _audioReader.CurrentTime;
+            _selectionEnd = ClampAudioTime(_audioReader.CurrentTime);
             if (_selectionEnd < _selectionStart) _selectionStart = TimeSpan.Zero;
+            NormalizeSelection();
             UpdateSelectionVisuals();
             UpdateTimeDisplay();
         }
@@ -1747,23 +2215,28 @@ public partial class MainWindow : Window
     {
         if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
 
+        NormalizeSelection();
+
         double totalSeconds = _audioReader.TotalTime.TotalSeconds;
         if (totalSeconds <= 0) return;
 
-        double startX = (_selectionStart.TotalSeconds / totalSeconds) * WaveformContainer.ActualWidth;
-        double endX = (_selectionEnd.TotalSeconds / totalSeconds) * WaveformContainer.ActualWidth;
         double totalWidth = WaveformContainer.ActualWidth;
+        double startX = (_selectionStart.TotalSeconds / totalSeconds) * totalWidth;
+        double endX = (_selectionEnd.TotalSeconds / totalSeconds) * totalWidth;
 
-        // 1. Left Dimming (From 0 to Start)
+        startX = Math.Max(0, Math.Min(totalWidth, startX));
+        endX = Math.Max(0, Math.Min(totalWidth, endX));
+
         DimLeft.Width = startX;
 
-        // 2. Right Dimming (From End to TotalWidth)
         double rightWidth = totalWidth - endX;
         if (rightWidth < 0) rightWidth = 0;
         DimRight.Width = rightWidth;
         DimRight.Margin = new Thickness(endX, 0, 0, 0);
 
-        // 3. Markers
+        SelectionBand.Margin = new Thickness(startX, 0, 0, 0);
+        SelectionBand.Width = Math.Max(0, endX - startX);
+
         StartMarker.Margin = new Thickness(startX, 0, 0, 0);
         EndMarker.Margin = new Thickness(endX, 0, 0, 0);
     }
@@ -1780,25 +2253,97 @@ public partial class MainWindow : Window
     {
         if (_waveOut != null && _audioReader != null)
         {
-            _audioReader.CurrentTime = _selectionStart;
-            _waveOut.Play();
+            try
+            {
+                if (_waveOut.PlaybackState == PlaybackState.Playing)
+                {
+                    _waveOut.Pause();
+                    _playbackTimer?.Stop();
+                }
+
+                NormalizeSelection();
+                if ((_selectionEnd - _selectionStart).TotalMilliseconds <= 0)
+                {
+                    MessageBox.Show("Select a valid audio range first.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                _audioReader.CurrentTime = _selectionStart;
+                UpdatePlaybackCursor();
+                _waveOut.Play();
+                _playbackTimer?.Start();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not play audio:\n{ex.Message}", "Playback Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 
-    private void SaveSelection_Click(object sender, RoutedEventArgs e)
+    private void StopSelection_Click(object sender, RoutedEventArgs e)
     {
-        if (_currentAudioFile == null) return;
+        StopAudioPlayback(resetToSelectionStart: true);
+    }
+
+    private void StopAudioPlayback(bool resetToSelectionStart)
+    {
+        if (_waveOut != null && _audioReader != null)
+        {
+            try
+            {
+                if (_waveOut.PlaybackState == PlaybackState.Playing)
+                {
+                    _waveOut.Pause();
+                }
+
+                _playbackTimer?.Stop();
+
+                if (resetToSelectionStart)
+                {
+                    _audioReader.CurrentTime = ClampAudioTime(_selectionStart);
+                }
+
+                UpdatePlaybackCursor();
+                UpdateCurrentTimeDisplay();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not stop audio:\n{ex.Message}", "Playback Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private async void SaveSelection_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isSavingAudioSelection)
+        {
+            return;
+        }
+
+        if (_currentAudioFile == null || _audioReader == null) return;
+
+        NormalizeSelection();
+        TimeSpan selectedDuration = _selectionEnd - _selectionStart;
+        if (selectedDuration.TotalMilliseconds <= 0)
+        {
+            MessageBox.Show("Select a valid audio range before saving.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
 
         // 1. Pause Playback (Safety)
         if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
         {
-            _waveOut.Pause();
+            StopAudioPlayback(resetToSelectionStart: false);
         }
 
         // 2. Prepare Default Filename
         string dir = System.IO.Path.GetDirectoryName(_currentAudioFile) ?? "";
         string name = System.IO.Path.GetFileNameWithoutExtension(_currentAudioFile);
         string ext = System.IO.Path.GetExtension(_currentAudioFile);
+        if (string.IsNullOrWhiteSpace(ext))
+        {
+            ext = ".wav";
+        }
 
         // 3. Open SaveFileDialog
         var saveDialog = new Microsoft.Win32.SaveFileDialog
@@ -1829,30 +2374,46 @@ public partial class MainWindow : Window
 
             // 5. Construct Arguments with Escaped Quotes
             string start = _selectionStart.ToString(@"hh\:mm\:ss\.fff");
-            string end = _selectionEnd.ToString(@"hh\:mm\:ss\.fff");
+            string duration = selectedDuration.ToString(@"hh\:mm\:ss\.fff");
 
             // IMPORTANT: Wrap paths in escaped quotes to handle spaces and special chars
-            string args = $"-i \"{_currentAudioFile}\" -ss {start} -to {end} -c copy -y \"{outputFile}\"";
+            string args = $"-ss {start} -i \"{_currentAudioFile}\" -t {duration} -vn -c copy -y \"{outputFile}\"";
 
             try
             {
-                _processManager.RunSync(_config.FFmpegPath, args);
+                _isSavingAudioSelection = true;
+                SaveSelectionBtn.IsEnabled = false;
+                SaveSelectionBtn.Content = "Saving...";
+
+                await _processManager.RunAsync(_config.FFmpegPath, args);
                 MessageBox.Show($"Saved Trimmed Audio:\n{outputFile}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (OperationCanceledException)
+            {
+                MessageBox.Show("Audio save was cancelled.", "Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Save Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                _isSavingAudioSelection = false;
+                SaveSelectionBtn.IsEnabled = true;
+                SaveSelectionBtn.Content = "Save";
             }
         }
     }
 
     private void CloseAudioEditor_Click(object sender, RoutedEventArgs e)
     {
-        CloseAudioEditor();
+        CloseAudioEditor(returnToPrevious: true);
     }
 
-    private void CloseAudioEditor()
+    private void CloseAudioEditor(bool returnToPrevious)
     {
+        CancelWaveformRender();
+
         if (_waveOut != null)
         {
             _waveOut.Stop();
@@ -1868,13 +2429,67 @@ public partial class MainWindow : Window
         {
             _playbackTimer.Stop();
         }
+        if (WaveformContainer != null && WaveformContainer.IsMouseCaptured)
+        {
+            WaveformContainer.ReleaseMouseCapture();
+        }
 
         AudioEditorGrid.Visibility = Visibility.Collapsed;
         DropZone.Visibility = Visibility.Visible;
         FilesList.Visibility = Visibility.Visible;
 
-        CurrentToolTitle.Text = "Select Tool";
         _currentAudioFile = null;
+        _isDraggingAudioSelection = false;
+        _waveformCacheFile = null;
+        _waveformCacheBuckets = 0;
+        _waveformCachePeaks = null;
+        ClearWaveformCanvas();
+        SelectionBand.Width = 0;
+
+        if (returnToPrevious)
+        {
+            RestoreAudioReturnView();
+        }
+    }
+
+    private void RestoreAudioReturnView()
+    {
+        AppMode returnMode = _audioReturnMode is AppMode.AudioTrimmer or AppMode.Unknown
+            ? AppMode.Universal
+            : _audioReturnMode;
+
+        if (returnMode == AppMode.Universal)
+        {
+            _universalFilterMode = _audioReturnFilterMode;
+            SwitchToMode(AppMode.Universal);
+
+            if (!string.IsNullOrWhiteSpace(_universalFilterMode))
+            {
+                SetCategoryRadioChecked(_universalFilterMode);
+                CurrentToolTitle.Text = $"{_universalFilterMode} Converter Mode";
+                PopulateFormats(_universalFilterMode);
+
+                if (FormatComboBox.Items.Count > 0)
+                {
+                    FormatComboBox.SelectedIndex = 0;
+                    FormatComboBox.IsEnabled = true;
+                }
+            }
+
+            return;
+        }
+
+        SwitchToMode(returnMode);
+    }
+
+    private void SetCategoryRadioChecked(string category)
+    {
+        if (RadioImage != null) RadioImage.IsChecked = category == "Image";
+        if (RadioVideo != null) RadioVideo.IsChecked = category == "Video";
+        if (RadioAudio != null) RadioAudio.IsChecked = category == "Audio";
+        if (RadioDocument != null) RadioDocument.IsChecked = category == "Document";
+        if (RadioArchive != null) RadioArchive.IsChecked = category == "Archive";
+        if (RadioEbook != null) RadioEbook.IsChecked = category == "Ebook";
     }
 
     private void TrimChoice_Click(object sender, RoutedEventArgs e)

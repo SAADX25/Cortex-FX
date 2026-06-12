@@ -212,7 +212,7 @@ public partial class ConversionViewModel : ObservableObject
                 if (ct.IsCancellationRequested) break;
 
                 file.Status = "Processing...";
-                file.StatusColor = "#007ACC";
+                file.StatusColor = "#E11D2E";
                 StatusText = $"Converting {Path.GetFileName(job.InputPath)}...";
 
                 var fileProgress = new Progress<double>(p =>
@@ -225,13 +225,13 @@ public partial class ConversionViewModel : ObservableObject
                 if (result.Success)
                 {
                     file.Status = "Done";
-                    file.StatusColor = "#4CAF50";
+                    file.StatusColor = "#2ED47A";
                     successCount++;
                 }
                 else
                 {
                     file.Status = "Error";
-                    file.StatusColor = "#FF5555";
+                    file.StatusColor = "#FF4D5E";
                     errorCount++;
                 }
 
@@ -408,7 +408,7 @@ public partial class ConversionViewModel : ObservableObject
     private async Task HandleMergeModeAsync(CancellationToken ct)
     {
         StatusText = "Merging all images...";
-        foreach (var f in Files) { f.Status = "Merging..."; f.StatusColor = "#FF8C00"; }
+        foreach (var f in Files) { f.Status = "Merging..."; f.StatusColor = "#F59E0B"; }
 
         string outputFolder = string.IsNullOrWhiteSpace(OutputPath)
             ? (Path.GetDirectoryName(Files[0].FullPath) ?? "")
@@ -428,12 +428,12 @@ public partial class ConversionViewModel : ObservableObject
             var imagePaths = Files.Select(f => f.FullPath).ToList();
             await _magickService.MergeImagesToPdfAsync(imagePaths, finalPath, ct);
 
-            foreach (var f in Files) { f.Status = "Merged!"; f.StatusColor = "#4CAF50"; }
+            foreach (var f in Files) { f.Status = "Merged!"; f.StatusColor = "#2ED47A"; }
             SuccessMessage = $"Successfully merged {Files.Count} images.";
         }
         catch
         {
-            foreach (var f in Files) { f.Status = "Error"; f.StatusColor = "#FF5555"; }
+            foreach (var f in Files) { f.Status = "Error"; f.StatusColor = "#FF4D5E"; }
             SuccessMessage = "Merge failed.";
         }
 

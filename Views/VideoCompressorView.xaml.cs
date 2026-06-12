@@ -74,7 +74,7 @@ public partial class VideoCompressorView : UserControl
         {
             e.Effects = DragDropEffects.Copy;
             DropZoneBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(
-                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#9C27B0"));
+                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF3348"));
         }
         e.Handled = true;
     }
@@ -82,7 +82,7 @@ public partial class VideoCompressorView : UserControl
     private void DropZone_DragLeave(object sender, DragEventArgs e)
     {
         DropZoneBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#6C63FF"));
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#473039"));
         e.Handled = true;
     }
 
@@ -97,6 +97,12 @@ public partial class VideoCompressorView : UserControl
     }
 
     private void DropZone_Click(object sender, MouseButtonEventArgs e)
+    {
+        OpenFilePicker();
+        e.Handled = true;
+    }
+
+    public void OpenFilePicker()
     {
         var dlg = new OpenFileDialog
         {

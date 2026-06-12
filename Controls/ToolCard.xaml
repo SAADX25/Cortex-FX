@@ -8,35 +8,37 @@
 
     <UserControl.Resources>
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="CornerRadius" Value="16"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#2B2026"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Background">
                 <Setter.Value>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#2D2D30" Offset="0.0"/>
-                        <GradientStop Color="#252526" Offset="1.0"/>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#171318" Offset="0.0"/>
+                        <GradientStop Color="#0D0E12" Offset="1.0"/>
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="10" ShadowDepth="4" Opacity="0.2" Color="Black"/>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.18" Color="Black"/>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background">
                         <Setter.Value>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                <GradientStop Color="#3E3E42" Offset="0.0"/>
-                                <GradientStop Color="#2D2D30" Offset="1.0"/>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#21171C" Offset="0.0"/>
+                                <GradientStop Color="#151014" Offset="1.0"/>
                             </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
+                    <Setter Property="BorderBrush" Value="#E11D2E"/>
                     <Setter Property="Effect">
                         <Setter.Value>
-                            <DropShadowEffect BlurRadius="20" ShadowDepth="6" Opacity="0.4" Color="Black"/>
+                            <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.28" Color="#E11D2E"/>
                         </Setter.Value>
                     </Setter>
                     <Setter Property="RenderTransform">
@@ -52,7 +54,7 @@
     <Border Style="{StaticResource CardStyle}" RenderTransformOrigin="0.5,0.5">
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="15">
             <!-- Icon Container -->
-            <Border Width="50" Height="50" CornerRadius="25" HorizontalAlignment="Center" Margin="0,0,0,12"
+            <Border Width="48" Height="48" CornerRadius="12" HorizontalAlignment="Center" Margin="0,0,0,12"
                     Background="{Binding IconBackground, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
@@ -63,7 +65,7 @@
 
             <!-- Title -->
             <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                       Foreground="#E0E0E0" FontWeight="SemiBold" FontSize="15" TextAlignment="Center" TextWrapping="Wrap"/>
+                       Foreground="#F7FAFC" FontWeight="SemiBold" FontSize="14" TextAlignment="Center" TextWrapping="Wrap"/>
         </StackPanel>
     </Border>
 </UserControl>

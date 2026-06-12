@@ -121,7 +121,7 @@ Publish without trying to build the installer:
 .\build.ps1 -SkipInstaller -CreatePortableZip
 ```
 
-The project file copies `Resources\**\*.*` into both build and publish output. The Inno Setup script installs the full publish directory recursively, including `Resources` when present.
+The project file copies only the required runtime tools and dependency DLLs from `Resources` into build and publish output. The Inno Setup script installs the full publish directory recursively, including `Resources` when present.
 
 ## GitHub Release Checklist
 

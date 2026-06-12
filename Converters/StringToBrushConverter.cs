@@ -5,7 +5,7 @@ using System.Windows.Media;
 namespace CortexFX.Converters;
 
 /// <summary>
-/// Converts a hex color string (e.g. "#4CAF50") to a SolidColorBrush.
+/// Converts a hex color string (e.g. "#E11D2E") to a SolidColorBrush.
 /// This eliminates the VisualTree-walking hack in UpdateFileStatus()
 /// where we manually found TextBlocks and set their Foreground via code-behind.
 /// 
