@@ -1544,7 +1544,7 @@ public partial class MainWindow : Window
                 await _magickService.MergeImagesToPdfAsync(filePaths, finalPath, token);
                 foreach (var f in files)
                 {
-                    UpdateFileStatus(f, "Merged", "#2ED47A");
+                    UpdateFileStatus(f, "Merged", "#E11D2E");
                 }
 
                 ConversionProgress.Value = ConversionProgress.Maximum;
@@ -1611,7 +1611,7 @@ public partial class MainWindow : Window
                         _lastOutputFolder = resultFolder;
                     }
 
-                    UpdateFileStatus(fileItem, "Done", "#2ED47A");
+                    UpdateFileStatus(fileItem, "Done", "#E11D2E");
                     successCount++;
                     ConsoleLogger.Success("Conversion", $"Done {ConsoleLogger.ShortPath(file)}.");
                 }
@@ -1971,22 +1971,22 @@ public partial class MainWindow : Window
     {
         peak = Math.Max(0, Math.Min(1, peak));
 
-        if (peak < 0.28)
+        if (peak < 0.32)
         {
-            return LerpColor(Color.FromRgb(0x25, 0x63, 0xEB), Color.FromRgb(0x2D, 0xD4, 0xBF), peak / 0.28);
+            return LerpColor(Color.FromRgb(0x1E, 0x3A, 0x8A), Color.FromRgb(0x25, 0x63, 0xEB), peak / 0.32);
         }
 
-        if (peak < 0.66)
+        if (peak < 0.7)
         {
-            return LerpColor(Color.FromRgb(0x2D, 0xD4, 0xBF), Color.FromRgb(0xA3, 0xE6, 0x35), (peak - 0.28) / 0.38);
+            return LerpColor(Color.FromRgb(0x25, 0x63, 0xEB), Color.FromRgb(0x38, 0xBD, 0xF8), (peak - 0.32) / 0.38);
         }
 
         if (peak < 0.9)
         {
-            return LerpColor(Color.FromRgb(0xA3, 0xE6, 0x35), Color.FromRgb(0xF5, 0x9E, 0x0B), (peak - 0.66) / 0.24);
+            return LerpColor(Color.FromRgb(0x38, 0xBD, 0xF8), Color.FromRgb(0x7D, 0xD3, 0xFC), (peak - 0.7) / 0.2);
         }
 
-        return LerpColor(Color.FromRgb(0xF5, 0x9E, 0x0B), Color.FromRgb(0xFF, 0x4D, 0x5E), (peak - 0.9) / 0.1);
+        return LerpColor(Color.FromRgb(0x7D, 0xD3, 0xFC), Color.FromRgb(0xBA, 0xE6, 0xFD), (peak - 0.9) / 0.1);
     }
 
     private static Color LerpColor(Color from, Color to, double amount)
@@ -2182,7 +2182,7 @@ public partial class MainWindow : Window
         EndTimeDisplay.Text = FormatAudioTime(_selectionEnd);
         DurationTimeDisplay.Text = FormatAudioTime(duration);
         DurationTimeDisplay.Foreground = duration.TotalMilliseconds > 0
-            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"))
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7DD3FC"))
             : Brushes.Gray;
         UpdateCurrentTimeDisplay();
     }

@@ -225,7 +225,7 @@ public partial class ConversionViewModel : ObservableObject
                 if (result.Success)
                 {
                     file.Status = "Done";
-                    file.StatusColor = "#2ED47A";
+                    file.StatusColor = "#E11D2E";
                     successCount++;
                 }
                 else
@@ -428,7 +428,7 @@ public partial class ConversionViewModel : ObservableObject
             var imagePaths = Files.Select(f => f.FullPath).ToList();
             await _magickService.MergeImagesToPdfAsync(imagePaths, finalPath, ct);
 
-            foreach (var f in Files) { f.Status = "Merged!"; f.StatusColor = "#2ED47A"; }
+            foreach (var f in Files) { f.Status = "Merged!"; f.StatusColor = "#E11D2E"; }
             SuccessMessage = $"Successfully merged {Files.Count} images.";
         }
         catch

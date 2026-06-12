@@ -39,13 +39,13 @@
         <SolidColorBrush x:Key="SuccessColor" Color="#2ED47A"/>
         <SolidColorBrush x:Key="DangerColor" Color="#FF4D5E"/>
         <SolidColorBrush x:Key="WarningColor" Color="#F59E0B"/>
-        <SolidColorBrush x:Key="AudioAccentColor" Color="#2DD4BF"/>
-        <SolidColorBrush x:Key="AudioAccentHover" Color="#67E8F9"/>
-        <SolidColorBrush x:Key="AudioMarkerStart" Color="#2DD4BF"/>
-        <SolidColorBrush x:Key="AudioMarkerEnd" Color="#FB923C"/>
-        <SolidColorBrush x:Key="AudioSaveColor" Color="#0F766E"/>
-        <SolidColorBrush x:Key="AudioSaveBorder" Color="#2DD4BF"/>
-        <SolidColorBrush x:Key="AudioPanelBorder" Color="#234653"/>
+        <SolidColorBrush x:Key="AudioAccentColor" Color="#38BDF8"/>
+        <SolidColorBrush x:Key="AudioAccentHover" Color="#7DD3FC"/>
+        <SolidColorBrush x:Key="AudioMarkerStart" Color="#22D3EE"/>
+        <SolidColorBrush x:Key="AudioMarkerEnd" Color="#60A5FA"/>
+        <SolidColorBrush x:Key="AudioSaveColor" Color="#075985"/>
+        <SolidColorBrush x:Key="AudioSaveBorder" Color="#38BDF8"/>
+        <SolidColorBrush x:Key="AudioPanelBorder" Color="#1E3A5F"/>
         <SolidColorBrush x:Key="TextPrimary" Color="#F7FAFC"/>
         <SolidColorBrush x:Key="TextSecondary" Color="#B6BAC4"/>
         <SolidColorBrush x:Key="TextMuted" Color="#828691"/>
@@ -53,6 +53,25 @@
         <SolidColorBrush x:Key="ActionButtonBackground" Color="#B91C1C"/>
         <SolidColorBrush x:Key="ActionButtonHover" Color="#D92534"/>
         <SolidColorBrush x:Key="ActionButtonBorder" Color="#FF3348"/>
+        <LinearGradientBrush x:Key="ConvertButtonBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#B91C1C" Offset="0"/>
+            <GradientStop Color="#D31F2B" Offset="0.62"/>
+            <GradientStop Color="#E11D2E" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ConvertButtonHoverBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#C91F28" Offset="0"/>
+            <GradientStop Color="#E11D2E" Offset="0.58"/>
+            <GradientStop Color="#FF3B4F" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ConvertButtonPressedBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#941616" Offset="0"/>
+            <GradientStop Color="#B91C1C" Offset="0.65"/>
+            <GradientStop Color="#D92534" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ConvertButtonDisabledBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#21181D" Offset="0"/>
+            <GradientStop Color="#2A1A20" Offset="1"/>
+        </LinearGradientBrush>
         <SolidColorBrush x:Key="PanelBackground" Color="#0B0C10"/>
         <SolidColorBrush x:Key="PanelBackgroundSubtle" Color="#13141A"/>
         <SolidColorBrush x:Key="InputBackground" Color="#07080B"/>
@@ -67,14 +86,14 @@
             <GradientStop Color="#190A0E" Offset="1"/>
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="AudioEditorPanelGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#10151B" Offset="0"/>
-            <GradientStop Color="#0B1117" Offset="0.55"/>
-            <GradientStop Color="#121016" Offset="1"/>
+            <GradientStop Color="#0B0F16" Offset="0"/>
+            <GradientStop Color="#07111B" Offset="0.55"/>
+            <GradientStop Color="#0B1117" Offset="1"/>
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="AudioWaveformBackground" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#050A10" Offset="0"/>
-            <GradientStop Color="#07141A" Offset="0.48"/>
-            <GradientStop Color="#120D14" Offset="1"/>
+            <GradientStop Color="#061525" Offset="0.52"/>
+            <GradientStop Color="#04111F" Offset="1"/>
         </LinearGradientBrush>
 
         <!-- Global Effects -->
@@ -979,29 +998,83 @@
                                 </Grid.RowDefinitions>
 
                                 <Border Grid.Row="0" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,10">
-                                    <Button x:Name="ConvertButton" Content="Convert" Click="ConvertButton_Click"
-                                            Height="64" VerticalAlignment="Center" FontSize="17" FontWeight="Bold" Foreground="White"
-                                            BorderThickness="0" IsEnabled="False" ToolTip="Add files and choose an output folder to convert.">
-                                        <Button.Background>
-                                            <StaticResource ResourceKey="ActionButtonBackground"/>
-                                        </Button.Background>
+                                    <Button x:Name="ConvertButton" Content="CONVERT" Click="ConvertButton_Click"
+                                            Height="64" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="White"
+                                            Background="{StaticResource ConvertButtonBackground}"
+                                            BorderBrush="{StaticResource ActionButtonBorder}" BorderThickness="1"
+                                            Padding="18,0" IsEnabled="False" ToolTip="Add files and choose an output folder to convert.">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="12" BorderBrush="{StaticResource ActionButtonBorder}" BorderThickness="1">
-                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </Border>
+                                                <Grid SnapsToDevicePixels="True">
+                                                    <Border x:Name="ButtonGlow"
+                                                            Background="{StaticResource AccentColor}"
+                                                            CornerRadius="15"
+                                                            Margin="-2"
+                                                            Opacity="0.18">
+                                                        <Border.Effect>
+                                                            <BlurEffect Radius="14"/>
+                                                        </Border.Effect>
+                                                    </Border>
+                                                    <Border x:Name="ButtonChrome"
+                                                            Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="13">
+                                                        <Grid>
+                                                            <Border x:Name="TopHighlight"
+                                                                    Height="1"
+                                                                    Margin="14,1,14,0"
+                                                                    VerticalAlignment="Top"
+                                                                    Background="#70FFFFFF"
+                                                                    CornerRadius="1"
+                                                                    Opacity="0.42"/>
+                                                            <StackPanel Orientation="Horizontal"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center">
+                                                                <TextBlock x:Name="ConvertButtonIcon"
+                                                                           Text="&#xE8D4;"
+                                                                           FontFamily="Segoe MDL2 Assets"
+                                                                           FontSize="16"
+                                                                           Foreground="White"
+                                                                           VerticalAlignment="Center"
+                                                                           Margin="0,1,10,0"/>
+                                                                <TextBlock x:Name="ConvertButtonText"
+                                                                           Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                           FontSize="{TemplateBinding FontSize}"
+                                                                           FontWeight="{TemplateBinding FontWeight}"
+                                                                           Foreground="{TemplateBinding Foreground}"
+                                                                           VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Opacity" Value="0.92"/>
+                                                        <Setter TargetName="ButtonChrome" Property="Background" Value="{StaticResource ConvertButtonHoverBackground}"/>
+                                                        <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#FF6675"/>
+                                                        <Setter TargetName="ButtonGlow" Property="Opacity" Value="0.34"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="ButtonChrome" Property="Background" Value="{StaticResource ConvertButtonPressedBackground}"/>
+                                                        <Setter TargetName="ButtonGlow" Property="Opacity" Value="0.18"/>
+                                                        <Setter TargetName="TopHighlight" Property="Opacity" Value="0.2"/>
+                                                    </Trigger>
+                                                    <Trigger Property="Content" Value="CANCEL">
+                                                        <Setter TargetName="ConvertButtonIcon" Property="Text" Value="&#xE711;"/>
                                                     </Trigger>
                                                     <Trigger Property="IsEnabled" Value="False">
-                                                        <Setter Property="Opacity" Value="0.45"/>
+                                                        <Setter TargetName="ButtonChrome" Property="Background" Value="{StaticResource ConvertButtonDisabledBackground}"/>
+                                                        <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="{StaticResource PanelBorder}"/>
+                                                        <Setter TargetName="ButtonGlow" Property="Opacity" Value="0"/>
+                                                        <Setter TargetName="TopHighlight" Property="Opacity" Value="0.08"/>
+                                                        <Setter TargetName="ConvertButtonIcon" Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                                        <Setter TargetName="ConvertButtonText" Property="Foreground" Value="{StaticResource TextMuted}"/>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
                                         </Button.Template>
                                         <Button.Effect>
-                                            <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.28" Color="#FF3348"/>
+                                            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.22" Color="#FF3348"/>
                                         </Button.Effect>
                                     </Button>
                                 </Border>
@@ -1094,7 +1167,7 @@
                                             <Grid.Background>
                                                 <StaticResource ResourceKey="AudioWaveformBackground"/>
                                             </Grid.Background>
-                                            <Rectangle x:Name="SelectionBand" Fill="#2F2DD4BF"
+                                            <Rectangle x:Name="SelectionBand" Fill="#3338BDF8"
                                                        HorizontalAlignment="Left" Width="0"/>
                                             <Canvas x:Name="WaveformCanvas" IsHitTestVisible="False" ClipToBounds="True"/>
                                             <Rectangle x:Name="DimLeft" Fill="#7D050A10" HorizontalAlignment="Left"
@@ -1106,7 +1179,7 @@
                                             <Rectangle x:Name="EndMarker" Width="3" Fill="{StaticResource AudioMarkerEnd}"
                                                        HorizontalAlignment="Left" Visibility="Visible"/>
                                             <Line x:Name="PlaybackCursor" X1="0" Y1="0" X2="0" Y2="260"
-                                                  Stroke="{StaticResource WarningColor}" StrokeThickness="2" Visibility="Visible"/>
+                                                  Stroke="{StaticResource AudioAccentHover}" StrokeThickness="2" Visibility="Visible"/>
                                         </Grid>
                                     </Border>
 
@@ -1140,7 +1213,7 @@
                                                 <StackPanel>
                                                     <TextBlock Text="Duration" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
                                                     <TextBlock x:Name="DurationTimeDisplay" Text="00:00.000"
-                                                               Foreground="{StaticResource WarningColor}" FontFamily="Consolas"
+                                                               Foreground="{StaticResource AudioAccentHover}" FontFamily="Consolas"
                                                                FontSize="14" FontWeight="SemiBold" Margin="0,2,0,0"/>
                                                 </StackPanel>
                                             </Border>
@@ -1172,19 +1245,20 @@
                                                 <Button x:Name="SetStartBtn" Content="Set Start" Click="SetStart_Click"
                                                         Style="{StaticResource AudioToolButtonStyle}"
                                                         Width="112" Height="36" Margin="0,0,8,0"
-                                                        Background="#0A171B" Foreground="{StaticResource AudioMarkerStart}"
+                                                        Background="#06131F" Foreground="{StaticResource AudioMarkerStart}"
                                                         BorderBrush="{StaticResource AudioMarkerStart}" BorderThickness="1"
                                                         FontSize="13" FontWeight="SemiBold"/>
                                                 <Button x:Name="SetEndBtn" Content="Set End" Click="SetEnd_Click"
                                                         Style="{StaticResource AudioToolButtonStyle}"
                                                         Width="112" Height="36" Margin="0,0,8,0"
-                                                        Background="#1D1110" Foreground="{StaticResource AudioMarkerEnd}"
+                                                        Background="#07111D" Foreground="{StaticResource AudioMarkerEnd}"
                                                         BorderBrush="{StaticResource AudioMarkerEnd}" BorderThickness="1"
                                                         FontSize="13" FontWeight="SemiBold"/>
                                                 <Button x:Name="PlaySelectionBtn" Content="Play" Click="PlaySelection_Click"
                                                         Style="{StaticResource AudioToolButtonStyle}"
                                                         Width="96" Height="36" Margin="0,0,8,0"
-                                                        Background="{StaticResource SuccessColor}" BorderBrush="{StaticResource SuccessColor}" BorderThickness="1"
+                                                        Background="#0369A1" Foreground="White"
+                                                        BorderBrush="{StaticResource AudioAccentColor}" BorderThickness="1"
                                                         FontSize="13" FontWeight="SemiBold"/>
                                                 <Button x:Name="StopSelectionBtn" Content="Stop" Click="StopSelection_Click"
                                                         Style="{StaticResource AudioToolButtonStyle}"
@@ -1291,9 +1365,9 @@
 
         <!-- Success Overlay -->
         <Grid x:Name="SuccessOverlay" Background="#CC000000" Visibility="Collapsed">
-            <Border Background="{StaticResource PanelBackgroundSubtle}" CornerRadius="10" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="36" BorderBrush="{StaticResource SuccessColor}" BorderThickness="1">
+            <Border Background="{StaticResource PanelBackgroundSubtle}" CornerRadius="10" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="36" BorderBrush="{StaticResource AccentColor}" BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="&#xE930;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource SuccessColor}" FontSize="42" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                    <TextBlock Text="&#xE930;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentColor}" FontSize="42" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                     <TextBlock x:Name="SuccessTitleText" Text="All Tasks Finished!" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                     <TextBlock x:Name="SuccessMessageText" Text="Your converted files are ready." FontSize="14" Foreground="{StaticResource TextSecondary}" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
