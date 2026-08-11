@@ -5,7 +5,8 @@ param(
     [bool]$SelfContained = $true,
     [switch]$SkipInstaller,
     [switch]$CreatePortableZip,
-    [switch]$KeepStagingFolder
+    # Keep Publish\CortexFX_vX.Y.Z so you can re-compile setup.iss in Inno IDE.
+    [switch]$RemoveStagingFolder
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,11 +43,11 @@ function Assert-Exists {
 function Remove-StagingFolder {
     param(
         [string]$Path,
-        [switch]$Keep
+        [switch]$Remove
     )
 
-    if ($Keep) {
-        Write-Host "Keeping staging folder: $Path" -ForegroundColor Yellow
+    if (!$Remove) {
+        Write-Host "Staging folder kept for Inno re-compile: $Path" -ForegroundColor Yellow
         return
     }
 
@@ -127,24 +128,29 @@ foreach ($RequiredFile in $RequiredPublishFiles) {
     Assert-Exists -Path $RequiredFile -Description "Required publish file"
 }
 
+# Pack URI Resources\logo fix sanity: icon must be embedded at build time (Assets\logo.ico)
+Assert-Exists -Path (Join-Path $ProjectRoot "Assets\logo.ico") -Description "App icon"
+
 if ($CreatePortableZip) {
     if (Test-Path -LiteralPath $ZipPath) {
-        Remove-Item -LiteralPath $ZipPath -Force
+        Remove-Item -LiteralPath $ZipPath -Force -ErrorAction SilentlyContinue
     }
 
     Write-Step "Creating portable ZIP"
-    Compress-Archive -Path (Join-Path $PublishDir "*") -DestinationPath $ZipPath -Force
-    Write-Host "Portable ZIP: $ZipPath" -ForegroundColor Green
+    try {
+        # Brief pause helps release locks from antivirus / Explorer on freshly copied DLLs
+        Start-Sleep -Seconds 2
+        Compress-Archive -Path (Join-Path $PublishDir "*") -DestinationPath $ZipPath -Force
+        Write-Host "Portable ZIP: $ZipPath" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Portable ZIP failed (installer will still be built): $($_.Exception.Message)" -ForegroundColor Yellow
+    }
 }
 
 if ($SkipInstaller) {
     Write-Host "Installer step skipped." -ForegroundColor Yellow
-    if ($CreatePortableZip) {
-        Remove-StagingFolder -Path $PublishDir -Keep:$KeepStagingFolder
-    }
-    else {
-        Write-Host "Staging folder kept because no installer or portable ZIP was requested." -ForegroundColor Yellow
-    }
+    Remove-StagingFolder -Path $PublishDir -Remove:$RemoveStagingFolder
     exit 0
 }
 
@@ -155,6 +161,7 @@ $InnoCandidates = @(
 
 if ($InnoCandidates.Count -eq 0) {
     Write-Host "Inno Setup 6 was not found. Publish succeeded; installer was not created." -ForegroundColor Yellow
+    Write-Host "Staging left at: $PublishDir" -ForegroundColor Yellow
     exit 0
 }
 
@@ -172,6 +179,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Assert-Exists -Path $InstallerPath -Description "Installer"
-Remove-StagingFolder -Path $PublishDir -Keep:$KeepStagingFolder
+Remove-StagingFolder -Path $PublishDir -Remove:$RemoveStagingFolder
 
-Write-Host "Build and installer completed successfully." -ForegroundColor Green
+Write-Host ""
+Write-Host "Done." -ForegroundColor Green
+Write-Host "  Installer: $InstallerPath"
+if (Test-Path -LiteralPath $ZipPath) {
+    Write-Host "  Portable:  $ZipPath"
+}
+if (Test-Path -LiteralPath $PublishDir) {
+    Write-Host "  Staging:   $PublishDir  (re-open setup.iss in Inno if you need to tweak)"
+}
+Write-Host ""

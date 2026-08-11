@@ -310,7 +310,7 @@ dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o 
 |---|---|
 | `.\build.ps1` | Publish -> validate resources -> build installer |
 | `.\build.ps1 -CreatePortableZip` | Also creates a portable ZIP alongside the installer |
-| `.\build.ps1 -KeepStagingFolder` | Keeps the staging folder for inspection |
+| `.\build.ps1 -RemoveStagingFolder` | Deletes `Publish\CortexFX_vX.Y.Z` after the installer is built |
 | `.\build.ps1 -SkipInstaller -CreatePortableZip` | Portable ZIP only, no installer |
 
 The script: restores -> builds -> publishes -> validates `Resources` -> creates ZIP -> runs Inno Setup -> removes staging folder.
