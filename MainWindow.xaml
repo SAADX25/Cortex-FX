@@ -1,0 +1,1465 @@
+﻿<Window x:Class="CortexFX.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CortexFX"
+        xmlns:conv="clr-namespace:CortexFX.Converters"
+        xmlns:ctrl="clr-namespace:CortexFX.Controls"
+        xmlns:views="clr-namespace:CortexFX.Views"
+        xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
+        mc:Ignorable="d"
+        Title="Cortex FX" Height="650" Width="850"
+        MinWidth="950" MinHeight="650" ResizeMode="CanResize"
+        Background="Transparent" AllowsTransparency="True" WindowStyle="None"
+        Foreground="#E0E0E0"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI"
+        Icon="logo.ico"
+        Loaded="MainWindow_Loaded"
+        >
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="35" ResizeBorderThickness="5" CornerRadius="10" GlassFrameThickness="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- Converters -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <conv:StringToBrushConverter x:Key="StringToBrushConverter"/>
+
+        <!-- Colors -->
+        <SolidColorBrush x:Key="PrimaryBackground" Color="#07080B"/>
+        <SolidColorBrush x:Key="SecondaryBackground" Color="#0E0F14"/>
+        <SolidColorBrush x:Key="CardBackground" Color="#14151B"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#E11D2E"/>
+        <SolidColorBrush x:Key="AccentHover" Color="#FF3348"/>
+        <SolidColorBrush x:Key="AccentSecondary" Color="#FF6B4A"/>
+        <SolidColorBrush x:Key="AccentPurple" Color="#8A1E2D"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#2ED47A"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#FF4D5E"/>
+        <SolidColorBrush x:Key="WarningColor" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="AudioAccentColor" Color="#38BDF8"/>
+        <SolidColorBrush x:Key="AudioAccentHover" Color="#7DD3FC"/>
+        <SolidColorBrush x:Key="AudioMarkerStart" Color="#22D3EE"/>
+        <SolidColorBrush x:Key="AudioMarkerEnd" Color="#60A5FA"/>
+        <SolidColorBrush x:Key="AudioSaveColor" Color="#075985"/>
+        <SolidColorBrush x:Key="AudioSaveBorder" Color="#38BDF8"/>
+        <SolidColorBrush x:Key="AudioPanelBorder" Color="#1E3A5F"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#F7FAFC"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#B6BAC4"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#828691"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#2A1D22"/>
+        <SolidColorBrush x:Key="ActionButtonBackground" Color="#B91C1C"/>
+        <SolidColorBrush x:Key="ActionButtonHover" Color="#D92534"/>
+        <SolidColorBrush x:Key="ActionButtonBorder" Color="#FF3348"/>
+        <LinearGradientBrush x:Key="ConvertButtonBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#B91C1C" Offset="0"/>
+            <GradientStop Color="#D31F2B" Offset="0.62"/>
+            <GradientStop Color="#E11D2E" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ConvertButtonHoverBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#C91F28" Offset="0"/>
+            <GradientStop Color="#E11D2E" Offset="0.58"/>
+            <GradientStop Color="#FF3B4F" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ConvertButtonPressedBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#941616" Offset="0"/>
+            <GradientStop Color="#B91C1C" Offset="0.65"/>
+            <GradientStop Color="#D92534" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ConvertButtonDisabledBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#21181D" Offset="0"/>
+            <GradientStop Color="#2A1A20" Offset="1"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="PanelBackground" Color="#0B0C10"/>
+        <SolidColorBrush x:Key="PanelBackgroundSubtle" Color="#13141A"/>
+        <SolidColorBrush x:Key="InputBackground" Color="#07080B"/>
+        <SolidColorBrush x:Key="PanelBorder" Color="#2B2026"/>
+        <SolidColorBrush x:Key="PanelBorderStrong" Color="#473039"/>
+        <SolidColorBrush x:Key="NavButtonBackground" Color="#13141A"/>
+        <SolidColorBrush x:Key="NavButtonHover" Color="#1A1519"/>
+        <SolidColorBrush x:Key="NavButtonChecked" Color="#23171D"/>
+        <LinearGradientBrush x:Key="WindowBackgroundGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#111014" Offset="0"/>
+            <GradientStop Color="#08090D" Offset="0.58"/>
+            <GradientStop Color="#190A0E" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="AudioEditorPanelGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0B0F16" Offset="0"/>
+            <GradientStop Color="#07111B" Offset="0.55"/>
+            <GradientStop Color="#0B1117" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="AudioWaveformBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#050A10" Offset="0"/>
+            <GradientStop Color="#061525" Offset="0.52"/>
+            <GradientStop Color="#04111F" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Global Effects -->
+        <DropShadowEffect x:Key="ElevationShadow" BlurRadius="10" ShadowDepth="2" Opacity="0.22" Color="Black"/>
+        <DropShadowEffect x:Key="GlowShadow" BlurRadius="14" ShadowDepth="0" Opacity="0.35" Color="Black"/>
+
+        <!-- Button Style (Modern Pill) -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource ActionButtonBackground}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ActionButtonBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect" Value="{StaticResource ElevationShadow}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ActionButtonHover}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#21181D"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}"/>
+                    <Setter Property="Effect" Value="{x:Null}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="AudioToolButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#0A151D"/>
+            <Setter Property="Foreground" Value="{StaticResource AudioAccentColor}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AudioAccentColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect" Value="{StaticResource ElevationShadow}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="Glow"
+                                    Background="{TemplateBinding BorderBrush}"
+                                    CornerRadius="10"
+                                    Margin="-2"
+                                    Opacity="0">
+                                <Border.Effect>
+                                    <BlurEffect Radius="12"/>
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="ButtonChrome"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="9"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.32"/>
+                                <Setter TargetName="ButtonChrome" Property="BorderThickness" Value="1.5"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.18"/>
+                                <Setter TargetName="ButtonChrome" Property="Opacity" Value="0.78"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Glow" Property="Opacity" Value="0"/>
+                                <Setter TargetName="ButtonChrome" Property="Opacity" Value="0.55"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Premium Nav Button Base Style -->
+        <Style x:Key="PremiumNavBaseStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="0,0,15,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Border x:Name="Glow" Background="{TemplateBinding Background}" CornerRadius="20" Opacity="0" Margin="-2">
+                                <Border.Effect>
+                                    <BlurEffect Radius="15"/>
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="PillBorder" Background="{TemplateBinding Background}" 
+                                    CornerRadius="20" BorderBrush="White" BorderThickness="0">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PillBorder" Property="Opacity" Value="0.92"/>
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.38"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="PillBorder" Property="BorderThickness" Value="2"/>
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.55"/>
+                                <Setter TargetName="PillBorder" Property="Opacity" Value="1.0"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter TargetName="PillBorder" Property="Opacity" Value="0.72"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ImageNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#0288D1" Offset="0"/>
+                        <GradientStop Color="#29B6F6" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VideoNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#D32F2F" Offset="0"/>
+                        <GradientStop Color="#9C27B0" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AudioNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#388E3C" Offset="0"/>
+                        <GradientStop Color="#00796B" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DocumentNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#FF8F00" Offset="0"/>
+                        <GradientStop Color="#FF6F00" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ArchiveNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#546E7A" Offset="0"/>
+                        <GradientStop Color="#263238" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="EbookNavStyle" TargetType="RadioButton" BasedOn="{StaticResource PremiumNavBaseStyle}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#6A8F2A" Offset="0"/>
+                        <GradientStop Color="#2F6B45" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ComboBox Style -->
+        <ControlTemplate x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="20" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Border" 
+                        Grid.ColumnSpan="2"
+                        CornerRadius="6"
+                        Background="{StaticResource InputBackground}"
+                        BorderBrush="{StaticResource PanelBorder}"
+                        BorderThickness="1" />
+                <Path x:Name="Arrow" 
+                      Grid.Column="1" 
+                      Fill="{StaticResource TextSecondary}"
+                      HorizontalAlignment="Center" 
+                      VerticalAlignment="Center"
+                      Data="M0,0 L0,2 L4,6 L8,2 L8,0 L4,4 z" />
+            </Grid>
+        </ControlTemplate>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Name="ToggleButton" 
+                                          Template="{StaticResource ComboBoxToggleButton}" 
+                                          Grid.Column="2" 
+                                          Focusable="false"
+                                          IsChecked="{Binding Path=IsDropDownOpen,Mode=TwoWay,RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                            </ToggleButton>
+                            <ContentPresenter Name="ContentSite" 
+                                              IsHitTestVisible="False" 
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              Margin="10,3,26,3"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left" />
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     Style="{x:Null}" 
+                                     Template="{x:Null}" 
+                                     HorizontalAlignment="Left" 
+                                     VerticalAlignment="Center" 
+                                     Margin="3,3,23,3"
+                                     Focusable="True" 
+                                     Background="Transparent"
+                                     Visibility="Hidden"
+                                     IsReadOnly="{TemplateBinding IsReadOnly}"/>
+                            <Popup Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" 
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Grid Name="DropDown"
+                                      SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder"
+                                            Background="{StaticResource PanelBackgroundSubtle}"
+                                            BorderThickness="1"
+                                            BorderBrush="{StaticResource PanelBorderStrong}"/>
+                                    <ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Padding" Value="5"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="Border" 
+                                            Background="{TemplateBinding Background}" 
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{StaticResource NavButtonHover}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{StaticResource ActionButtonBackground}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource InputBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="CaretBrush" Value="{StaticResource AccentColor}"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource AccentColor}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="InputBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="InputBorder" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="InputBorder" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border x:Name="CheckBorder"
+                                    Width="16" Height="16"
+                                    Background="{StaticResource InputBackground}"
+                                    BorderBrush="{StaticResource PanelBorderStrong}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="CheckMark"
+                                      Data="M3,8 L6.2,11.2 L13,4.2"
+                                      Stroke="#150506"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Margin="8,0,0,0"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckBorder" Property="Background" Value="{StaticResource AccentColor}"/>
+                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="{StaticResource InputBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border x:Name="PART_Track"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                SnapsToDevicePixels="True">
+                            <Grid x:Name="PART_Indicator"
+                                  HorizontalAlignment="Left"
+                                  ClipToBounds="True">
+                                <Border Background="{TemplateBinding Foreground}"
+                                        CornerRadius="4"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ListBox Style -->
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <Border Background="#160F13" CornerRadius="6" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Margin="0,3">
+                            <Grid Margin="7" MinHeight="46" ClipToBounds="True">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="32"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Width="48" Height="40" CornerRadius="5" Background="{StaticResource InputBackground}" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1" ClipToBounds="True" Margin="0,0,8,0">
+                                    <Grid>
+                                        <Image Source="{Binding ThumbnailPath}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality">
+                                            <Image.Style>
+                                                <Style TargetType="Image">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Image.Style>
+                                        </Image>
+                                            <TextBlock Text="{Binding FileIcon}" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentColor}"
+                                                   FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
+
+                                <Grid Grid.Column="1" VerticalAlignment="Center" MinWidth="0" Margin="0,0,6,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="{Binding FileName}" ToolTip="{Binding FileName}" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                    <Grid Grid.Row="1" Margin="0,3,0,0">
+                                        <TextBlock Text="{Binding FileDetails}" Foreground="{StaticResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,58,0"/>
+                                        <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor, Converter={StaticResource StringToBrushConverter}}" FontSize="11" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </Grid>
+                                <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" Grid.Column="2" Click="RemoveFile_Click" Tag="{Binding FullPath}"
+                                        Background="Transparent" Foreground="{StaticResource DangerColor}" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" Padding="4,0" Cursor="Hand"
+                                        FontSize="13" FontWeight="Bold" Width="28" Height="28"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <ContentPresenter />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid>
+        <Border Background="{StaticResource WindowBackgroundGradient}" CornerRadius="10" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1">
+            <Grid Margin="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="35"/> <!-- Custom Title Bar -->
+                    <RowDefinition Height="Auto"/> <!-- Category Selector -->
+                    <RowDefinition Height="*"/>    <!-- Main Content (Scrollable) -->
+                    <RowDefinition Height="Auto"/> <!-- Footer (Fixed) -->
+                </Grid.RowDefinitions>
+
+                <!-- Custom Title Bar (Row 0) -->
+                <Grid Grid.Row="0" Background="#08090D">
+                    <!-- Title & Icon -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
+                        <Image Source="logo.ico" Width="20" Height="20" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock Text="Cortex FX" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Center Version Indicator -->
+                    <TextBlock x:Name="VersionText" Text="v1.0.0" 
+                               Foreground="{StaticResource AccentColor}" FontWeight="Bold" FontSize="14"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsHitTestVisible="False">
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="#FF3348" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+                    <TextBlock x:Name="CurrentToolTitle" Visibility="Collapsed"/>
+
+                    <!-- Window Controls -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="&#xE713;" FontFamily="Segoe MDL2 Assets" Background="Transparent" Foreground="{StaticResource TextSecondary}" FontSize="14" Click="SettingsButton_Click" Padding="10,0" Width="40" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button Content="&#xE921;" FontFamily="Segoe MDL2 Assets" Click="MinimizeButton_Click" Background="Transparent" Foreground="{StaticResource TextSecondary}" FontSize="12" Padding="10,0" Width="40" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Click="CloseButton_Click" Background="Transparent" Foreground="{StaticResource TextSecondary}" FontSize="12" Padding="10,0" Width="40" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" WindowChrome.IsHitTestVisibleInChrome="True">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#E81123"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Category Selector (Row 1) -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel x:Name="TopNavPanel" Grid.Column="0" Orientation="Horizontal" Margin="12,10,12,10" Visibility="Collapsed">
+                        <RadioButton x:Name="RadioImage" Style="{StaticResource ImageNavStyle}" GroupName="Category" Click="Category_Click" Tag="Image">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE91B;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Image" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton x:Name="RadioVideo" Style="{StaticResource VideoNavStyle}" GroupName="Category" Click="Category_Click" Tag="Video">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Video" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton x:Name="RadioAudio" Style="{StaticResource AudioNavStyle}" GroupName="Category" Click="Category_Click" Tag="Audio">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Audio" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton x:Name="RadioDocument" Style="{StaticResource DocumentNavStyle}" GroupName="Category" Click="Category_Click" Tag="Document">
+                             <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Document" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton x:Name="RadioArchive" Style="{StaticResource ArchiveNavStyle}" GroupName="Category" Click="Category_Click" Tag="Archive">
+                             <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE7B8;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Archive" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton x:Name="RadioEbook" Style="{StaticResource EbookNavStyle}" GroupName="Category" Click="Category_Click" Tag="Ebook">
+                             <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE82D;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="E-book" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+
+                    <Button x:Name="BackBtn" Grid.Column="1" Click="BackToHome_Click"
+                            Width="96" Height="32" Margin="12,8,12,8"
+                            Background="#1A0D12" Foreground="{StaticResource AccentColor}"
+                            BorderBrush="{StaticResource AccentColor}" BorderThickness="1"
+                            Visibility="Collapsed" ToolTip="Back to home"
+                            Cursor="Hand" Effect="{x:Null}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="BackBorder"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="8">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="&#xE72B;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                   Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <TextBlock Text="Back" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="BackBorder" Property="Background" Value="#23171D"/>
+                                        <Setter TargetName="BackBorder" Property="BorderBrush" Value="#FF3348"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="BackBorder" Property="Background" Value="#B91C1C"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="BackBorder" Property="Opacity" Value="0.45"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+
+                <!-- Scrollable Content (Row 2) -->
+                <Grid Grid.Row="2" Margin="12,0,12,12">
+                    <!-- Dashboard View -->
+                    <ScrollViewer x:Name="DashboardView" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="Popular Tools" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,10,0,15"/>
+                            <WrapPanel HorizontalAlignment="Center">
+                                <!-- PDF to Word -->
+                                <ctrl:ToolCard Title="PDF to Word" 
+                                               IconBackground="#2B579A" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_DOCX">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,11V13H13V15H16V17H13V19H11V11H16Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+
+                                <!-- Word to PDF -->
+                                <ctrl:ToolCard Title="Word to PDF" 
+                                               IconBackground="#2B579A" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="DOCX_PDF">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M15,16H13V19H11V16H9V14H11V11H13V14H15V16Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+
+                                <!-- PDF to PowerPoint -->
+                                <ctrl:ToolCard Title="PDF to PowerPoint" 
+                                               IconBackground="#D24726" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_PPTX">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,13H13V19H11V13H8V11H16V13Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+
+                                <!-- PowerPoint to PDF -->
+                                <ctrl:ToolCard Title="PowerPoint to PDF" 
+                                               IconBackground="#D24726" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PPTX_PDF">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,15H13V19H11V15H9V13H11V10H13V13H16V15Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+
+                                <!-- Excel to PDF -->
+                                <ctrl:ToolCard Title="Excel to PDF" 
+                                               IconBackground="#217346" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="XLSX_PDF">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,17H8V15H16V17M16,13H8V11H16V13M16,9H8V7H16V9Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+
+                                <!-- PDF to Image -->
+                                <ctrl:ToolCard Title="PDF to Image" 
+                                               IconBackground="#FBC02D" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_JPG">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M11,15L13,18L16,14L20,19H4L8,13L11,15Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+
+                                <!-- Video Compressor -->
+                                <ctrl:ToolCard Title="Video Compressor"
+                                               Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="VIDEO_COMPRESSOR">
+                                    <ctrl:ToolCard.IconBackground>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#0F766E" Offset="0"/>
+                                            <GradientStop Color="#2DD4BF" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </ctrl:ToolCard.IconBackground>
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M17.25,12L10,17.94V6.06L17.25,12M21.5,4L17.5,4L17.5,2L6.5,2L6.5,4L2.5,4L2.5,6L6.5,6L6.5,8L2.5,8L2.5,10L6.5,10L6.5,20L2.5,20L2.5,22L21.5,22L21.5,20L17.5,20L17.5,10L21.5,10L21.5,8L17.5,8L17.5,6L21.5,6L21.5,4Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+
+                                <!-- More Tools (+) -->
+                                <ctrl:ToolCard Title="More Tools" 
+                                               IconBackground="#27272A" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="MORE_TOOLS">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
+                            </WrapPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Conversion View (Hidden by default) -->
+                    <Grid x:Name="ConversionView" Margin="0" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="0"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.35*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                                <ColumnDefinition Width="0.95*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Left: Drop zone and selected files -->
+                            <Border Grid.Column="0" Background="{StaticResource PanelBackground}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,6,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Border Grid.Row="0" x:Name="DropZone"
+                                            Background="{StaticResource PanelBackgroundSubtle}"
+                                            BorderBrush="{StaticResource PanelBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="8"
+                                            AllowDrop="True"
+                                            Drop="DropZone_Drop"
+                                            DragEnter="DropZone_DragEnter"
+                                            DragLeave="DropZone_DragLeave">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                                <TextBlock Text="Selected Files" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="SelectedFilesCountText" Text="0" Foreground="{StaticResource AccentColor}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+
+                                            <ListBox Grid.Row="1" x:Name="FilesList" VerticalAlignment="Stretch"
+                                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                     Background="Transparent" BorderThickness="0" Foreground="#CCCCCC" Padding="0"/>
+
+                                            <Border Grid.Row="2" Height="38" CornerRadius="7" BorderBrush="{StaticResource ActionButtonBorder}" BorderThickness="1"
+                                                    Background="{StaticResource InputBackground}" Margin="0,10,0,0" Cursor="Hand" MouseLeftButtonUp="DropZone_Click">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                    <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentSecondary}" FontSize="15" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="Add more files" Foreground="{StaticResource TextPrimary}" FontSize="13"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Middle: output and conversion options -->
+                            <Grid Grid.Column="1" Margin="0,0,6,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                            <TextBlock Text="Output" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Output Folder" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="OutputPathBox" Grid.Column="0" Height="34" VerticalContentAlignment="Center"
+                                                     Background="{StaticResource InputBackground}" Foreground="{StaticResource TextPrimary}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1"
+                                                     Padding="10,0" Margin="0,0,10,0" TextChanged="OutputPathBox_TextChanged"
+                                                     ToolTip="Choose where converted files should be saved."/>
+                                            <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" Height="34" Padding="14,0"
+                                                    BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1"
+                                                    ToolTip="Select an output folder.">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Browse" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock x:Name="OutputWarningText" Text="Select output folder" Foreground="{StaticResource DangerColor}" FontSize="11"
+                                                       VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="2,0,0,-17" Visibility="Collapsed"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="1" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <TextBlock Text="&#xE771;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                            <TextBlock Text="Format and Quality" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <TextBlock Text="Output Format" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                        <ComboBox x:Name="FormatComboBox" Height="34" SelectedIndex="0" SelectionChanged="FormatComboBox_SelectionChanged" Margin="0,0,0,14"/>
+
+                                        <TextBlock Text="Quality" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                        <Slider x:Name="QualitySlider" Minimum="0" Maximum="100" Value="75"
+                                                AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" TickFrequency="5"/>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Small" FontSize="10" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Left"/>
+                                            <TextBlock Text="Balanced" FontSize="10" Foreground="{StaticResource AccentColor}" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Best" FontSize="10" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="2" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="12">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <TextBlock Text="&#xE7A8;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0"/>
+                                            <TextBlock Text="Resize and Advanced" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <Grid Margin="0,0,0,14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox x:Name="AspectRatioCheckBox" Content="Keep Ratio" Foreground="{StaticResource TextSecondary}" IsChecked="True" VerticalAlignment="Center"/>
+                                            <CheckBox x:Name="chkCreateSubfolder" Grid.Column="1" Content="Save in Subfolder" Foreground="{StaticResource TextSecondary}" IsChecked="True" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                        </Grid>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Width" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                                <TextBox x:Name="ResizeWidthBox" Height="32" VerticalContentAlignment="Center" Background="{StaticResource InputBackground}" Foreground="White"
+                                                         BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="10,0" PreviewTextInput="NumberValidationTextBox"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="10,0,10,8"/>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Height" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                                <TextBox x:Name="ResizeHeightBox" Height="32" VerticalContentAlignment="Center" Background="{StaticResource InputBackground}" Foreground="White"
+                                                         BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="10,0" PreviewTextInput="NumberValidationTextBox"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <CheckBox x:Name="chkMergePdf" Content="Merge PDF" Foreground="{StaticResource TextSecondary}" Margin="0,14,0,0"/>
+
+                                        <!-- Extra hidden but required fields to avoid build errors -->
+                                        <StackPanel Orientation="Horizontal" Visibility="Collapsed">
+                                            <TextBox x:Name="DpiBox" Text="300"/>
+                                            <CheckBox x:Name="SharpenCheckBox"/>
+                                            <CheckBox x:Name="GrayscaleCheckBox"/>
+                                            <CheckBox x:Name="AutoEnhanceCheckBox"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Right: action and summary -->
+                            <Grid Grid.Column="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="170"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,10">
+                                    <Button x:Name="ConvertButton" Content="CONVERT" Click="ConvertButton_Click"
+                                            Height="64" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="White"
+                                            Background="{StaticResource ConvertButtonBackground}"
+                                            BorderBrush="{StaticResource ActionButtonBorder}" BorderThickness="1"
+                                            Padding="18,0" IsEnabled="False" ToolTip="Add files and choose an output folder to convert.">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Grid SnapsToDevicePixels="True">
+                                                    <Border x:Name="ButtonGlow"
+                                                            Background="{StaticResource AccentColor}"
+                                                            CornerRadius="15"
+                                                            Margin="-2"
+                                                            Opacity="0.18">
+                                                        <Border.Effect>
+                                                            <BlurEffect Radius="14"/>
+                                                        </Border.Effect>
+                                                    </Border>
+                                                    <Border x:Name="ButtonChrome"
+                                                            Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="13">
+                                                        <Grid>
+                                                            <Border x:Name="TopHighlight"
+                                                                    Height="1"
+                                                                    Margin="14,1,14,0"
+                                                                    VerticalAlignment="Top"
+                                                                    Background="#70FFFFFF"
+                                                                    CornerRadius="1"
+                                                                    Opacity="0.42"/>
+                                                            <StackPanel Orientation="Horizontal"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center">
+                                                                <TextBlock x:Name="ConvertButtonIcon"
+                                                                           Text="&#xE8D4;"
+                                                                           FontFamily="Segoe MDL2 Assets"
+                                                                           FontSize="16"
+                                                                           Foreground="White"
+                                                                           VerticalAlignment="Center"
+                                                                           Margin="0,1,10,0"/>
+                                                                <TextBlock x:Name="ConvertButtonText"
+                                                                           Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                           FontSize="{TemplateBinding FontSize}"
+                                                                           FontWeight="{TemplateBinding FontWeight}"
+                                                                           Foreground="{TemplateBinding Foreground}"
+                                                                           VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ButtonChrome" Property="Background" Value="{StaticResource ConvertButtonHoverBackground}"/>
+                                                        <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#FF6675"/>
+                                                        <Setter TargetName="ButtonGlow" Property="Opacity" Value="0.34"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="ButtonChrome" Property="Background" Value="{StaticResource ConvertButtonPressedBackground}"/>
+                                                        <Setter TargetName="ButtonGlow" Property="Opacity" Value="0.18"/>
+                                                        <Setter TargetName="TopHighlight" Property="Opacity" Value="0.2"/>
+                                                    </Trigger>
+                                                    <Trigger Property="Content" Value="CANCEL">
+                                                        <Setter TargetName="ConvertButtonIcon" Property="Text" Value="&#xE711;"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="ButtonChrome" Property="Background" Value="{StaticResource ConvertButtonDisabledBackground}"/>
+                                                        <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="{StaticResource PanelBorder}"/>
+                                                        <Setter TargetName="ButtonGlow" Property="Opacity" Value="0"/>
+                                                        <Setter TargetName="TopHighlight" Property="Opacity" Value="0.08"/>
+                                                        <Setter TargetName="ConvertButtonIcon" Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                                        <Setter TargetName="ConvertButtonText" Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <Button.Effect>
+                                            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.22" Color="#FF3348"/>
+                                        </Button.Effect>
+                                    </Button>
+                                </Border>
+
+                                <Border Grid.Row="1" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,10" Cursor="Hand" MouseLeftButtonUp="OpenOutputFolderCard_MouseLeftButtonUp">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="Open Output Folder" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Converted files location" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Row="2" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Summary" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                                        <Grid Margin="0,0,0,10">
+                                            <TextBlock Text="Mode:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryModeText" Text="-" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,10">
+                                            <TextBlock Text="Files:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryFilesText" Text="0" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,10">
+                                            <TextBlock Text="Output:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryOutputText" Text="-" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <TextBlock Text="Estimated Result:" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryEstimateText" Text="Pending" Foreground="{StaticResource AccentColor}" FontSize="12" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <ProgressBar x:Name="ConversionProgress" Height="5" Background="{StaticResource InputBackground}" BorderThickness="0" Foreground="{StaticResource AccentColor}"/>
+                                        <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,8,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+
+                    </Grid>
+
+                    <!-- Audio Editor View -->
+                    <Grid x:Name="AudioEditorGrid" Visibility="Collapsed"
+                              Background="{StaticResource PanelBackground}" Margin="0,0,0,10">
+                            <Border Background="{StaticResource AudioEditorPanelGradient}"
+                                    BorderBrush="{StaticResource AudioPanelBorder}" BorderThickness="1"
+                                    CornerRadius="12" Padding="14">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Audio Trimmer" Foreground="{StaticResource TextPrimary}"
+                                                       FontSize="18" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="AudioEditorFileNameText" Text="-" Foreground="{StaticResource TextSecondary}"
+                                                       FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Background="{StaticResource InputBackground}" BorderBrush="{StaticResource AudioPanelBorder}"
+                                                BorderThickness="1" CornerRadius="8" Padding="10,6" VerticalAlignment="Center">
+                                            <TextBlock x:Name="CurrentTimeDisplay" Text="00:00.000" Foreground="{StaticResource AudioAccentColor}"
+                                                       FontFamily="Consolas" FontSize="13" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <Border Grid.Row="1" Height="260" MinHeight="220" MaxHeight="280"
+                                            Background="{StaticResource InputBackground}" CornerRadius="12"
+                                            BorderBrush="{StaticResource AudioPanelBorder}" BorderThickness="1"
+                                            ClipToBounds="True" Margin="0,0,0,12">
+                                        <Grid x:Name="WaveformContainer"
+                                              MouseLeftButtonDown="Waveform_MouseLeftButtonDown"
+                                              MouseMove="Waveform_MouseMove"
+                                              MouseLeftButtonUp="Waveform_MouseLeftButtonUp"
+                                              SizeChanged="WaveformContainer_SizeChanged"
+                                              Cursor="Cross">
+                                            <Grid.Background>
+                                                <StaticResource ResourceKey="AudioWaveformBackground"/>
+                                            </Grid.Background>
+                                            <Rectangle x:Name="SelectionBand" Fill="#3338BDF8"
+                                                       HorizontalAlignment="Left" Width="0"/>
+                                            <Canvas x:Name="WaveformCanvas" IsHitTestVisible="False" ClipToBounds="True"/>
+                                            <Rectangle x:Name="DimLeft" Fill="#7D050A10" HorizontalAlignment="Left"
+                                                       Width="0" Visibility="Visible"/>
+                                            <Rectangle x:Name="DimRight" Fill="#7D050A10" HorizontalAlignment="Left"
+                                                       Width="0" Visibility="Visible"/>
+                                            <Rectangle x:Name="StartMarker" Width="3" Fill="{StaticResource AudioMarkerStart}"
+                                                       HorizontalAlignment="Left" Visibility="Visible"/>
+                                            <Rectangle x:Name="EndMarker" Width="3" Fill="{StaticResource AudioMarkerEnd}"
+                                                       HorizontalAlignment="Left" Visibility="Visible"/>
+                                            <Line x:Name="PlaybackCursor" X1="0" Y1="0" X2="0" Y2="260"
+                                                  Stroke="{StaticResource AudioAccentHover}" StrokeThickness="2" Visibility="Visible"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Grid Grid.Row="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <UniformGrid Grid.Row="0" Columns="3" Margin="0,0,0,12">
+                                            <Border Background="{StaticResource InputBackground}" BorderBrush="{StaticResource AudioPanelBorder}"
+                                                    BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,8,0">
+                                                <StackPanel>
+                                                    <TextBlock Text="Start" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
+                                                    <TextBlock x:Name="StartTimeDisplay" Text="00:00.000"
+                                                               Foreground="{StaticResource AudioMarkerStart}" FontFamily="Consolas"
+                                                               FontSize="14" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="{StaticResource InputBackground}" BorderBrush="{StaticResource AudioPanelBorder}"
+                                                    BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="4,0,4,0">
+                                                <StackPanel>
+                                                    <TextBlock Text="End" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
+                                                    <TextBlock x:Name="EndTimeDisplay" Text="00:00.000"
+                                                               Foreground="{StaticResource AudioMarkerEnd}" FontFamily="Consolas"
+                                                               FontSize="14" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="{StaticResource InputBackground}" BorderBrush="{StaticResource AudioPanelBorder}"
+                                                    BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="8,0,0,0">
+                                                <StackPanel>
+                                                    <TextBlock Text="Duration" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
+                                                    <TextBlock x:Name="DurationTimeDisplay" Text="00:00.000"
+                                                               Foreground="{StaticResource AudioAccentHover}" FontFamily="Consolas"
+                                                               FontSize="14" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </UniformGrid>
+
+                                        <Grid Grid.Row="1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="180"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Border Background="{StaticResource InputBackground}" BorderBrush="{StaticResource AudioPanelBorder}"
+                                                    BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,12,0">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="&#xE767;" FontFamily="Segoe MDL2 Assets"
+                                                               Foreground="{StaticResource AudioAccentColor}" VerticalAlignment="Center"
+                                                               Margin="0,0,8,0"/>
+                                                    <Slider x:Name="VolumeSlider" Grid.Column="1" Minimum="0" Maximum="1" Value="1"
+                                                            TickFrequency="0.1" VerticalAlignment="Center"
+                                                            ValueChanged="VolumeSlider_ValueChanged"/>
+                                                </Grid>
+                                            </Border>
+
+                                            <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                <Button x:Name="SetStartBtn" Content="Set Start" Click="SetStart_Click"
+                                                        Style="{StaticResource AudioToolButtonStyle}"
+                                                        Width="112" Height="36" Margin="0,0,8,0"
+                                                        Background="#06131F" Foreground="{StaticResource AudioMarkerStart}"
+                                                        BorderBrush="{StaticResource AudioMarkerStart}" BorderThickness="1"
+                                                        FontSize="13" FontWeight="SemiBold"/>
+                                                <Button x:Name="SetEndBtn" Content="Set End" Click="SetEnd_Click"
+                                                        Style="{StaticResource AudioToolButtonStyle}"
+                                                        Width="112" Height="36" Margin="0,0,8,0"
+                                                        Background="#07111D" Foreground="{StaticResource AudioMarkerEnd}"
+                                                        BorderBrush="{StaticResource AudioMarkerEnd}" BorderThickness="1"
+                                                        FontSize="13" FontWeight="SemiBold"/>
+                                                <Button x:Name="PlaySelectionBtn" Content="Play" Click="PlaySelection_Click"
+                                                        Style="{StaticResource AudioToolButtonStyle}"
+                                                        Width="96" Height="36" Margin="0,0,8,0"
+                                                        Background="#0369A1" Foreground="White"
+                                                        BorderBrush="{StaticResource AudioAccentColor}" BorderThickness="1"
+                                                        FontSize="13" FontWeight="SemiBold"/>
+                                                <Button x:Name="StopSelectionBtn" Content="Stop" Click="StopSelection_Click"
+                                                        Style="{StaticResource AudioToolButtonStyle}"
+                                                        Width="96" Height="36" Margin="0,0,8,0"
+                                                        Background="{StaticResource NavButtonBackground}" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1"
+                                                        FontSize="13" FontWeight="SemiBold"/>
+                                                <Button x:Name="SaveSelectionBtn" Content="Save" Click="SaveSelection_Click"
+                                                        Style="{StaticResource AudioToolButtonStyle}"
+                                                        Width="96" Height="36" Margin="0,0,8,0"
+                                                        Background="{StaticResource AudioSaveColor}" Foreground="White"
+                                                        BorderBrush="{StaticResource AudioSaveBorder}" BorderThickness="1"
+                                                        FontSize="13" FontWeight="SemiBold"/>
+                                                <Button Content="Cancel" Click="CloseAudioEditor_Click"
+                                                        Style="{StaticResource AudioToolButtonStyle}"
+                                                        Width="78" Height="36"
+                                                        Background="Transparent" Foreground="{StaticResource DangerColor}"
+                                                        BorderBrush="{StaticResource DangerColor}" BorderThickness="1"
+                                                        FontSize="13"/>
+                                            </WrapPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </Grid>
+    
+                    <!-- Video Compressor View -->
+                    <views:VideoCompressorView x:Name="VideoCompressorEditor" Visibility="Collapsed"/>
+                </Grid>
+
+            </Grid>
+        </Border>
+
+        <!-- Conversion Progress Overlay -->
+        <Grid x:Name="ConversionOverlay" Background="#A0000000" Visibility="Collapsed" Panel.ZIndex="20">
+            <Border Width="540"
+                    Background="{StaticResource PanelBackgroundSubtle}"
+                    BorderBrush="{StaticResource PanelBorderStrong}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="28"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="26" ShadowDepth="0" Opacity="0.45"/>
+                </Border.Effect>
+
+                <StackPanel>
+                    <Grid Margin="0,0,0,18">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="46" Height="46" CornerRadius="10" Background="{StaticResource InputBackground}" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1" Margin="0,0,14,0">
+                            <TextBlock Text="&#xE8D4;" FontFamily="Segoe MDL2 Assets" FontSize="23" Foreground="{StaticResource AccentColor}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Converting files" Foreground="{StaticResource TextPrimary}" FontSize="20" FontWeight="SemiBold"/>
+                            <TextBlock Text="Please keep Cortex FX open while the files are being processed."
+                                       Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Background="{StaticResource InputBackground}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,16">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <TextBlock x:Name="ConversionOverlayMessageText" Text="Preparing conversion..."
+                                           Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ConversionOverlayPercentText" Text="0%"
+                                           Foreground="{StaticResource AccentColor}" FontWeight="SemiBold"
+                                           HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <ProgressBar x:Name="ConversionOverlayProgress"
+                                         Height="12"
+                                         Minimum="0"
+                                         Maximum="{Binding Maximum, ElementName=ConversionProgress}"
+                                         Value="{Binding Value, ElementName=ConversionProgress}"
+                                         Background="#050505"
+                                         Foreground="{StaticResource AccentColor}"
+                                         BorderThickness="0"/>
+
+                            <TextBlock x:Name="ConversionOverlayDetailText" Text="0/0 files - 0%"
+                                       Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid>
+                        <TextBlock Text="Technical details are written to the log if anything fails."
+                                   Foreground="{StaticResource TextSecondary}" FontSize="12" VerticalAlignment="Center"/>
+                        <Button x:Name="ConversionOverlayCancelButton" Content="Cancel"
+                                Click="CancelConversion_Click"
+                                Width="92" Height="34" HorizontalAlignment="Right"
+                                Background="Transparent" Foreground="{StaticResource DangerColor}"
+                                BorderBrush="{StaticResource DangerColor}" BorderThickness="1"
+                                Cursor="Hand"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Success Overlay -->
+        <Grid x:Name="SuccessOverlay" Background="#CC000000" Visibility="Collapsed">
+            <Border Background="{StaticResource PanelBackgroundSubtle}" CornerRadius="10" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="36" BorderBrush="{StaticResource AccentColor}" BorderThickness="1">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="&#xE930;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentColor}" FontSize="42" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="SuccessTitleText" Text="All Tasks Finished!" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="SuccessMessageText" Text="Your converted files are ready." FontSize="14" Foreground="{StaticResource TextSecondary}" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Open Folder" Click="OpenOutputFolder_Click" Width="130" Height="40" FontSize="14" Margin="0,0,10,0"/>
+                        <Button x:Name="OpenLogsButton" Content="Open Logs Folder" Click="OpenLogFolder_Click" Width="150" Height="40" FontSize="14" Margin="0,0,10,0" Visibility="Collapsed"/>
+                        <Button Content="Done" Click="CloseOverlay_Click" Width="100" Height="40" FontSize="14"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Audio Choice Overlay -->
+        <Grid x:Name="AudioChoiceOverlay" Background="#CC000000" Visibility="Collapsed">
+            <Border Background="{StaticResource PanelBackgroundSubtle}" CornerRadius="10" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="30" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1" Width="500">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Audio Detected" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                    <TextBlock Text="What would you like to do with this file?" FontSize="14" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,25"/>
+                    
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Option A: Trim / Cut -->
+                        <Button Grid.Column="0" Click="TrimChoice_Click" Height="140" Cursor="Hand" BorderThickness="0" Background="Transparent" Effect="{x:Null}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="TrimBorder" CornerRadius="8" Background="{StaticResource InputBackground}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="34" Foreground="{StaticResource AccentColor}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Trim Audio" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Open waveform editor" FontSize="11" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="TrimBorder" Property="Background" Value="{StaticResource NavButtonHover}"/>
+                                            <Setter TargetName="TrimBorder" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        
+                        <!-- Option B: Convert Format -->
+                        <Button Grid.Column="2" Click="ConvertChoice_Click" Height="140" Cursor="Hand" BorderThickness="0" Background="Transparent" Effect="{x:Null}">
+                             <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="ConvertBorder" CornerRadius="8" Background="{StaticResource InputBackground}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="&#xE8D4;" FontFamily="Segoe MDL2 Assets" FontSize="34" Foreground="{StaticResource AccentSecondary}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Convert" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Change format" FontSize="11" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ConvertBorder" Property="Background" Value="{StaticResource NavButtonHover}"/>
+                                            <Setter TargetName="ConvertBorder" Property="BorderBrush" Value="{StaticResource AccentSecondary}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                    
+                    <Button Content="Cancel" Click="CancelChoice_Click" Background="Transparent" Foreground="{StaticResource TextSecondary}" BorderBrush="Transparent" BorderThickness="0" Effect="{x:Null}" Cursor="Hand" HorizontalAlignment="Center" FontSize="13"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Settings Overlay -->
+        <Grid x:Name="SettingsOverlay" Background="#CC000000" Visibility="Collapsed">
+            <Border Background="{StaticResource PanelBackgroundSubtle}" CornerRadius="10" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="30" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1" Width="400">
+                <StackPanel>
+                    <TextBlock Text="Settings" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,20"/>
+                    
+                    <CheckBox x:Name="ContextMenuCheckBox" Content="Add 'Convert with Cortex FX' to Context Menu" 
+                              Foreground="{StaticResource TextPrimary}" FontSize="14" Margin="0,0,0,20"
+                              Checked="ContextMenuCheckBox_Checked" Unchecked="ContextMenuCheckBox_Unchecked"/>
+
+                    <Button Content="Resource Status" Click="ShowResourceStatus_Click" Height="35" Margin="0,0,0,10"/>
+                    <Button Content="Open Log Folder" Click="OpenLogFolder_Click" Height="35" Margin="0,0,0,20"/>
+
+                    <Button Content="Close" Click="CloseSettings_Click" Width="100" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
