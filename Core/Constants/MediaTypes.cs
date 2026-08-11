@@ -1,12 +1,12 @@
 namespace CortexFX.Core.Constants;
 
 /// <summary>
-/// Single source of truth for all supported file extensions and their categories.
-/// Every extension check in the codebase must reference these sets — no inline string arrays.
+/// Supported extensions, categories, and input→output conversion rules.
+/// Prefer these sets over ad-hoc string lists in UI code.
 /// </summary>
 public static class MediaTypes
 {
-    // --- Documents ---
+    // Documents
     public static readonly IReadOnlySet<string> DocumentExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".odt", ".rtf", ".txt"
@@ -32,7 +32,7 @@ public static class MediaTypes
         ".xlsx", ".xls"
     };
 
-    // --- Images ---
+    // Images
     public static readonly IReadOnlySet<string> ImageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".ico", ".tif", ".tiff", ".gif", ".heic", ".heif"
@@ -40,10 +40,10 @@ public static class MediaTypes
 
     public static readonly IReadOnlySet<string> RasterImageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff", ".gif", ".heic", ".heif"
+        ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".ico", ".tif", ".tiff", ".gif", ".heic", ".heif"
     };
 
-    // --- Audio ---
+    // Audio
     public static readonly IReadOnlySet<string> AudioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg"
@@ -55,25 +55,25 @@ public static class MediaTypes
         ".mp3", ".wav", ".m4a", ".ogg"
     };
 
-    // --- Video ---
+    // Video
     public static readonly IReadOnlySet<string> VideoExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".mp4", ".avi", ".mov", ".mkv", ".webm"
     };
 
-    // --- Archives ---
+    // Archives
     public static readonly IReadOnlySet<string> ArchiveExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".zip", ".rar", ".7z", ".tar"
     };
 
-    // --- E-books ---
+    // E-books
     public static readonly IReadOnlySet<string> EbookExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".epub", ".mobi", ".azw3"
     };
 
-    // --- FFmpeg-handled output formats ---
+    // FFmpeg output formats
     public static readonly IReadOnlySet<string> FFmpegOutputFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "mp4", "mp3", "avi", "wav", "mkv", "mov", "gif", "webm", "m4a", "ogg", "flac", "aac"
@@ -91,7 +91,7 @@ public static class MediaTypes
         "mp4", "avi", "mkv", "mov", "webm"
     };
 
-    // --- Magick-handled output formats ---
+    // Magick output formats
     public static readonly IReadOnlySet<string> MagickOutputFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "jpg", "jpeg", "png", "bmp", "webp", "ico", "tif", "tiff", "gif", "heic", "heif"
@@ -112,7 +112,7 @@ public static class MediaTypes
         "epub", "mobi", "azw3", "pdf"
     };
 
-    // --- All supported extensions (union for global validation) ---
+    // Every extension we know about
     public static readonly IReadOnlySet<string> AllSupportedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".odt", ".rtf", ".txt",
@@ -123,7 +123,7 @@ public static class MediaTypes
         ".epub", ".mobi", ".azw3"
     };
 
-    // --- Conversion Rules (input extension → available target formats) ---
+    // input extension → offered targets
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> ConversionRules =
         new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
         {

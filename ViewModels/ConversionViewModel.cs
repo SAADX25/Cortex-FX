@@ -5,15 +5,13 @@ using CommunityToolkit.Mvvm.Input;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
-using CortexFX.Core.Services;
+using CortexFX.Core.Services.Documents;
 using CortexFX.Models;
 
 namespace CortexFX.ViewModels;
 
 /// <summary>
-/// ViewModel for the conversion workflow: file list, format selection,
-/// quality settings, progress tracking, and the Convert command.
-/// Absorbs the 400+ lines of conversion logic from MainWindow.xaml.cs.
+/// Conversion screen state: file list, format, quality, progress, Convert.
 /// </summary>
 public partial class ConversionViewModel : ObservableObject
 {
@@ -29,14 +27,10 @@ public partial class ConversionViewModel : ObservableObject
         _magickService = magickService;
     }
 
-    // ------------------------------------------------------------------
-    // Observable State
-    // ------------------------------------------------------------------
-
-    /// <summary>Files dropped by the user, awaiting conversion.</summary>
+    /// <summary>Queued input files.</summary>
     public ObservableCollection<FileModel> Files { get; } = [];
 
-    /// <summary>Available formats computed from current files.</summary>
+    /// <summary>Formats the UI can offer for the current files.</summary>
     public ObservableCollection<string> AvailableFormats { get; } = [];
 
     [ObservableProperty]
@@ -100,15 +94,12 @@ public partial class ConversionViewModel : ObservableObject
     [ObservableProperty]
     private bool _autoEnhance;
 
-    /// <summary>Active category filter (null = mixed/universal).</summary>
+    /// <summary>Category filter; null means mixed / universal.</summary>
     [ObservableProperty]
     private string? _categoryFilter;
 
-    // ------------------------------------------------------------------
     // Commands
-    // ------------------------------------------------------------------
 
-    /// <summary>Add a file to the conversion queue.</summary>
     [RelayCommand]
     private void AddFile(string filePath)
     {
@@ -117,7 +108,6 @@ public partial class ConversionViewModel : ObservableObject
         string ext = Path.GetExtension(filePath).ToLowerInvariant();
         if (!MediaTypes.AllSupportedExtensions.Contains(ext)) return;
 
-        // Prevent duplicates
         if (Files.Any(f => f.FullPath.Equals(filePath, StringComparison.OrdinalIgnoreCase)))
             return;
 
@@ -131,7 +121,6 @@ public partial class ConversionViewModel : ObservableObject
         UpdateSmartSuggestion();
     }
 
-    /// <summary>Add multiple files at once (drag & drop).</summary>
     public void AddFiles(IEnumerable<string> filePaths)
     {
         foreach (var path in filePaths)
@@ -140,7 +129,6 @@ public partial class ConversionViewModel : ObservableObject
         }
     }
 
-    /// <summary>Remove a specific file from the queue.</summary>
     [RelayCommand]
     private void RemoveFile(FileModel file)
     {
@@ -148,7 +136,6 @@ public partial class ConversionViewModel : ObservableObject
         RefreshAvailableFormats();
     }
 
-    /// <summary>Clear all files from the queue.</summary>
     [RelayCommand]
     private void ClearFiles()
     {
@@ -158,7 +145,6 @@ public partial class ConversionViewModel : ObservableObject
         SmartSuggestionText = null;
     }
 
-    /// <summary>Execute conversion on all queued files.</summary>
     [RelayCommand(CanExecute = nameof(CanConvert))]
     private async Task ConvertAsync()
     {
@@ -259,7 +245,6 @@ public partial class ConversionViewModel : ObservableObject
     private bool CanConvert() =>
         Files.Count > 0 && !string.IsNullOrWhiteSpace(OutputPath) && SelectedFormat != null && !IsConverting;
 
-    /// <summary>Cancel an in-progress conversion.</summary>
     [RelayCommand]
     private void CancelConversion()
     {
@@ -267,7 +252,6 @@ public partial class ConversionViewModel : ObservableObject
         StatusText = "Cancelling...";
     }
 
-    /// <summary>Dismiss the success overlay.</summary>
     [RelayCommand]
     private void DismissSuccess()
     {
@@ -276,13 +260,10 @@ public partial class ConversionViewModel : ObservableObject
         OverallProgress = 0;
     }
 
-    // ------------------------------------------------------------------
-    // Format Management
-    // ------------------------------------------------------------------
+    // Formats
 
     /// <summary>
-    /// Refresh available formats based on current files and category filter.
-    /// Called when files are added/removed or filter changes.
+    /// Rebuild the format list from the current files / category filter.
     /// </summary>
     public void RefreshAvailableFormats()
     {
@@ -333,9 +314,7 @@ public partial class ConversionViewModel : ObservableObject
         ConvertCommand.NotifyCanExecuteChanged();
     }
 
-    // ------------------------------------------------------------------
-    // Smart Suggestions
-    // ------------------------------------------------------------------
+    // Format hints from the first file
 
     private void UpdateSmartSuggestion()
     {
@@ -352,9 +331,7 @@ public partial class ConversionViewModel : ObservableObject
             : null;
     }
 
-    // ------------------------------------------------------------------
     // Private Helpers
-    // ------------------------------------------------------------------
 
     private static IReadOnlyList<string> GetFormatsForCategory(string category)
     {

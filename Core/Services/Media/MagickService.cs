@@ -3,26 +3,18 @@ using ImageMagick;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Interfaces;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Media;
 
 /// <summary>
-/// ImageMagick service using a hybrid approach:
-///   - Magick.NET managed library for operations that benefit from direct memory access
-///     (merging, metadata reads, format detection)
-///   - CLI magick.exe for heavy conversions (leverages disk streaming, avoids OOM on large files)
-///
-/// Memory optimization: For images > 50MB, delegates to CLI to avoid managed heap pressure.
+/// ImageMagick wrapper. Small files use Magick.NET in-process;
+/// files over 50 MB go through magick.exe so we don't blow memory.
 /// </summary>
 public sealed class MagickService : IMagickService
 {
     private readonly IAppConfiguration _config;
     private readonly IProcessManager _processManager;
 
-    /// <summary>
-    /// Files larger than this threshold (bytes) will be processed via CLI
-    /// instead of the managed Magick.NET library to avoid excessive memory use.
-    /// Default: 50 MB.
-    /// </summary>
+    /// <summary>Above this size we call the CLI instead of Magick.NET.</summary>
     private const long LargeFileThreshold = 50 * 1024 * 1024;
 
     public MagickService(IAppConfiguration config, IProcessManager processManager)
@@ -31,9 +23,7 @@ public sealed class MagickService : IMagickService
         _processManager = processManager;
     }
 
-    // ------------------------------------------------------------------
     // IIMagickService implementation
-    // ------------------------------------------------------------------
 
     /// <inheritdoc />
     public async Task ConvertImageAsync(string inputFile, string outputFile,
@@ -92,9 +82,7 @@ public sealed class MagickService : IMagickService
         }, ct);
     }
 
-    // ------------------------------------------------------------------
     // Public helpers (used by ConversionRouter for smart suggestions)
-    // ------------------------------------------------------------------
 
     /// <summary>
     /// Read basic image metadata without loading the full pixel data.
@@ -119,9 +107,7 @@ public sealed class MagickService : IMagickService
         }
     }
 
-    // ------------------------------------------------------------------
     // Managed Magick.NET conversion (files < 50 MB)
-    // ------------------------------------------------------------------
 
     private void ConvertManaged(string inputFile, string outputFile,
                                  ImageConversionOptions options, CancellationToken ct)
@@ -185,9 +171,7 @@ public sealed class MagickService : IMagickService
         image.Write(outputFile);
     }
 
-    // ------------------------------------------------------------------
     // CLI conversion (files > 50 MB — avoids managed heap pressure)
-    // ------------------------------------------------------------------
 
     private async Task ConvertViaCliAsync(string inputFile, string outputFile,
                                            ImageConversionOptions options, CancellationToken ct)
@@ -243,7 +227,7 @@ public sealed class MagickService : IMagickService
 }
 
 /// <summary>
-/// Lightweight image metadata for smart routing decisions.
+/// Basic image info used when suggesting an output format.
 /// </summary>
 public class ImageMetadata
 {

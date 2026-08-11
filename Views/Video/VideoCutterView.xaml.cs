@@ -15,7 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Unosquare.FFME.Common;
 
-namespace CortexFX.Views;
+namespace CortexFX.Views.Video;
 
 public partial class VideoCutterView : UserControl
 {
@@ -92,9 +92,7 @@ public partial class VideoCutterView : UserControl
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    // ------------------------------------------------------------------
     // Drop / open
-    // ------------------------------------------------------------------
 
     private void DropZone_DragEnter(object sender, DragEventArgs e)
     {
@@ -265,9 +263,7 @@ public partial class VideoCutterView : UserControl
         catch { }
     }
 
-    // ------------------------------------------------------------------
     // Transport
-    // ------------------------------------------------------------------
 
     private async void PlayPause_Click(object sender, RoutedEventArgs e) => await TogglePlayPauseAsync();
 
@@ -430,9 +426,7 @@ public partial class VideoCutterView : UserControl
         EmptySegmentsHint.Visibility = Visibility.Collapsed;
     }
 
-    // ------------------------------------------------------------------
     // Timeline mouse
-    // ------------------------------------------------------------------
 
     private void Timeline_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateTimelineVisuals();
 
@@ -559,9 +553,7 @@ public partial class VideoCutterView : UserControl
         await ResetViewAsync(cancelExport: true);
     }
 
-    // ------------------------------------------------------------------
     // Export
-    // ------------------------------------------------------------------
 
     private async void ExportButton_Click(object sender, RoutedEventArgs e)
     {

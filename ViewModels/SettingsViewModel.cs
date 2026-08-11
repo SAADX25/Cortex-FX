@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CortexFX.Core.Services.Infrastructure;
 
 namespace CortexFX.ViewModels;
 
 /// <summary>
-/// ViewModel for the Settings overlay.
-/// Manages the Windows context menu registration state.
+/// Settings overlay (Windows Explorer context menu on/off).
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
@@ -14,7 +14,6 @@ public partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel()
     {
-        // Read current state from registry
         _isContextMenuRegistered = RegistryManager.IsRegistered();
     }
 

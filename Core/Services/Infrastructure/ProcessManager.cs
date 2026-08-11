@@ -3,11 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using CortexFX.Core.Interfaces;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Infrastructure;
 
 /// <summary>
-/// Unified process execution and lifecycle manager.
-/// Absorbs legacy external-process execution and Office process cleanup.
+/// Starts external processes and tracks them so we can kill leftovers on exit.
 /// </summary>
 public sealed class ProcessManager : IProcessManager
 {

@@ -8,12 +8,7 @@ using NAudio.Wave;
 namespace CortexFX.ViewModels;
 
 /// <summary>
-/// ViewModel for the audio trim/cut editor.
-/// Absorbs ~300 lines of audio logic from MainWindow.xaml.cs:
-///   - Audio file loading (NAudio)
-///   - Playback control (play/pause/seek)
-///   - Selection (start/end markers)
-///   - Save trimmed selection via FFmpeg
+/// Audio trim editor state (load, play, markers, save via FFmpeg).
 /// </summary>
 public partial class AudioEditorViewModel : ObservableObject
 {
@@ -27,10 +22,6 @@ public partial class AudioEditorViewModel : ObservableObject
         _ffmpeg = ffmpeg;
         _config = config;
     }
-
-    // ------------------------------------------------------------------
-    // Observable State
-    // ------------------------------------------------------------------
 
     [ObservableProperty]
     private bool _isVisible;
@@ -63,8 +54,8 @@ public partial class AudioEditorViewModel : ObservableObject
     private bool _isPlaying;
 
     /// <summary>
-    /// Pending audio file path (set when the AudioChoiceOverlay is shown).
-    /// If the user chooses "Trim", this gets loaded into the editor.
+    /// File waiting while the trim/convert choice is open.
+    /// Loaded into the editor if the user picks Trim.
     /// </summary>
     [ObservableProperty]
     private string? _pendingAudioFile;
@@ -72,11 +63,9 @@ public partial class AudioEditorViewModel : ObservableObject
     [ObservableProperty]
     private bool _showAudioChoiceOverlay;
 
-    // ------------------------------------------------------------------
     // Lifecycle
-    // ------------------------------------------------------------------
 
-    /// <summary>Load an audio file into the editor.</summary>
+    /// <summary>Load an audio file.</summary>
     [RelayCommand]
     private void LoadAudio(string filePath)
     {
@@ -106,7 +95,7 @@ public partial class AudioEditorViewModel : ObservableObject
         }
     }
 
-    /// <summary>Close the editor and release all resources.</summary>
+    /// <summary>Close and free NAudio resources.</summary>
     [RelayCommand]
     public void Close()
     {
@@ -130,9 +119,7 @@ public partial class AudioEditorViewModel : ObservableObject
         AudioFileName = string.Empty;
     }
 
-    // ------------------------------------------------------------------
     // Playback Controls
-    // ------------------------------------------------------------------
 
     [RelayCommand]
     private void PlaySelection()
@@ -161,7 +148,7 @@ public partial class AudioEditorViewModel : ObservableObject
         }
     }
 
-    /// <summary>Called by the UI timer to update the playback cursor position.</summary>
+    /// <summary>UI timer tick — move the playhead.</summary>
     public void UpdatePlaybackTick()
     {
         if (_audioReader == null) return;
@@ -177,7 +164,7 @@ public partial class AudioEditorViewModel : ObservableObject
         }
     }
 
-    /// <summary>Seek to a specific position (from waveform click).</summary>
+    /// <summary>Jump to a time (waveform click).</summary>
     public void SeekTo(double progressRatio)
     {
         if (_audioReader == null) return;
@@ -187,9 +174,7 @@ public partial class AudioEditorViewModel : ObservableObject
         CurrentPosition = _audioReader.CurrentTime;
     }
 
-    // ------------------------------------------------------------------
     // Selection
-    // ------------------------------------------------------------------
 
     [RelayCommand]
     private void SetStartMarker()
@@ -209,9 +194,7 @@ public partial class AudioEditorViewModel : ObservableObject
         UpdateTimeDisplay();
     }
 
-    // ------------------------------------------------------------------
     // Save
-    // ------------------------------------------------------------------
 
     [RelayCommand]
     private async Task SaveSelectionAsync(string outputPath)
@@ -228,11 +211,9 @@ public partial class AudioEditorViewModel : ObservableObject
         await _ffmpeg.TrimAudioAsync(CurrentFilePath, outputPath, SelectionStart, SelectionEnd);
     }
 
-    // ------------------------------------------------------------------
     // Audio Choice Overlay (Trim vs Convert)
-    // ------------------------------------------------------------------
 
-    /// <summary>Show the choice overlay for an audio file.</summary>
+    /// <summary>Show trim vs convert choice.</summary>
     public void ShowChoiceFor(string filePath)
     {
         PendingAudioFile = filePath;
@@ -254,7 +235,7 @@ public partial class AudioEditorViewModel : ObservableObject
     private void ChooseConvert()
     {
         ShowAudioChoiceOverlay = false;
-        // The parent will handle adding to conversion queue via _pendingAudioFile
+        // Parent adds to the convert list via PendingAudioFile
     }
 
     [RelayCommand]
@@ -264,9 +245,7 @@ public partial class AudioEditorViewModel : ObservableObject
         PendingAudioFile = null;
     }
 
-    // ------------------------------------------------------------------
     // Volume
-    // ------------------------------------------------------------------
 
     partial void OnVolumeChanged(double value)
     {
@@ -276,9 +255,7 @@ public partial class AudioEditorViewModel : ObservableObject
         }
     }
 
-    // ------------------------------------------------------------------
     // Private
-    // ------------------------------------------------------------------
 
     private void UpdateTimeDisplay()
     {

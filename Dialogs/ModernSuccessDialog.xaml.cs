@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 
-namespace CortexFX;
+namespace CortexFX.Dialogs;
 
 public partial class ModernSuccessDialog : Window
 {

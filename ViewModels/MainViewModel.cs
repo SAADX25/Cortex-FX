@@ -4,14 +4,11 @@ using CommunityToolkit.Mvvm.Input;
 namespace CortexFX.ViewModels;
 
 /// <summary>
-/// Shell-level ViewModel: navigation state, active view tracking, settings toggle.
-/// Controls what the user sees (Dashboard vs ConversionView vs dedicated tools).
+/// Top-level navigation: which screen is visible (dashboard, convert, tools).
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
-    // ------------------------------------------------------------------
-    // Navigation State
-    // ------------------------------------------------------------------
+    // Navigation
 
     [ObservableProperty]
     private bool _isDashboardVisible = true;
@@ -34,9 +31,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTopNavVisible;
 
-    // ------------------------------------------------------------------
     // Child ViewModels
-    // ------------------------------------------------------------------
 
     public ConversionViewModel Conversion { get; }
     public AudioEditorViewModel AudioEditor { get; }
@@ -49,9 +44,7 @@ public partial class MainViewModel : ObservableObject
         Settings = settings;
     }
 
-    // ------------------------------------------------------------------
     // Navigation Commands
-    // ------------------------------------------------------------------
 
     [RelayCommand]
     private void NavigateToDashboard()
@@ -102,9 +95,7 @@ public partial class MainViewModel : ObservableObject
         IsSettingsVisible = false;
     }
 
-    // ------------------------------------------------------------------
     // Private
-    // ------------------------------------------------------------------
 
     private void HideAllViews()
     {

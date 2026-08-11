@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace CortexFX;
+namespace CortexFX.Dialogs;
 
 public partial class ModernConfirmDialog : Window
 {

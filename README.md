@@ -2,6 +2,26 @@
 
 Cortex FX is a Windows WPF desktop app for local file conversion. It keeps files on the user's machine and routes work through local tools such as FFmpeg, ImageMagick, Microsoft Office automation, and optional engines like LibreOffice, 7-Zip, and Calibre.
 
+## Project Structure
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full map and a checklist for adding a new tool.
+
+```text
+App.xaml(.cs)          Entry + DI
+MainWindow.*           Shell (dashboard, convert, audio cutter)
+Assets/                Icons
+Controls/              Shared UI (ToolCard)
+Dialogs/               Success / confirm modals
+Views/Video/           Video Compressor & Cutter
+Core/Services/
+  Media/               FFmpeg, Magick
+  Documents/           Conversion router, Office, PDF
+  Infrastructure/      Logging, prefs, process, registry
+Core/Constants/        MediaTypes (formats & rules)
+Resources/             Bundled ffmpeg / magick / …
+docs/                  Architecture guide
+```
+
 ## Quick Start
 
 1. Download the latest installer or portable ZIP from GitHub Releases.

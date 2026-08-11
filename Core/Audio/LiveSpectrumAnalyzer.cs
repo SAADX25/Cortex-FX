@@ -5,7 +5,7 @@ using NAudio.Wave;
 namespace CortexFX.Core.Audio;
 
 /// <summary>
-/// Wave provider wrapper that computes a live FFT spectrum while audio plays through it.
+/// Sits in the playback chain and fills live FFT band levels for the spectrum UI.
 /// </summary>
 public sealed class LiveSpectrumAnalyzer : IWaveProvider
 {

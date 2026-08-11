@@ -1,10 +1,11 @@
 using System.IO;
 using System.Text.Json;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Infrastructure;
 
 /// <summary>
-/// Lightweight persisted user preferences (LocalAppData\CortexFX\userprefs.json).
+/// Remembers small settings on this PC (e.g. Audio Cutter volume).
+/// Stored at LocalAppData\CortexFX\userprefs.json.
 /// </summary>
 public sealed class UserPreferences
 {

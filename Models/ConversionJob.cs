@@ -3,19 +3,17 @@ using CortexFX.Core.Interfaces;
 namespace CortexFX.Models;
 
 /// <summary>
-/// Represents a single conversion job to be executed by the ConversionRouter.
-/// Encapsulates all parameters that were previously scattered as local variables
-/// in ConvertButton_Click().
+/// One conversion request for the router.
 /// </summary>
 public class ConversionJob
 {
-    /// <summary>Full path to the input file.</summary>
+    /// <summary>Input file path.</summary>
     public required string InputPath { get; init; }
 
-    /// <summary>Directory for output files.</summary>
+    /// <summary>Folder for outputs.</summary>
     public required string OutputDirectory { get; init; }
 
-    /// <summary>Target format (lowercase, no dot), e.g. "pdf", "mp4", "jpg".</summary>
+    /// <summary>Target format without a dot, e.g. pdf / mp4 / jpg.</summary>
     public required string TargetFormat { get; init; }
 
     /// <summary>Quality level (0-100). Interpretation depends on the engine.</summary>

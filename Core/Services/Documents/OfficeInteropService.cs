@@ -15,25 +15,20 @@ using PowerPoint = NetOffice.PowerPointApi;
 using Excel = NetOffice.ExcelApi;
 using Task = System.Threading.Tasks.Task;
 using CortexFX.Core.Interfaces;
+using CortexFX.Core.Services.Infrastructure;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Documents;
 
 /// <summary>
-/// Thread-safe Office COM interop service.
-/// Injectable, testable Office conversion service with:
-///   - STA thread enforcement for COM operations
-///   - PID tracking via IProcessManager for guaranteed cleanup
-///   - Per-operation semaphore to prevent "Server Busy" / RPC_E_CALL_REJECTED
-///   - Aggressive cleanup with double-GC and PID kill fallback
+/// Office COM conversions. Runs on an STA thread, one Word/Excel/PowerPoint
+/// job at a time, and kills orphaned Office processes if cleanup fails.
 /// </summary>
 public sealed class OfficeInteropService : IOfficeInteropService
 {
     private readonly IProcessManager _processManager;
     private readonly string _logPath;
 
-    // Serialize COM operations to prevent "Server Busy" errors.
-    // COM automation objects are not thread-safe; concurrent access to the same
-    // Office app type (e.g., two Word instances) can corrupt the message pump.
+    // One lock per Office app — concurrent COM calls cause "Server Busy".
     private readonly SemaphoreSlim _wordLock = new(1, 1);
     private readonly SemaphoreSlim _excelLock = new(1, 1);
     private readonly SemaphoreSlim _powerPointLock = new(1, 1);
@@ -47,9 +42,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
         _logPath = ConsoleLogger.LogFilePath;
     }
 
-    // ------------------------------------------------------------------
     // IOfficeInteropService
-    // ------------------------------------------------------------------
 
     /// <inheritdoc />
     public bool IsOfficeInstalled()
@@ -192,9 +185,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
         }
     }
 
-    // ------------------------------------------------------------------
     // Core conversion methods (run on STA thread)
-    // ------------------------------------------------------------------
 
     private void ConvertWordToPdf(string inputFile, string outputFile, int qualityLevel,
                                    CancellationToken ct, IProgress<double>? progress)
@@ -433,9 +424,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
         }
     }
 
-    // ------------------------------------------------------------------
     // STA Thread Infrastructure
-    // ------------------------------------------------------------------
 
     /// <summary>
     /// Run an action on a dedicated STA thread with semaphore serialization.
@@ -483,9 +472,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
         return tcs.Task;
     }
 
-    // ------------------------------------------------------------------
     // PID tracking helpers
-    // ------------------------------------------------------------------
 
     private void TrackOfficePid(object application)
     {
@@ -519,9 +506,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
         }
     }
 
-    // ------------------------------------------------------------------
     // Cleanup: COM release + GC + PID kill fallback
-    // ------------------------------------------------------------------
 
     private void CleanupWord(Word.Application? app, Word.Document? doc)
     {
@@ -594,9 +579,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
         catch { }
     }
 
-    // ------------------------------------------------------------------
     // Utilities
-    // ------------------------------------------------------------------
 
     private static async Task WaitForFileAsync(string path, CancellationToken ct, int maxRetries = 20)
     {

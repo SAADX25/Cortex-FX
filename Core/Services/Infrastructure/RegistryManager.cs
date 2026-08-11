@@ -3,7 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Reflection;
 
-namespace CortexFX
+namespace CortexFX.Core.Services.Infrastructure
 {
     public static class RegistryManager
     {

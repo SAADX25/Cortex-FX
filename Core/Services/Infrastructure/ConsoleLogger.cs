@@ -1,7 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Infrastructure;
 
 public enum ConsoleLogLevel
 {

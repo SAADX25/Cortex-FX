@@ -6,13 +6,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>logo.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
     <!-- NetOffice/PdfiumViewer ship as .NET Framework assets; expected on modern TFMs. -->
     <NoWarn>$(NoWarn);NU1701;NU1510</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="logo.ico" />
+    <Resource Include="Assets\logo.ico" />
   </ItemGroup>
 
   <ItemGroup>

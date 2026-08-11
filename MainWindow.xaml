@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:CortexFX"
         xmlns:conv="clr-namespace:CortexFX.Converters"
         xmlns:ctrl="clr-namespace:CortexFX.Controls"
-        xmlns:views="clr-namespace:CortexFX.Views"
+        xmlns:views="clr-namespace:CortexFX.Views.Video"
         xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
         mc:Ignorable="d"
         Title="Cortex FX" Height="650" Width="850"

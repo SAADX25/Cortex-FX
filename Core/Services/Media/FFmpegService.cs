@@ -5,12 +5,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Interfaces;
+using CortexFX.Core.Services.Infrastructure;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Media;
 
 /// <summary>
-/// Production FFmpeg service with hardware acceleration detection,
-/// smart argument generation, and async progress reporting.
+/// FFmpeg wrapper: convert/trim/cut, pick GPU encoders when available, report progress.
 /// </summary>
 public sealed class FFmpegService : IFFmpegService
 {
@@ -21,7 +21,7 @@ public sealed class FFmpegService : IFFmpegService
     private static readonly Regex StatusTimeRegex = new(@"\btime=(?<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    // Cached HW encoder probe result (lazy, thread-safe)
+    // Probed once per process
     private readonly Lazy<HardwareCapabilities> _hwCaps;
 
     public FFmpegService(IAppConfiguration config, IProcessManager processManager)
@@ -34,9 +34,7 @@ public sealed class FFmpegService : IFFmpegService
     /// <summary>Current machine's hardware encoding capabilities.</summary>
     public HardwareCapabilities HwCapabilities => _hwCaps.Value;
 
-    // ------------------------------------------------------------------
     // IFFmpegService implementation
-    // ------------------------------------------------------------------
 
     /// <inheritdoc />
     public async Task ConvertAsync(string inputFile, string outputFile, string arguments,
@@ -54,7 +52,10 @@ public sealed class FFmpegService : IFFmpegService
         EnsureFFmpeg();
         string ss = start.ToString(@"hh\:mm\:ss\.fff");
         string to = end.ToString(@"hh\:mm\:ss\.fff");
-        string args = $"-i \"{inputFile}\" -ss {ss} -to {to} -c copy -y \"{outputFile}\"";
+        string outExt = Path.GetExtension(outputFile).TrimStart('.').ToLowerInvariant();
+        string id3 = outExt == "mp3" ? "-id3v2_version 3 " : string.Empty;
+        // Keep embedded album art (do not use -vn).
+        string args = $"-i \"{inputFile}\" -ss {ss} -to {to} -map_metadata 0 -map 0 -c copy {id3}-y \"{outputFile}\"";
         await RunFFmpegAsync(args, ct);
     }
 
@@ -209,9 +210,7 @@ public sealed class FFmpegService : IFFmpegService
         progress?.Report(100);
     }
 
-    // ------------------------------------------------------------------
     // Smart argument builders (used by ConversionRouter)
-    // ------------------------------------------------------------------
 
     /// <summary>
     /// Build FFmpeg arguments for a video conversion with quality settings
@@ -240,24 +239,36 @@ public sealed class FFmpegService : IFFmpegService
 
     /// <summary>
     /// Build FFmpeg arguments for audio conversion (format change, not extraction).
+    /// Preserves embedded album art when the output format supports it.
     /// </summary>
-    public string BuildAudioArguments(string inputFile, string outputFile, string? targetFormat = null)
+    public string BuildAudioArguments(string inputFile, string outputFile, string? targetFormat = null, double qualityLevel = 75)
     {
         string target = string.IsNullOrWhiteSpace(targetFormat)
             ? Path.GetExtension(outputFile).TrimStart('.').ToLowerInvariant()
             : targetFormat.TrimStart('.').ToLowerInvariant();
 
+        int vbr = QualityToAudioVbr(qualityLevel);
         string codecArgs = target switch
         {
-            "mp3" => $"-c:a libmp3lame -q:a {QualityToAudioVbr(75)}",
+            "mp3" => $"-c:a libmp3lame -q:a {vbr}",
             "wav" => "-c:a pcm_s16le",
             "flac" => "-c:a flac",
             "m4a" or "aac" => "-c:a aac -b:a 192k",
-            "ogg" => "-c:a libvorbis -q:a 5",
+            "ogg" => $"-c:a libvorbis -q:a {Math.Clamp((int)Math.Round(qualityLevel / 10.0), 1, 10)}",
             _ => string.Empty
         };
 
-        return $"-i \"{inputFile}\" -vn {codecArgs} -y \"{outputFile}\"";
+        bool keepCover = target is "mp3" or "m4a" or "aac" or "flac" or "ogg";
+        string id3 = target == "mp3" ? "-id3v2_version 3 " : string.Empty;
+
+        if (keepCover)
+        {
+            return $"-i \"{inputFile}\" -map_metadata 0 -map 0:a:0 -map 0:v? " +
+                   $"-c:v copy -disposition:v:0 attached_pic {codecArgs} {id3}-y \"{outputFile}\"";
+        }
+
+        // WAV and similar: audio only
+        return $"-i \"{inputFile}\" -map_metadata 0 -map 0:a:0 {codecArgs} -y \"{outputFile}\"";
     }
 
     /// <summary>Whether generated arguments use a hardware encoder that can be retried in software.</summary>
@@ -268,9 +279,7 @@ public sealed class FFmpegService : IFFmpegService
                arguments.Contains("_amf", StringComparison.OrdinalIgnoreCase);
     }
 
-    // ------------------------------------------------------------------
     // Hardware acceleration probing
-    // ------------------------------------------------------------------
 
     /// <summary>
     /// Probe the installed FFmpeg for available hardware encoders.

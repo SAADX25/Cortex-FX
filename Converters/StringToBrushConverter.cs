@@ -5,12 +5,7 @@ using System.Windows.Media;
 namespace CortexFX.Converters;
 
 /// <summary>
-/// Converts a hex color string (e.g. "#E11D2E") to a SolidColorBrush.
-/// This eliminates the VisualTree-walking hack in UpdateFileStatus()
-/// where we manually found TextBlocks and set their Foreground via code-behind.
-/// 
-/// Usage in XAML:
-///   Foreground="{Binding StatusColor, Converter={StaticResource StringToBrushConverter}}"
+/// Hex color string → brush for status text in the file list.
 /// </summary>
 [ValueConversion(typeof(string), typeof(Brush))]
 public sealed class StringToBrushConverter : IValueConverter

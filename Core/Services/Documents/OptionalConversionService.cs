@@ -4,11 +4,11 @@ using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
 using CortexFX.Models;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Documents;
 
 /// <summary>
-/// Uses optional local tools for broad offline conversion without increasing
-/// the bundled app size: LibreOffice, 7-Zip, and Calibre.
+/// Extra converters if the user installed them: LibreOffice, 7-Zip, Calibre.
+/// Not required for the core app.
 /// </summary>
 public sealed class OptionalConversionService : IOptionalConversionService
 {

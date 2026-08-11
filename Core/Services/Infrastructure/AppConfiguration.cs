@@ -1,12 +1,10 @@
 using System.IO;
 using CortexFX.Core.Configuration;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Infrastructure;
 
 /// <summary>
-/// Centralized configuration implementation.
-/// Resolves all tool paths relative to the application base directory,
-/// with a dev-time fallback for the IDE scenario.
+/// Resolves tool paths under Resources/. In Debug, falls back to the project folder if needed.
 /// </summary>
 public sealed class AppConfiguration : IAppConfiguration
 {
@@ -26,8 +24,7 @@ public sealed class AppConfiguration : IAppConfiguration
     }
 
     /// <summary>
-    /// Resolves the Resources directory.
-    /// Priority: 1) {BaseDirectory}/Resources  2) Project-relative fallback (dev only)
+    /// Prefer {app}\Resources; in Debug also try the project folder.
     /// </summary>
     private static string ResolveResourcesDirectory()
     {
@@ -38,7 +35,7 @@ public sealed class AppConfiguration : IAppConfiguration
         }
 
 #if DEBUG
-        // Dev-time fallback: walk up from bin/Debug/net10.0-windows to project root
+        // Running from bin\Debug — walk up until we find the .csproj folder
         string? projectRoot = FindProjectRoot(AppContext.BaseDirectory);
         if (projectRoot != null)
         {
@@ -56,8 +53,7 @@ public sealed class AppConfiguration : IAppConfiguration
     }
 
     /// <summary>
-    /// Resolves the FFmpeg shared libraries directory.
-    /// Uses auto-discovery if the standard path doesn't contain the expected DLL.
+    /// Find ffmpeg_libs (looks for avcodec-58.dll under the app folder if needed).
     /// </summary>
     private string ResolveFFmpegLibsDirectory()
     {
@@ -69,7 +65,6 @@ public sealed class AppConfiguration : IAppConfiguration
             return standardPath;
         }
 
-        // Auto-discovery: search recursively from base directory
         string baseDir = AppContext.BaseDirectory;
         try
         {
@@ -82,16 +77,13 @@ public sealed class AppConfiguration : IAppConfiguration
         }
         catch
         {
-            // Access denied or other IO errors — fall through
+            // No access — keep the default path
         }
 
         return standardPath;
     }
 
-    /// <summary>
-    /// Walks up from a directory looking for a .csproj file to identify the project root.
-    /// Used only for dev-time path resolution.
-    /// </summary>
+    /// <summary>Walk up until a .csproj is found (dev builds only).</summary>
     private static string? FindProjectRoot(string startDir)
     {
         DirectoryInfo? dir = new DirectoryInfo(startDir);

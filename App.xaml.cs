@@ -2,19 +2,19 @@ using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Interfaces;
-using CortexFX.Core.Services;
+using CortexFX.Core.Services.Documents;
+using CortexFX.Core.Services.Infrastructure;
+using CortexFX.Core.Services.Media;
 using CortexFX.ViewModels;
 
 namespace CortexFX;
 
 /// <summary>
-/// Application entry point with DI container configuration.
-/// All service lifetimes are managed by the container; cleanup
-/// is handled via IProcessManager.Dispose() on exit.
+/// Application startup: wire DI, then open the main window.
 /// </summary>
 public partial class App : Application
 {
-    /// <summary>Global service provider — enables service location where DI injection isn't possible.</summary>
+    /// <summary>Shared DI container (used when a control cannot take constructor injection).</summary>
     public static IServiceProvider Services { get; private set; } = null!;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -52,15 +52,12 @@ public partial class App : Application
 
         ConsoleLogger.Info("App", $"Cortex FX {versionText} starting...");
 
-        // 1. Build the DI Container
         var serviceCollection = new ServiceCollection();
         ConfigureServices(serviceCollection);
         Services = serviceCollection.BuildServiceProvider();
         ConsoleLogger.Success("App", "Services loaded.");
 
-        // 2. Background cleanup via the new ProcessManager.
-        // Office process scanning can be slow on some machines, so do not hold
-        // the first window paint hostage to it.
+        // Kill leftover Office COM processes from a previous crash (don't block first paint).
         var processManager = Services.GetRequiredService<IProcessManager>();
         _ = Task.Run(() =>
         {
@@ -68,13 +65,11 @@ public partial class App : Application
             ConsoleLogger.Info("Office", "Startup cleanup completed.");
         });
 
-        // 3. Resolve and show MainWindow
         string? startupFile = e.Args.Length > 0 ? e.Args[0] : null;
         object[] startupParameters = startupFile == null
             ? Array.Empty<object>()
             : [startupFile];
 
-        // MainWindow still accepts a startup file for context menu integration
         var mainWindow = ActivatorUtilities.CreateInstance<MainWindow>(Services, startupParameters);
         mainWindow.Show();
         ConsoleLogger.Success("App", "Main window ready.");
@@ -92,15 +87,15 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Register all services and ViewModels in the DI container.
+    /// Register services and ViewModels used by the app.
     /// </summary>
     private static void ConfigureServices(IServiceCollection services)
     {
-        // --- Core Infrastructure (Singletons — one instance for entire app lifetime) ---
+        // Shared for the whole app lifetime
         services.AddSingleton<IAppConfiguration, AppConfiguration>();
         services.AddSingleton<IProcessManager, ProcessManager>();
 
-        // --- Engine Services (Singletons — stateless, thread-safe) ---
+        // Conversion engines
         services.AddSingleton<IFFmpegService, FFmpegService>();
         services.AddSingleton<IMagickService, MagickService>();
         services.AddSingleton<IOfficeInteropService, OfficeInteropService>();
@@ -108,10 +103,9 @@ public partial class App : Application
         services.AddSingleton<IOptionalConversionService, OptionalConversionService>();
         services.AddSingleton<IResourceValidationService, ResourceValidationService>();
 
-        // --- Routing (Singleton — the brain of the conversion pipeline) ---
         services.AddSingleton<IConversionRouter, ConversionRouter>();
 
-        // --- ViewModels (Transient — fresh instances per resolution) ---
+        // Fresh instance each time they are resolved
         services.AddTransient<MainViewModel>();
         services.AddTransient<ConversionViewModel>();
         services.AddTransient<AudioEditorViewModel>();

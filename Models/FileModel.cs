@@ -4,13 +4,12 @@ using System.Runtime.CompilerServices;
 namespace CortexFX.Models;
 
 /// <summary>
-/// Represents a file in the conversion queue with observable status tracking.
-/// Moved from MainWindow.xaml.cs to enforce proper separation of concerns.
+/// One file in the conversion list (name, path, status text/color).
 /// </summary>
 public class FileModel : INotifyPropertyChanged
 {
     private string _status = "Pending";
-    private string _statusColor = "#AAAAAA"; // Gray for Pending
+    private string _statusColor = "#AAAAAA"; // pending = gray
 
     public string FileName { get; set; } = string.Empty;
     public string FullPath { get; set; } = string.Empty;

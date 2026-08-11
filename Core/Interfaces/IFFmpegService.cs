@@ -1,38 +1,38 @@
 namespace CortexFX.Core.Interfaces;
 
-/// <summary>Inclusive start / exclusive-ish end range for a keep-segment cut.</summary>
+/// <summary>Time range to keep when cutting a video.</summary>
 public readonly record struct VideoCutSegment(TimeSpan Start, TimeSpan End)
 {
     public TimeSpan Duration => End > Start ? End - Start : TimeSpan.Zero;
 }
 
 /// <summary>
-/// Contract for all FFmpeg-based operations: video/audio conversion, trimming, extraction.
+/// FFmpeg jobs: convert, trim, cut segments, extract audio, make GIF.
 /// </summary>
 public interface IFFmpegService
 {
-    /// <summary>Convert media using raw FFmpeg arguments.</summary>
+    /// <summary>Run FFmpeg with the given argument string.</summary>
     Task ConvertAsync(string inputFile, string outputFile, string arguments,
                       CancellationToken ct = default, IProgress<double>? progress = null);
 
-    /// <summary>Trim an audio file between start and end timestamps using stream copy.</summary>
+    /// <summary>Trim audio between two times (stream copy when possible).</summary>
     Task TrimAudioAsync(string inputFile, string outputFile,
                         TimeSpan start, TimeSpan end, CancellationToken ct = default);
 
     /// <summary>
-    /// Cut one or more keep-segments from a video and concatenate into a single file.
-    /// Prefers stream copy for speed; falls back to a fast re-encode when copy fails.
+    /// Keep one or more segments and join them into one file.
+    /// Tries stream copy first; re-encodes if copy fails.
     /// </summary>
     Task CutVideoSegmentsAsync(string inputFile, string outputFile,
                                IReadOnlyList<VideoCutSegment> segments,
                                CancellationToken ct = default,
                                IProgress<double>? progress = null);
 
-    /// <summary>Extract audio from a video file (strips video stream).</summary>
+    /// <summary>Pull audio out of a video.</summary>
     Task ExtractAudioAsync(string inputFile, string outputFile, CancellationToken ct = default,
                            IProgress<double>? progress = null);
 
-    /// <summary>Convert video to GIF with palette generation.</summary>
+    /// <summary>Make a GIF (palette pass included).</summary>
     Task ConvertToGifAsync(string inputFile, string outputFile, CancellationToken ct = default,
                            IProgress<double>? progress = null);
 }

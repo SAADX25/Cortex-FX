@@ -2,17 +2,14 @@ using System.IO;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
+using CortexFX.Core.Services.Infrastructure;
+using CortexFX.Core.Services.Media;
 using CortexFX.Models;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Documents;
 
 /// <summary>
-/// Central conversion router with:
-///   - Smart intent detection (metadata-aware suggestions)
-///   - True parallel batch processing with configurable concurrency
-///   - Unified engine selection: determines which service handles each conversion
-///
-/// Replaces the legacy document/media routing that used to live in MainWindow.
+/// Picks the right engine (Office, Magick, FFmpeg, …) for each conversion job.
 /// </summary>
 public sealed class ConversionRouter : IConversionRouter
 {
@@ -22,8 +19,8 @@ public sealed class ConversionRouter : IConversionRouter
     private readonly IOfficeInteropService _office;
     private readonly IPdfRenderService _pdfRenderer;
     private readonly IOptionalConversionService _optional;
-    private readonly FFmpegService _ffmpegConcrete; // For smart argument builders
-    private readonly MagickService _magickConcrete;  // For metadata reads
+    private readonly FFmpegService _ffmpegConcrete; // typed helpers (HW retry, video args)
+    private readonly MagickService _magickConcrete;  // image metadata for suggestions
 
     /// <summary>
     /// Maximum parallel conversions. Defaults to CPU core count, capped at 8
@@ -53,9 +50,7 @@ public sealed class ConversionRouter : IConversionRouter
         _magickConcrete = (magick as MagickService)!;
     }
 
-    // ------------------------------------------------------------------
     // IConversionRouter
-    // ------------------------------------------------------------------
 
     /// <inheritdoc />
     public IReadOnlyList<string> GetSupportedFormats(string inputExtension)
@@ -90,9 +85,9 @@ public sealed class ConversionRouter : IConversionRouter
                 outputPath = Path.Combine(outputDir, outputFileName);
             }
 
-            // --- Route to the correct engine ---
+            // Pick the right engine for this pair
 
-            // 1. Document → PDF (Office COM)
+            // Document → PDF
             if (IsDocumentToPdf(ext, target))
             {
                 int engineQuality = job.QualityLevel < 30 ? 0 : 1;
@@ -100,25 +95,25 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 2. PDF → Office (via COM bridge)
+            // PDF → Word / PowerPoint
             if (ext == ".pdf" && IsOfficeTarget(target))
             {
                 return await HandlePdfToOfficeAsync(job.InputPath, outputPath, target, ct, progress);
             }
 
-            // 3. Document bridge: Word ↔ PPT
+            // Word ↔ PowerPoint
             if (IsDocumentBridge(ext, target))
             {
                 return await HandleDocumentBridgeAsync(job.InputPath, outputPath, ext, target, ct, progress);
             }
 
-            // 3b. Optional local engines: LibreOffice, 7-Zip, Calibre
+            // LibreOffice / 7-Zip / Calibre when present
             if (_optional.CanConvert(ext, target))
             {
                 return await _optional.ConvertAsync(job.InputPath, outputPath, ext, target, ct, progress);
             }
 
-            // 4. Image → PDF (Magick native)
+            // Image → PDF
             if (MediaTypes.RasterImageExtensions.Contains(ext) && target == "pdf")
             {
                 await _magick.ConvertImageAsync(job.InputPath, outputPath,
@@ -127,15 +122,43 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 5. PDF → Image (Pdfium renderer)
+            // PDF → images (WebP needs Magick after PNG)
             if (ext == ".pdf" && MediaTypes.MagickOutputFormats.Contains(target))
             {
                 int dpi = PdfRenderService.QualityToDpi(job.QualityLevel, job.ImageOptions?.Dpi);
+
+                if (target.Equals("webp", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Pdfium can't write WebP — PNG first, then Magick.
+                    string tempDir = Path.Combine(Path.GetTempPath(), "CortexFX_PdfWebP_" + Guid.NewGuid().ToString("N"));
+                    try
+                    {
+                        await _pdfRenderer.RenderPdfToImagesAsync(job.InputPath, tempDir, "png", dpi, ct, progress);
+                        Directory.CreateDirectory(outputDir);
+                        var options = job.ImageOptions ?? new ImageConversionOptions(Quality: (int)job.QualityLevel);
+                        string[] pages = Directory.GetFiles(tempDir, "*.png");
+                        for (int i = 0; i < pages.Length; i++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            string webpName = Path.GetFileNameWithoutExtension(pages[i]) + ".webp";
+                            string webpPath = Path.Combine(outputDir, webpName);
+                            await _magick.ConvertImageAsync(pages[i], webpPath, options, ct);
+                            progress?.Report(((double)(i + 1) / Math.Max(pages.Length, 1)) * 100);
+                        }
+                    }
+                    finally
+                    {
+                        try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { /* best effort */ }
+                    }
+
+                    return ConversionResult.Ok(outputDir);
+                }
+
                 await _pdfRenderer.RenderPdfToImagesAsync(job.InputPath, outputDir, target, dpi, ct, progress);
-                return ConversionResult.Ok(outputDir); // Multiple output files
+                return ConversionResult.Ok(outputDir); // folder of page images
             }
 
-            // 6. Image -> Image (Magick). Keep still images off the FFmpeg video/GIF path.
+            // Image → image (keep still frames away from the video/GIF path)
             if (MediaTypes.RasterImageExtensions.Contains(ext) && MediaTypes.MagickOutputFormats.Contains(target))
             {
                 var options = job.ImageOptions ?? new ImageConversionOptions(Quality: (int)job.QualityLevel);
@@ -144,7 +167,7 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 7. Video/Audio → GIF (special FFmpeg pipeline)
+            // Video/audio → GIF
             if (target == "gif" && (MediaTypes.VideoExtensions.Contains(ext) || MediaTypes.AudioExtensions.Contains(ext)))
             {
                 await _ffmpeg.ConvertToGifAsync(job.InputPath, outputPath, ct, progress);
@@ -152,7 +175,7 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 8. Media → Audio extraction (FFmpeg -vn)
+            // Video → audio only
             if (MediaTypes.VideoExtensions.Contains(ext) && MediaTypes.AudioOutputFormats.Contains(target))
             {
                 await _ffmpeg.ExtractAudioAsync(job.InputPath, outputPath, ct, progress);
@@ -160,15 +183,15 @@ public sealed class ConversionRouter : IConversionRouter
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 9. Audio -> Audio (FFmpeg audio codecs only)
+            // Audio → audio
             if (MediaTypes.AudioExtensions.Contains(ext) && MediaTypes.AudioOutputFormats.Contains(target))
             {
-                string args = _ffmpegConcrete.BuildAudioArguments(job.InputPath, outputPath, target);
+                string args = _ffmpegConcrete.BuildAudioArguments(job.InputPath, outputPath, target, job.QualityLevel);
                 await _ffmpeg.ConvertAsync(job.InputPath, outputPath, args, ct, progress);
                 return ConversionResult.Ok(outputPath);
             }
 
-            // 10. Video -> Video (container-specific FFmpeg arguments)
+            // Video → video
             if (MediaTypes.VideoExtensions.Contains(ext) && MediaTypes.VideoOutputFormats.Contains(target))
             {
                 string args = _ffmpegConcrete.BuildVideoArguments(job.InputPath, outputPath,
@@ -207,9 +230,7 @@ public sealed class ConversionRouter : IConversionRouter
         }
     }
 
-    // ------------------------------------------------------------------
     // Batch processing with true parallelism
-    // ------------------------------------------------------------------
 
     /// <summary>
     /// Convert multiple files in parallel using the configured MaxParallelism.
@@ -273,9 +294,7 @@ public sealed class ConversionRouter : IConversionRouter
         return results;
     }
 
-    // ------------------------------------------------------------------
-    // Smart intent detection
-    // ------------------------------------------------------------------
+    // Suggest better defaults from file metadata
 
     /// <summary>
     /// Analyze a file and return smart conversion suggestions.
@@ -334,9 +353,7 @@ public sealed class ConversionRouter : IConversionRouter
         return null;
     }
 
-    // ------------------------------------------------------------------
     // Private routing helpers
-    // ------------------------------------------------------------------
 
     private static bool IsDocumentToPdf(string ext, string target)
     {
@@ -419,19 +436,17 @@ public sealed class ConversionRouter : IConversionRouter
     }
 }
 
-// ------------------------------------------------------------------
-// Supporting types
-// ------------------------------------------------------------------
+// Shared result types
 
-/// <summary>Progress report for batch conversion.</summary>
+/// <summary>How far a batch convert has gotten.</summary>
 public record BatchProgress(int TotalFiles, int CompletedFiles, int CurrentFileIndex, double CurrentFilePercent);
 
-/// <summary>Smart suggestion from the conversion router's intent analysis.</summary>
+/// <summary>Optional tip shown in the convert UI.</summary>
 public class ConversionSuggestion
 {
     public required string Warning { get; init; }
     public required string Recommendation { get; init; }
 
-    /// <summary>If true, Cortex FX applies the optimization automatically.</summary>
+    /// <summary>True when we already applied the tip for the user.</summary>
     public bool AutoApplied { get; init; }
 }

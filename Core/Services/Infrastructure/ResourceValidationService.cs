@@ -2,7 +2,7 @@ using System.IO;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Interfaces;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Infrastructure;
 
 public sealed class ResourceValidationService : IResourceValidationService
 {

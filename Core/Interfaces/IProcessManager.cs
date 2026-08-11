@@ -40,13 +40,12 @@ public sealed class ProcessExecutionException : InvalidOperationException
 }
 
 /// <summary>
-/// Unified abstraction for all external process execution and lifecycle management.
-/// Replaces legacy external-process execution and Office process cleanup helpers.
+/// Runs external tools (ffmpeg, magick, …) and can clean up stuck Office processes.
 /// </summary>
 public interface IProcessManager : IDisposable
 {
     /// <summary>
-    /// Run an external process synchronously. Throws on non-zero exit code.
+    /// Run a process and wait. Throws if the exit code is non-zero.
     /// </summary>
     ProcessResult RunSync(string exePath, string arguments, CancellationToken ct = default);
 

@@ -2,11 +2,10 @@ using System.Drawing.Imaging;
 using System.IO;
 using CortexFX.Core.Interfaces;
 
-namespace CortexFX.Core.Services;
+namespace CortexFX.Core.Services.Documents;
 
 /// <summary>
-/// PDF page rendering service using PdfiumViewer.
-/// Renders individual PDF pages to image files at configurable DPI.
+/// Turns PDF pages into image files (Pdfium). DPI controls sharpness.
 /// </summary>
 public sealed class PdfRenderService : IPdfRenderService
 {
@@ -67,7 +66,10 @@ public sealed class PdfRenderService : IPdfRenderService
             "bmp" => ImageFormat.Bmp,
             "gif" => ImageFormat.Gif,
             "tiff" or "tif" => ImageFormat.Tiff,
-            _ => ImageFormat.Jpeg, // jpg, jpeg, and anything else
+            "jpg" or "jpeg" => ImageFormat.Jpeg,
+            // WebP is handled upstream via Magick; refuse silent JPEG mislabeling.
+            "webp" => throw new NotSupportedException("WebP encoding is not available in PdfRenderService. Use ConversionRouter PDF→WebP path."),
+            _ => ImageFormat.Jpeg,
         };
     }
 }

@@ -12,19 +12,17 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
-namespace CortexFX.Views;
+namespace CortexFX.Views.Video;
 
 /// <summary>
-/// Self-contained Smart Video Compressor view.
-/// Call <see cref="Initialize"/> once to supply the resolved FFmpeg path,
-/// then subscribe to <see cref="CloseRequested"/> to navigate back to the dashboard.
-/// Compression state survives navigation so users can work elsewhere while FFmpeg runs.
+/// Video compressor screen. Call Initialize with the FFmpeg path, then
+/// subscribe to CloseRequested for Back. Session stays alive if the user leaves mid-job.
 /// </summary>
 public partial class VideoCompressorView : UserControl
 {
     public event EventHandler? CloseRequested;
 
-    /// <summary>True when a file is loaded or a compression job is active/finished in this session.</summary>
+    /// <summary>File loaded or a compress job still running / finished in this session.</summary>
     public bool HasActiveSession =>
         !string.IsNullOrEmpty(_inputFilePath) || IsCompressing || ResultCard.Visibility == Visibility.Visible;
 
@@ -77,9 +75,7 @@ public partial class VideoCompressorView : UserControl
             RefreshSessionChrome();
     }
 
-    // ------------------------------------------------------------------
     // Back / Close — keep session alive
-    // ------------------------------------------------------------------
 
     private void BackButton_Click(object sender, RoutedEventArgs e)
     {
@@ -98,9 +94,7 @@ public partial class VideoCompressorView : UserControl
         }
     }
 
-    // ------------------------------------------------------------------
     // Drop Zone
-    // ------------------------------------------------------------------
 
     private void DropZone_DragEnter(object sender, DragEventArgs e)
     {
@@ -159,9 +153,7 @@ public partial class VideoCompressorView : UserControl
             TryLoadFile(dlg.FileName);
     }
 
-    // ------------------------------------------------------------------
     // File Loading
-    // ------------------------------------------------------------------
 
     private async void TryLoadFile(string path)
     {
@@ -227,9 +219,7 @@ public partial class VideoCompressorView : UserControl
         ResetView(cancelRunningJob: true);
     }
 
-    // ------------------------------------------------------------------
     // Presets
-    // ------------------------------------------------------------------
 
     private void Preset_Checked(object sender, RoutedEventArgs e)
     {
@@ -329,9 +319,7 @@ public partial class VideoCompressorView : UserControl
         }
     }
 
-    // ------------------------------------------------------------------
     // Compression
-    // ------------------------------------------------------------------
 
     private async void CompressButton_Click(object sender, RoutedEventArgs e)
     {
@@ -388,7 +376,29 @@ public partial class VideoCompressorView : UserControl
         {
             try
             {
-                await RunFFmpegAsync(args, token);
+                try
+                {
+                    await RunFFmpegAsync(args, token);
+                }
+                catch (Exception) when (!token.IsCancellationRequested && IsHardwareEncoder(encoder))
+                {
+                    // GPU encoder advertised but failed — fall back to software like ConversionRouter.
+                    var (swEncoder, swQualityArgs, swLabel) = ResolveEncoder(wantHevc, crf, forceSoftware: true);
+                    encoder = swEncoder;
+                    encoderLabel = swLabel;
+                    string swArgs = $"-hide_banner -y -i \"{_inputFilePath}\" {swQualityArgs}";
+                    if (!string.IsNullOrEmpty(scaleFilter))
+                        swArgs += $" -vf \"{scaleFilter}\"";
+                    swArgs += $" -c:a aac -b:a 128k -movflags +faststart \"{outPath}\"";
+
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        ProgressDetailText.Text = $"Encoder: {swLabel} (GPU fallback)";
+                        ProgressStatusText.Text = "Retrying with CPU...";
+                    });
+
+                    await RunFFmpegAsync(swArgs, token);
+                }
 
                 await Dispatcher.InvokeAsync(() =>
                 {
@@ -453,34 +463,43 @@ public partial class VideoCompressorView : UserControl
         return "";
     }
 
-    private (string Encoder, string QualityArgs, string Label) ResolveEncoder(bool wantHevc, int crf)
+    private static bool IsHardwareEncoder(string encoder) =>
+        encoder.Contains("_nvenc", StringComparison.OrdinalIgnoreCase) ||
+        encoder.Contains("_qsv", StringComparison.OrdinalIgnoreCase) ||
+        encoder.Contains("_amf", StringComparison.OrdinalIgnoreCase);
+
+    private (string Encoder, string QualityArgs, string Label) ResolveEncoder(bool wantHevc, int crf, bool forceSoftware = false)
     {
         if (wantHevc)
         {
-            if (_hwCaps.HasNvencHevc)
-                return ("hevc_nvenc", $"-c:v hevc_nvenc -cq {crf} -preset p4 -rc vbr", "HEVC · NVIDIA GPU");
-            if (_hwCaps.HasQuickSyncHevc)
-                return ("hevc_qsv", $"-c:v hevc_qsv -global_quality {crf} -preset very_fast", "HEVC · Intel Quick Sync");
-            if (_hwCaps.HasAmfHevc)
-                return ("hevc_amf", $"-c:v hevc_amf -quality speed -rc cqp -qp_i {crf} -qp_p {crf}", "HEVC · AMD AMF");
+            if (!forceSoftware)
+            {
+                if (_hwCaps.HasNvencHevc)
+                    return ("hevc_nvenc", $"-c:v hevc_nvenc -cq {crf} -preset p4 -rc vbr", "HEVC · NVIDIA GPU");
+                if (_hwCaps.HasQuickSyncHevc)
+                    return ("hevc_qsv", $"-c:v hevc_qsv -global_quality {crf} -preset very_fast", "HEVC · Intel Quick Sync");
+                if (_hwCaps.HasAmfHevc)
+                    return ("hevc_amf", $"-c:v hevc_amf -quality speed -rc cqp -qp_i {crf} -qp_p {crf}", "HEVC · AMD AMF");
+            }
 
             // Software HEVC is slow — use a fast preset so SSD users aren't CPU-starved longer than needed.
             return ("libx265", $"-c:v libx265 -crf {crf} -preset veryfast -threads 0 -x265-params log-level=error", "HEVC · CPU (slower)");
         }
 
-        if (_hwCaps.HasNvenc)
-            return ("h264_nvenc", $"-c:v h264_nvenc -cq {crf} -preset p4 -rc vbr", "H.264 · NVIDIA GPU");
-        if (_hwCaps.HasQuickSync)
-            return ("h264_qsv", $"-c:v h264_qsv -global_quality {crf} -preset very_fast", "H.264 · Intel Quick Sync");
-        if (_hwCaps.HasAmf)
-            return ("h264_amf", $"-c:v h264_amf -quality speed -rc cqp -qp_i {crf} -qp_p {crf}", "H.264 · AMD AMF");
+        if (!forceSoftware)
+        {
+            if (_hwCaps.HasNvenc)
+                return ("h264_nvenc", $"-c:v h264_nvenc -cq {crf} -preset p4 -rc vbr", "H.264 · NVIDIA GPU");
+            if (_hwCaps.HasQuickSync)
+                return ("h264_qsv", $"-c:v h264_qsv -global_quality {crf} -preset very_fast", "H.264 · Intel Quick Sync");
+            if (_hwCaps.HasAmf)
+                return ("h264_amf", $"-c:v h264_amf -quality speed -rc cqp -qp_i {crf} -qp_p {crf}", "H.264 · AMD AMF");
+        }
 
         return ("libx264", $"-c:v libx264 -crf {crf} -preset veryfast -threads 0", "H.264 · CPU");
     }
 
-    // ------------------------------------------------------------------
     // Hardware probe
-    // ------------------------------------------------------------------
 
     private async Task ProbeHardwareEncodersAsync()
     {
@@ -549,9 +568,7 @@ public partial class VideoCompressorView : UserControl
         }
     }
 
-    // ------------------------------------------------------------------
     // FFmpeg execution with progress parsing
-    // ------------------------------------------------------------------
 
     private Task RunFFmpegAsync(string arguments, CancellationToken ct)
     {
@@ -657,9 +674,7 @@ public partial class VideoCompressorView : UserControl
         return tcs.Task;
     }
 
-    // ------------------------------------------------------------------
     // Result display
-    // ------------------------------------------------------------------
 
     private void ShowResult(string outputPath)
     {
@@ -699,9 +714,7 @@ public partial class VideoCompressorView : UserControl
         ResetView(cancelRunningJob: true);
     }
 
-    // ------------------------------------------------------------------
     // Video probing / thumbnail
-    // ------------------------------------------------------------------
 
     private async Task ProbeVideoAsync(string path)
     {
@@ -787,9 +800,7 @@ public partial class VideoCompressorView : UserControl
         catch { }
     }
 
-    // ------------------------------------------------------------------
     // Helpers
-    // ------------------------------------------------------------------
 
     private void ResetView(bool cancelRunningJob)
     {

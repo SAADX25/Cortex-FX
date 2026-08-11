@@ -1,23 +1,22 @@
 namespace CortexFX.Core.Configuration;
 
 /// <summary>
-/// Centralized configuration contract. Replaces all hardcoded paths 
-/// and scattered ResourcesDirectory property lookups.
+/// Paths to bundled tools under Resources/ (ffmpeg, magick, …).
 /// </summary>
 public interface IAppConfiguration
 {
-    /// <summary>Root Resources directory containing external tools.</summary>
+    /// <summary>Folder that holds the external tools.</summary>
     string ResourcesDirectory { get; }
 
-    /// <summary>Full path to ffmpeg.exe.</summary>
+    /// <summary>Path to ffmpeg.exe.</summary>
     string FFmpegPath { get; }
 
-    /// <summary>Full path to magick.exe (ImageMagick).</summary>
+    /// <summary>Path to magick.exe.</summary>
     string MagickPath { get; }
 
-    /// <summary>Full path to pdftocairo.exe.</summary>
+    /// <summary>Path to pdftocairo.exe.</summary>
     string PdfToCairoPath { get; }
 
-    /// <summary>Directory containing FFmpeg shared libraries (avcodec-58.dll etc.).</summary>
+    /// <summary>Folder with FFmpeg DLLs used by FFME (avcodec, …).</summary>
     string FFmpegLibsDirectory { get; }
 }

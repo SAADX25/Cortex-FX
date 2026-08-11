@@ -31,16 +31,19 @@ using CortexFX.Core.Audio;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
-using CortexFX.Core.Services;
+using CortexFX.Core.Services.Infrastructure;
+using CortexFX.Dialogs;
 using CortexFX.Models;
 
 namespace CortexFX;
 
 /// <summary>
-/// Interaction logic for MainWindow.xaml
+/// Main window code-behind: dashboard, convert flow, and audio cutter.
 /// </summary>
 public partial class MainWindow : Window
 {
+    #region Fields
+
     private readonly IAppConfiguration _config;
     private readonly IConversionRouter _conversionRouter;
     private readonly IProcessManager _processManager;
@@ -76,6 +79,11 @@ public partial class MainWindow : Window
 
     // FFME
     private string _ffmpegBinPath = string.Empty;
+
+    #endregion
+
+    #region Construction & Startup
+
     public MainWindow(
         IAppConfiguration config,
         IConversionRouter conversionRouter,
@@ -94,22 +102,19 @@ public partial class MainWindow : Window
         {
             InitializeComponent();
 
-            // Initialize the Video Compressor / Cutter views
             VideoCompressorEditor.Initialize(_config.FFmpegPath);
             VideoCompressorEditor.CloseRequested += (s, e) => SwitchToMode(AppMode.Dashboard);
             VideoCutterEditor.Initialize(_config.FFmpegPath);
             VideoCutterEditor.CloseRequested += (s, e) => SwitchToMode(AppMode.Dashboard);
 
             FilesList.ItemsSource = _filesToConvert;
-            // Trigger initial population
             PopulateFormats("Document");
 
-            // Set Version
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
             VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.0.0";
             ConsoleLogger.Info("UI", $"Version label set to {VersionText.Text}.");
 
-            // Handle context menu startup file
+            // File passed from Explorer context menu
             if (!string.IsNullOrEmpty(startupFile) && File.Exists(startupFile))
             {
                 ConsoleLogger.Info("Startup", $"Startup file detected: {ConsoleLogger.ShortPath(startupFile)}");
@@ -117,13 +122,11 @@ public partial class MainWindow : Window
                 ShowConversionView();
             }
 
-            // Check registry state for checkbox
             if (ContextMenuCheckBox != null)
             {
                 ContextMenuCheckBox.IsChecked = RegistryManager.IsRegistered();
             }
 
-            // Explicitly hide TopNav on startup
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
             UpdateConvertButtonAvailability();
         }
@@ -131,7 +134,6 @@ public partial class MainWindow : Window
         {
             ConsoleLogger.Error("Startup", ex.Message);
             MessageBox.Show($"Startup Error: {ex}", "Cortex FX Crash", MessageBoxButton.OK, MessageBoxImage.Error);
-            // Ensure the app shuts down cleanly if startup fails
             Application.Current.Shutdown();
         }
     }
@@ -257,6 +259,10 @@ public partial class MainWindow : Window
         builder.AppendLine("Resources\\ffmpeg_libs\\*.dll");
         return builder.ToString();
     }
+
+    #endregion
+
+    #region Dashboard / Navigation
 
     private void ShowConversionView(string? toolTag = null)
     {
@@ -469,7 +475,8 @@ public partial class MainWindow : Window
                 FormatComboBox.IsEnabled = false; // Disabled until file drop
             }
 
-            // _filesToConvert.Clear(); // PERSISTENCE FIX: Do not clear files when switching tabs
+            // Keep the file list when switching tabs
+            // _filesToConvert.Clear();
         }
         else if (mode == AppMode.VideoCompressor)
         {
@@ -580,7 +587,7 @@ public partial class MainWindow : Window
 
     private void ConfigureTool(string tag)
     {
-        // Legacy bridge: Map tag to mode and call SwitchToMode
+        // Dashboard tool tag → mode
         var mode = GetModeForToolTag(tag);
 
         if (mode != AppMode.Unknown)
@@ -635,6 +642,10 @@ public partial class MainWindow : Window
             SwitchToMode(AppMode.Dashboard);
         }
     }
+
+    #endregion
+
+    #region Files & Formats
 
     private void RefreshFormatsFromSelectedFiles()
     {
@@ -846,6 +857,10 @@ public partial class MainWindow : Window
             : null;
     }
 
+    #endregion
+
+    #region Settings / Overlays / Shell
+
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
         SettingsOverlay.Visibility = Visibility.Visible;
@@ -937,6 +952,10 @@ public partial class MainWindow : Window
         }
     }
 
+    #endregion
+
+    #region Drag-Drop & File Picking
+
     private void DropZone_DragEnter(object sender, DragEventArgs e)
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -959,31 +978,28 @@ public partial class MainWindow : Window
             string[]? items = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (items != null)
             {
-                // 1. Single Audio File Detection (Audio Editor Mode)
+                // One audio file → ask trim vs convert
                 if (items.Length == 1 && File.Exists(items[0]))
                 {
                     string ext = System.IO.Path.GetExtension(items[0]).ToLower();
                     if (MediaTypes.AudioEditorExtensions.Contains(ext))
                     {
-                        // NEW LOGIC: Show Choice Overlay
+                        // Ask: trim or convert?
                         _pendingAudioFile = items[0];
                         AudioChoiceOverlay.Visibility = Visibility.Visible;
-                        return; // Stop normal processing
+                        return; // don't add to the convert list yet
                     }
                 }
 
                 bool invalidFound = false;
 
-                // Universal Mode Logic
                 if (_currentMode == AppMode.Universal && items.Any(File.Exists))
                 {
-                    // Take the first file's extension to determine capabilities
                     string firstFile = items.First(File.Exists);
                     string ext = System.IO.Path.GetExtension(firstFile).ToLower();
 
                     if (_conversionRules.ContainsKey(ext))
                     {
-                        // Found supported type!
                         var formats = _conversionRules[ext];
                         FormatComboBox.Items.Clear();
                         foreach (var fmt in formats)
@@ -1145,15 +1161,15 @@ public partial class MainWindow : Window
         {
             string[] selectedFiles = dialog.FileNames;
 
-            // Check if Single Audio File -> Show Overlay
+            // One audio file → ask trim vs convert first
             if (selectedFiles.Length == 1)
             {
                 string ext = System.IO.Path.GetExtension(selectedFiles[0]).ToLower();
                 if (MediaTypes.AudioEditorExtensions.Contains(ext))
                 {
-                    _pendingAudioFile = selectedFiles[0]; // Store for later
-                    AudioChoiceOverlay.Visibility = Visibility.Visible; // Show the Choice Screen
-                    return; // STOP here, don't load into list yet
+                    _pendingAudioFile = selectedFiles[0];
+                    AudioChoiceOverlay.Visibility = Visibility.Visible;
+                    return;
                 }
             }
 
@@ -1192,14 +1208,17 @@ public partial class MainWindow : Window
         }
     }
 
+    #endregion
+
+    #region Universal Conversion
+
     private void PopulateFormats(string category, string? strictTarget = null)
     {
         if (FormatComboBox == null) return;
 
-        // 1. Clear items first to avoid duplication
         FormatComboBox.Items.Clear();
 
-        // If strict target is provided (Standard Mode), only add that and return
+        // One locked target (e.g. PDF→Word tool)
         if (strictTarget != null)
         {
             FormatComboBox.Items.Add(new ComboBoxItem { Content = strictTarget.ToUpper() });
@@ -1207,10 +1226,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Use a set to track added formats and prevent duplicates
         HashSet<string> addedFormats = new HashSet<string>();
 
-        // Helper to add unique items
         void AddFormat(string fmt)
         {
             if (!addedFormats.Contains(fmt))
@@ -1249,7 +1266,7 @@ public partial class MainWindow : Window
 
         if (category == "Document")
         {
-            // 2. Distinct Logic: Check Input Types
+            // Extra targets based on what's in the list
             bool hasPdf = _filesToConvert.Any(f => System.IO.Path.GetExtension(f.FullPath).ToLower() == ".pdf");
             bool hasWord = _filesToConvert.Any(f =>
             {
@@ -1283,7 +1300,6 @@ public partial class MainWindow : Window
             if (hasExcel) AddFormat("XLSX");
         }
 
-        // 3. Default Selection
         if (FormatComboBox.Items.Count > 0)
             FormatComboBox.SelectedIndex = 0;
     }
@@ -1516,7 +1532,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 1. Validate Output Path
         if (string.IsNullOrWhiteSpace(OutputPathBox.Text))
         {
             OutputPathBox.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4D5E"));
@@ -1774,6 +1789,10 @@ public partial class MainWindow : Window
 
         UpdateConvertButtonAvailability();
     }
+
+    #endregion
+
+    #region Audio Cutter
 
     // --- Audio Editor Implementation ---
 
@@ -2608,13 +2627,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 1. Pause Playback (Safety)
+        // Pause first so FFmpeg isn't fighting the player
         if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
         {
             StopAudioPlayback(resetToSelectionStart: false);
         }
 
-        // 2. Prepare Default Filename
         string dir = System.IO.Path.GetDirectoryName(_currentAudioFile) ?? "";
         string name = System.IO.Path.GetFileNameWithoutExtension(_currentAudioFile);
         string ext = System.IO.Path.GetExtension(_currentAudioFile);
@@ -2623,7 +2641,7 @@ public partial class MainWindow : Window
             ext = ".wav";
         }
 
-        // 3. Open SaveFileDialog (all common audio formats)
+        // Let the user pick format + path
         string preferredExt = string.IsNullOrWhiteSpace(ext) ? ".mp3" : ext.ToLowerInvariant();
         var saveDialog = new Microsoft.Win32.SaveFileDialog
         {
@@ -2642,7 +2660,7 @@ public partial class MainWindow : Window
             InitialDirectory = dir
         };
 
-        // Pre-select matching filter index when possible
+        // Match filter to the source extension when we can
         saveDialog.FilterIndex = preferredExt switch
         {
             ".mp3" => 1,
@@ -2659,7 +2677,6 @@ public partial class MainWindow : Window
         {
             string outputFile = saveDialog.FileName;
 
-            // 4. Validation: Prevent Overwriting Source
             if (string.Equals(outputFile, _currentAudioFile, StringComparison.OrdinalIgnoreCase))
             {
                 MessageBox.Show("Cannot overwrite the source file while it is open. Please choose a different name.", "File Locked", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -2672,7 +2689,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // 5. Construct Arguments — apply saved volume preference to every export format
+            // Bake preferred volume into the export (all formats)
             string start = _selectionStart.ToString(@"hh\:mm\:ss\.fff");
             string duration = selectedDuration.ToString(@"hh\:mm\:ss\.fff");
             double volumeGain = GetExportVolumeGain();
@@ -2799,6 +2816,10 @@ public partial class MainWindow : Window
         SwitchToMode(returnMode);
     }
 
+    #endregion
+
+    #region Audio Choice Overlay
+
     private void SetCategoryRadioChecked(string category)
     {
         if (RadioImage != null) RadioImage.IsChecked = category == "Image";
@@ -2835,4 +2856,5 @@ public partial class MainWindow : Window
         _pendingAudioFile = null;
     }
 
+    #endregion
 }

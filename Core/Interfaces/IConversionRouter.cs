@@ -3,20 +3,14 @@ using CortexFX.Models;
 namespace CortexFX.Core.Interfaces;
 
 /// <summary>
-/// Central routing engine that determines which service handles a given conversion.
-/// Replaces the legacy routing block in MainWindow.ConvertButton_Click().
+/// Decides which engine runs a conversion job.
 /// </summary>
 public interface IConversionRouter
 {
-    /// <summary>
-    /// Get supported output formats for a given input file extension.
-    /// </summary>
+    /// <summary>Output formats available for this input extension.</summary>
     IReadOnlyList<string> GetSupportedFormats(string inputExtension);
 
-    /// <summary>
-    /// Execute the correct engine pipeline for a conversion job.
-    /// Returns a result indicating success or failure.
-    /// </summary>
+    /// <summary>Run one conversion job.</summary>
     Task<ConversionResult> ConvertAsync(ConversionJob job, CancellationToken ct = default,
                                          IProgress<double>? progress = null);
 }

@@ -1,7 +1,7 @@
 namespace CortexFX.Core.Interfaces;
 
 /// <summary>
-/// Contract for rendering PDF pages to image files (via PdfiumViewer).
+/// Draw PDF pages out to image files (Pdfium).
 /// </summary>
 public interface IPdfRenderService
 {
