@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
@@ -17,51 +18,84 @@ namespace CortexFX.Views;
 /// Self-contained Smart Video Compressor view.
 /// Call <see cref="Initialize"/> once to supply the resolved FFmpeg path,
 /// then subscribe to <see cref="CloseRequested"/> to navigate back to the dashboard.
+/// Compression state survives navigation so users can work elsewhere while FFmpeg runs.
 /// </summary>
 public partial class VideoCompressorView : UserControl
 {
-    // ------------------------------------------------------------------
-    // Public surface used by MainWindow.
-    // ------------------------------------------------------------------
-
-    /// <summary>Raised when the user clicks the back arrow.</summary>
     public event EventHandler? CloseRequested;
 
-    /// <summary>Supply the resolved FFmpeg executable path (from MainWindow).</summary>
+    /// <summary>True when a file is loaded or a compression job is active/finished in this session.</summary>
+    public bool HasActiveSession =>
+        !string.IsNullOrEmpty(_inputFilePath) || IsCompressing || ResultCard.Visibility == Visibility.Visible;
+
+    public bool IsCompressing =>
+        _compressTask is { IsCompleted: false } ||
+        (_ffmpegProcess is { HasExited: false });
+
     public void Initialize(string ffmpegPath)
     {
         _ffmpegPath = ffmpegPath;
+        _ = ProbeHardwareEncodersAsync();
     }
-
-    // ------------------------------------------------------------------
-    // Private state
-    // ------------------------------------------------------------------
 
     private string _ffmpegPath = string.Empty;
     private string? _inputFilePath;
-    private string? _outputFolderOverride; // null = same folder as input
+    private string? _outputFolderOverride;
     private string? _lastOutputPath;
     private CancellationTokenSource? _cts;
     private Process? _ffmpegProcess;
+    private Task? _compressTask;
     private TimeSpan _totalDuration = TimeSpan.Zero;
+    private string _activeEncoderLabel = "CPU";
+    private HardwareCaps _hwCaps = new();
 
-    // Supported extensions
     private static readonly string[] SupportedExtensions =
         { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".ts", ".mts" };
+
+    private sealed class HardwareCaps
+    {
+        public bool HasNvenc;
+        public bool HasNvencHevc;
+        public bool HasQuickSync;
+        public bool HasQuickSyncHevc;
+        public bool HasAmf;
+        public bool HasAmfHevc;
+
+        public bool HasAnyH264 => HasNvenc || HasQuickSync || HasAmf;
+        public bool HasAnyHevc => HasNvencHevc || HasQuickSyncHevc || HasAmfHevc;
+    }
 
     public VideoCompressorView()
     {
         InitializeComponent();
+        IsVisibleChanged += VideoCompressorView_IsVisibleChanged;
+    }
+
+    private void VideoCompressorView_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible)
+            RefreshSessionChrome();
     }
 
     // ------------------------------------------------------------------
-    // Back / Close
+    // Back / Close — keep session alive
     // ------------------------------------------------------------------
 
     private void BackButton_Click(object sender, RoutedEventArgs e)
     {
-        ResetView();
+        // Do NOT reset or kill FFmpeg. User can leave and return to the same job.
         CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RefreshSessionChrome()
+    {
+        BackgroundJobBadge.Visibility = IsCompressing ? Visibility.Visible : Visibility.Collapsed;
+
+        if (IsCompressing)
+        {
+            ProgressPanel.Visibility = Visibility.Visible;
+            CompressButton.IsEnabled = false;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -73,16 +107,16 @@ public partial class VideoCompressorView : UserControl
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy;
-            DropZoneBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(
-                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF3348"));
+            DropZoneBorder.BorderBrush = BrushFrom("#FF5A3D");
+            DropZoneBorder.BorderThickness = new Thickness(2);
         }
         e.Handled = true;
     }
 
     private void DropZone_DragLeave(object sender, DragEventArgs e)
     {
-        DropZoneBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#473039"));
+        DropZoneBorder.BorderBrush = BrushFrom("#4A3038");
+        DropZoneBorder.BorderThickness = new Thickness(1.5);
         e.Handled = true;
     }
 
@@ -91,28 +125,38 @@ public partial class VideoCompressorView : UserControl
         DropZone_DragLeave(sender, e);
 
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
-        {
             TryLoadFile(files[0]);
-        }
     }
 
     private void DropZone_Click(object sender, MouseButtonEventArgs e)
     {
+        if (IsCompressing)
+        {
+            MessageBox.Show(
+                "A compression job is already running. Wait for it to finish or cancel it first.",
+                "Compression in progress",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            e.Handled = true;
+            return;
+        }
+
         OpenFilePicker();
         e.Handled = true;
     }
 
     public void OpenFilePicker()
     {
+        if (IsCompressing)
+            return;
+
         var dlg = new OpenFileDialog
         {
             Title = "Select a Video File",
             Filter = "Video Files|*.mp4;*.mov;*.avi;*.mkv;*.webm;*.flv;*.wmv;*.m4v;*.ts;*.mts|All Files|*.*"
         };
         if (dlg.ShowDialog() == true)
-        {
             TryLoadFile(dlg.FileName);
-        }
     }
 
     // ------------------------------------------------------------------
@@ -121,6 +165,16 @@ public partial class VideoCompressorView : UserControl
 
     private async void TryLoadFile(string path)
     {
+        if (IsCompressing)
+        {
+            MessageBox.Show(
+                "Finish or cancel the current compression before loading another video.",
+                "Compression in progress",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
         string ext = Path.GetExtension(path).ToLowerInvariant();
         if (Array.IndexOf(SupportedExtensions, ext) < 0)
         {
@@ -134,35 +188,43 @@ public partial class VideoCompressorView : UserControl
         _lastOutputPath = null;
 
         FileNameText.Text = Path.GetFileName(path);
+        FileSizeText.Text = FormatBytes(new FileInfo(path).Length);
 
-        var fi = new FileInfo(path);
-        FileSizeText.Text = FormatBytes(fi.Length);
-
-        // Probe video metadata via FFmpeg
         await ProbeVideoAsync(path);
-
-        // Generate thumbnail
         await GenerateThumbnailAsync(path);
 
-        // Show UI sections
         DropZoneBorder.Visibility = Visibility.Collapsed;
         FileInfoCard.Visibility = Visibility.Visible;
         PresetsPanel.Visibility = Visibility.Visible;
         QualityPanel.Visibility = Visibility.Visible;
         OutputPanel.Visibility = Visibility.Visible;
         CompressButton.Visibility = Visibility.Visible;
+        CompressButton.IsEnabled = true;
         ResultCard.Visibility = Visibility.Collapsed;
         ProgressPanel.Visibility = Visibility.Collapsed;
+        BackgroundJobBadge.Visibility = Visibility.Collapsed;
 
-        // Apply default preset
+        PresetSocial.IsChecked = true;
         Preset_Checked(PresetSocial, new RoutedEventArgs());
+        UpdateEncoderCapabilityText();
 
-        OutputPathText.Text = $"Output: {Path.GetDirectoryName(path)}";
+        OutputPathText.Text = Path.GetDirectoryName(path) ?? path;
     }
 
     private void RemoveFile_Click(object sender, RoutedEventArgs e)
     {
-        ResetView();
+        if (IsCompressing)
+        {
+            var answer = MessageBox.Show(
+                "Compression is still running. Cancel it and clear this video?",
+                "Cancel compression?",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.Yes)
+                return;
+        }
+
+        ResetView(cancelRunningJob: true);
     }
 
     // ------------------------------------------------------------------
@@ -171,13 +233,11 @@ public partial class VideoCompressorView : UserControl
 
     private void Preset_Checked(object sender, RoutedEventArgs e)
     {
-        // Guard: fired during InitializeComponent() before child elements exist
         if (CrfSlider is null) return;
-
         if (sender is not RadioButton rb) return;
+
         string tag = rb.Tag?.ToString() ?? "";
 
-        // Preset CRF values & resolution defaults
         switch (tag)
         {
             case "Social Media":
@@ -196,30 +256,65 @@ public partial class VideoCompressorView : UserControl
                 CodecH264.IsChecked = true;
                 break;
             case "High Quality":
+                // Prefer H.264 (often GPU-accelerated). H.265 software is very slow.
                 CrfSlider.Value = 20;
                 ResOriginal.IsChecked = true;
-                CodecH265.IsChecked = true;
+                CodecH264.IsChecked = true;
                 break;
             case "Custom":
-                // Unlock — don't override values
                 break;
         }
 
-        // Enable/disable custom controls
-        bool isCustom = tag == "Custom";
-        CrfSlider.IsEnabled = isCustom;
-        // Resolution & codec radios always enabled for custom
+        if (PresetHintText != null)
+        {
+            PresetHintText.Text = tag switch
+            {
+                "Social Media" => "Social Media — sharp enough for feeds, much smaller size.",
+                "Email Ready" => "Email Ready — tiny files that send quickly.",
+                "Balanced" => "Balanced — good quality with a sensible file size.",
+                "High Quality" => "High Quality — keeps detail. Uses fast H.264 (GPU when available).",
+                "Custom" => "Custom — drag the slider and pick resolution & codec yourself.",
+                _ => "Choose how aggressively you want to shrink the video."
+            };
+        }
+
+        CrfSlider.IsEnabled = tag == "Custom";
+        UpdateQualityLabel();
     }
 
     private void CrfSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (CrfValueText != null)
             CrfValueText.Text = ((int)CrfSlider.Value).ToString();
+        UpdateQualityLabel();
     }
 
-    // ------------------------------------------------------------------
-    // Output path
-    // ------------------------------------------------------------------
+    private void UpdateQualityLabel()
+    {
+        if (QualityLabelText is null || CrfSlider is null) return;
+
+        int crf = (int)CrfSlider.Value;
+        if (crf <= 20)
+        {
+            QualityLabelText.Text = "Near-original detail · larger file";
+            QualityLabelText.Foreground = BrushFrom("#2ED47A");
+        }
+        else if (crf <= 26)
+        {
+            QualityLabelText.Text = "Balanced quality · recommended for most videos";
+            QualityLabelText.Foreground = BrushFrom("#F59E0B");
+        }
+        else if (crf <= 32)
+        {
+            QualityLabelText.Text = "Smaller file · fine for social & sharing";
+            QualityLabelText.Foreground = BrushFrom("#FF6B4A");
+        }
+        else
+        {
+            QualityLabelText.Text = "Maximum compression · visible quality loss";
+            QualityLabelText.Foreground = BrushFrom("#FF4D5E");
+        }
+    }
 
     private void ChangeOutput_Click(object sender, RoutedEventArgs e)
     {
@@ -230,7 +325,7 @@ public partial class VideoCompressorView : UserControl
         if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
         {
             _outputFolderOverride = dlg.SelectedPath;
-            OutputPathText.Text = $"Output: {_outputFolderOverride}";
+            OutputPathText.Text = _outputFolderOverride;
         }
     }
 
@@ -240,6 +335,9 @@ public partial class VideoCompressorView : UserControl
 
     private async void CompressButton_Click(object sender, RoutedEventArgs e)
     {
+        if (IsCompressing)
+            return;
+
         if (string.IsNullOrEmpty(_inputFilePath) || !File.Exists(_inputFilePath))
         {
             MessageBox.Show("No input file selected.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -253,78 +351,96 @@ public partial class VideoCompressorView : UserControl
             return;
         }
 
-        // Build output path
         string outDir = _outputFolderOverride ?? Path.GetDirectoryName(_inputFilePath)!;
         string baseName = Path.GetFileNameWithoutExtension(_inputFilePath);
-        string outExt = ".mp4"; // Always output MP4
-        string outPath = Path.Combine(outDir, $"{baseName}_compressed{outExt}");
+        string outPath = Path.Combine(outDir, $"{baseName}_compressed.mp4");
 
-        // Avoid overwriting
         int counter = 1;
         while (File.Exists(outPath))
-        {
-            outPath = Path.Combine(outDir, $"{baseName}_compressed_{counter++}{outExt}");
-        }
+            outPath = Path.Combine(outDir, $"{baseName}_compressed_{counter++}.mp4");
 
         _lastOutputPath = outPath;
 
-        // Build FFmpeg arguments
         int crf = (int)CrfSlider.Value;
-        string codec = CodecH265.IsChecked == true ? "libx265" : "libx264";
-        string scaleFilter = GetScaleFilter();
+        bool wantHevc = CodecH265.IsChecked == true;
+        var (encoder, qualityArgs, encoderLabel) = ResolveEncoder(wantHevc, crf);
+        _activeEncoderLabel = encoderLabel;
 
-        string args = $"-i \"{_inputFilePath}\" -c:v {codec} -crf {crf} -preset medium";
+        string scaleFilter = GetScaleFilter();
+        string args = $"-hide_banner -y -i \"{_inputFilePath}\" {qualityArgs}";
         if (!string.IsNullOrEmpty(scaleFilter))
             args += $" -vf \"{scaleFilter}\"";
-        args += $" -c:a aac -b:a 128k -movflags +faststart -y \"{outPath}\"";
+        args += $" -c:a aac -b:a 128k -movflags +faststart \"{outPath}\"";
 
-        // UI state
         CompressButton.IsEnabled = false;
         ProgressPanel.Visibility = Visibility.Visible;
         ResultCard.Visibility = Visibility.Collapsed;
+        BackgroundJobBadge.Visibility = Visibility.Visible;
         CompressionProgress.Value = 0;
         ProgressPercentText.Text = "0%";
         ProgressStatusText.Text = "Starting...";
-        ProgressDetailText.Text = "";
+        ProgressDetailText.Text = $"Encoder: {encoderLabel}";
 
         _cts = new CancellationTokenSource();
+        var token = _cts.Token;
 
-        try
+        _compressTask = Task.Run(async () =>
         {
-            await RunFFmpegAsync(args, _cts.Token);
+            try
+            {
+                await RunFFmpegAsync(args, token);
 
-            if (_cts.IsCancellationRequested)
-            {
-                ProgressStatusText.Text = "Cancelled";
-                // Clean up partial file
-                try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        ProgressStatusText.Text = "Cancelled";
+                        BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                        try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
+                    }
+                    else
+                    {
+                        ShowResult(outPath);
+                    }
+                });
             }
-            else
+            catch (Exception ex)
             {
-                // Show results
-                ShowResult(outPath);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show($"Compression failed:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    ProgressStatusText.Text = "Failed";
+                    ProgressDetailText.Text = encoderLabel;
+                    BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                });
             }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Compression failed:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            ProgressStatusText.Text = "Failed";
-        }
-        finally
-        {
-            CompressButton.IsEnabled = true;
-        }
+            finally
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CompressButton.IsEnabled = true;
+                    BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                    _compressTask = null;
+                });
+            }
+        }, token);
+
+        await _compressTask;
     }
 
     private void CancelCompress_Click(object sender, RoutedEventArgs e)
     {
-        _cts?.Cancel();
+        CancelCompressIfRunning();
+        ProgressStatusText.Text = "Cancelling...";
+    }
+
+    private void CancelCompressIfRunning()
+    {
+        try { _cts?.Cancel(); } catch { }
         try
         {
-            if (_ffmpegProcess != null && !_ffmpegProcess.HasExited)
-            {
-                _ffmpegProcess.Kill();
-            }
+            if (_ffmpegProcess is { HasExited: false })
+                _ffmpegProcess.Kill(entireProcessTree: true);
         }
         catch { }
     }
@@ -334,7 +450,103 @@ public partial class VideoCompressorView : UserControl
         if (Res1080.IsChecked == true) return "scale=-2:1080";
         if (Res720.IsChecked == true) return "scale=-2:720";
         if (Res480.IsChecked == true) return "scale=-2:480";
-        return ""; // Original
+        return "";
+    }
+
+    private (string Encoder, string QualityArgs, string Label) ResolveEncoder(bool wantHevc, int crf)
+    {
+        if (wantHevc)
+        {
+            if (_hwCaps.HasNvencHevc)
+                return ("hevc_nvenc", $"-c:v hevc_nvenc -cq {crf} -preset p4 -rc vbr", "HEVC · NVIDIA GPU");
+            if (_hwCaps.HasQuickSyncHevc)
+                return ("hevc_qsv", $"-c:v hevc_qsv -global_quality {crf} -preset very_fast", "HEVC · Intel Quick Sync");
+            if (_hwCaps.HasAmfHevc)
+                return ("hevc_amf", $"-c:v hevc_amf -quality speed -rc cqp -qp_i {crf} -qp_p {crf}", "HEVC · AMD AMF");
+
+            // Software HEVC is slow — use a fast preset so SSD users aren't CPU-starved longer than needed.
+            return ("libx265", $"-c:v libx265 -crf {crf} -preset veryfast -threads 0 -x265-params log-level=error", "HEVC · CPU (slower)");
+        }
+
+        if (_hwCaps.HasNvenc)
+            return ("h264_nvenc", $"-c:v h264_nvenc -cq {crf} -preset p4 -rc vbr", "H.264 · NVIDIA GPU");
+        if (_hwCaps.HasQuickSync)
+            return ("h264_qsv", $"-c:v h264_qsv -global_quality {crf} -preset very_fast", "H.264 · Intel Quick Sync");
+        if (_hwCaps.HasAmf)
+            return ("h264_amf", $"-c:v h264_amf -quality speed -rc cqp -qp_i {crf} -qp_p {crf}", "H.264 · AMD AMF");
+
+        return ("libx264", $"-c:v libx264 -crf {crf} -preset veryfast -threads 0", "H.264 · CPU");
+    }
+
+    // ------------------------------------------------------------------
+    // Hardware probe
+    // ------------------------------------------------------------------
+
+    private async Task ProbeHardwareEncodersAsync()
+    {
+        if (string.IsNullOrEmpty(_ffmpegPath) || !File.Exists(_ffmpegPath))
+        {
+            UpdateEncoderCapabilityText();
+            return;
+        }
+
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = _ffmpegPath,
+                Arguments = "-hide_banner -encoders",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using var proc = Process.Start(psi);
+            if (proc == null) return;
+
+            string stdout = await proc.StandardOutput.ReadToEndAsync();
+            string stderr = await proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync();
+
+            string output = stdout + stderr;
+            _hwCaps = new HardwareCaps
+            {
+                HasNvenc = output.Contains("h264_nvenc", StringComparison.OrdinalIgnoreCase),
+                HasNvencHevc = output.Contains("hevc_nvenc", StringComparison.OrdinalIgnoreCase),
+                HasQuickSync = output.Contains("h264_qsv", StringComparison.OrdinalIgnoreCase),
+                HasQuickSyncHevc = output.Contains("hevc_qsv", StringComparison.OrdinalIgnoreCase),
+                HasAmf = output.Contains("h264_amf", StringComparison.OrdinalIgnoreCase),
+                HasAmfHevc = output.Contains("hevc_amf", StringComparison.OrdinalIgnoreCase)
+            };
+        }
+        catch
+        {
+            _hwCaps = new HardwareCaps();
+        }
+
+        await Dispatcher.InvokeAsync(UpdateEncoderCapabilityText);
+    }
+
+    private void UpdateEncoderCapabilityText()
+    {
+        if (EncoderCapabilityText is null) return;
+
+        if (_hwCaps.HasAnyH264 || _hwCaps.HasAnyHevc)
+        {
+            string gpu =
+                _hwCaps.HasNvenc || _hwCaps.HasNvencHevc ? "NVIDIA NVENC" :
+                _hwCaps.HasQuickSync || _hwCaps.HasQuickSyncHevc ? "Intel Quick Sync" :
+                "AMD AMF";
+
+            EncoderCapabilityText.Text = $"GPU acceleration available ({gpu}). Compression uses the GPU when possible — much faster than CPU-only.";
+            EncoderCapabilityText.Foreground = BrushFrom("#2ED47A");
+        }
+        else
+        {
+            EncoderCapabilityText.Text = "No GPU encoder detected. Using a fast CPU preset. Tip: SSD helps loading files, but encode speed depends on CPU/GPU — prefer H.264 for speed.";
+            EncoderCapabilityText.Foreground = BrushFrom("#F59E0B");
+        }
     }
 
     // ------------------------------------------------------------------
@@ -343,7 +555,7 @@ public partial class VideoCompressorView : UserControl
 
     private Task RunFFmpegAsync(string arguments, CancellationToken ct)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         _ffmpegProcess = new Process
         {
@@ -359,12 +571,10 @@ public partial class VideoCompressorView : UserControl
             EnableRaisingEvents = true
         };
 
-        _ffmpegProcess.ErrorDataReceived += (s, e) =>
+        _ffmpegProcess.ErrorDataReceived += (_, e) =>
         {
             if (string.IsNullOrEmpty(e.Data)) return;
 
-            // Parse duration from initial metadata
-            // "Duration: 00:05:32.10"
             var durMatch = Regex.Match(e.Data, @"Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{2})");
             if (durMatch.Success)
             {
@@ -375,7 +585,6 @@ public partial class VideoCompressorView : UserControl
                     int.Parse(durMatch.Groups[4].Value) * 10);
             }
 
-            // Parse progress: "time=00:02:15.45"
             var timeMatch = Regex.Match(e.Data, @"time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})");
             if (timeMatch.Success && _totalDuration.TotalSeconds > 0)
             {
@@ -387,11 +596,9 @@ public partial class VideoCompressorView : UserControl
 
                 double pct = Math.Min(100, (current.TotalSeconds / _totalDuration.TotalSeconds) * 100);
 
-                // Parse speed
                 var speedMatch = Regex.Match(e.Data, @"speed=\s*([\d.]+)x");
                 string speedInfo = speedMatch.Success ? $"Speed: {speedMatch.Groups[1].Value}x" : "";
 
-                // Parse bitrate
                 var bitrateMatch = Regex.Match(e.Data, @"bitrate=\s*([\d.]+)kbits/s");
                 string bitrateInfo = bitrateMatch.Success ? $"Bitrate: {bitrateMatch.Groups[1].Value} kbps" : "";
 
@@ -400,30 +607,53 @@ public partial class VideoCompressorView : UserControl
                     CompressionProgress.Value = pct;
                     ProgressPercentText.Text = $"{pct:F0}%";
                     ProgressStatusText.Text = $"Compressing... {current:mm\\:ss} / {_totalDuration:mm\\:ss}";
-                    ProgressDetailText.Text = $"{speedInfo}   {bitrateInfo}".Trim();
+                    ProgressDetailText.Text = $"{_activeEncoderLabel}   {speedInfo}   {bitrateInfo}".Trim();
+                    if (IsCompressing)
+                        BackgroundJobBadge.Visibility = Visibility.Visible;
                 });
             }
         };
 
-        _ffmpegProcess.Exited += (s, e) =>
+        _ffmpegProcess.Exited += (_, _) =>
         {
+            int code = -1;
+            try { code = _ffmpegProcess.ExitCode; } catch { }
+
             Dispatcher.BeginInvoke(() =>
             {
-                CompressionProgress.Value = 100;
-                ProgressPercentText.Text = "100%";
-                ProgressStatusText.Text = "Done";
+                if (code == 0 && !ct.IsCancellationRequested)
+                {
+                    CompressionProgress.Value = 100;
+                    ProgressPercentText.Text = "100%";
+                    ProgressStatusText.Text = "Done";
+                }
             });
-            tcs.TrySetResult(true);
+
+            if (ct.IsCancellationRequested)
+                tcs.TrySetResult(true); // treat cancel as completed; caller checks token
+            else if (code != 0)
+                tcs.TrySetException(new InvalidOperationException($"FFmpeg exited with code {code}."));
+            else
+                tcs.TrySetResult(true);
         };
 
         ct.Register(() =>
         {
-            try { if (!_ffmpegProcess.HasExited) _ffmpegProcess.Kill(); } catch { }
+            try
+            {
+                if (_ffmpegProcess is { HasExited: false })
+                    _ffmpegProcess.Kill(entireProcessTree: true);
+            }
+            catch { }
         });
 
-        _ffmpegProcess.Start();
-        _ffmpegProcess.BeginErrorReadLine();
+        if (!_ffmpegProcess.Start())
+        {
+            tcs.TrySetException(new InvalidOperationException("Failed to start FFmpeg."));
+            return tcs.Task;
+        }
 
+        _ffmpegProcess.BeginErrorReadLine();
         return tcs.Task;
     }
 
@@ -444,41 +674,39 @@ public partial class VideoCompressorView : UserControl
 
         if (savingsPercent > 0)
         {
-            ResultTitle.Text = "✅ Compression Complete!";
-            ResultSavingsText.Text = $"Saved {savingsPercent:F0}% — {FormatBytes(inputSize - outputSize)} smaller!";
+            ResultTitle.Text = "Compression complete";
+            ResultSavingsText.Text = $"Saved {savingsPercent:F0}% — {FormatBytes(inputSize - outputSize)} smaller";
         }
         else
         {
-            ResultTitle.Text = "⚠️ File got larger";
-            ResultSavingsText.Text = "Try a higher CRF value or lower resolution for better compression.";
+            ResultTitle.Text = "File got larger";
+            ResultSavingsText.Text = "Try a higher CRF or a lower resolution for better compression.";
         }
 
         ResultCard.Visibility = Visibility.Visible;
         ProgressPanel.Visibility = Visibility.Collapsed;
+        BackgroundJobBadge.Visibility = Visibility.Collapsed;
     }
 
     private void OpenOutputFolder_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(_lastOutputPath) && File.Exists(_lastOutputPath))
-        {
             Process.Start("explorer.exe", $"/select,\"{_lastOutputPath}\"");
-        }
     }
 
     private void CompressAnother_Click(object sender, RoutedEventArgs e)
     {
-        ResetView();
+        ResetView(cancelRunningJob: true);
     }
 
     // ------------------------------------------------------------------
-    // Video probing (metadata)
+    // Video probing / thumbnail
     // ------------------------------------------------------------------
 
     private async Task ProbeVideoAsync(string path)
     {
         if (string.IsNullOrEmpty(_ffmpegPath)) return;
 
-        // Use ffprobe-style output from ffmpeg
         string ffprobePath = Path.Combine(Path.GetDirectoryName(_ffmpegPath)!, "ffprobe.exe");
         string probeTool = File.Exists(ffprobePath) ? ffprobePath : _ffmpegPath;
         string probeArgs = probeTool == _ffmpegPath
@@ -506,25 +734,19 @@ public partial class VideoCompressorView : UserControl
 
             string combined = stderr + "\n" + stdout;
 
-            // Parse duration
             var durMatch = Regex.Match(combined, @"Duration:\s*(\d{2}:\d{2}:\d{2}\.\d{2})");
-            if (durMatch.Success)
+            if (durMatch.Success &&
+                TimeSpan.TryParseExact(durMatch.Groups[1].Value, @"hh\:mm\:ss\.ff", CultureInfo.InvariantCulture, out var dur))
             {
-                if (TimeSpan.TryParseExact(durMatch.Groups[1].Value, @"hh\:mm\:ss\.ff", CultureInfo.InvariantCulture, out var dur))
-                {
-                    FileDurationText.Text = dur.TotalHours >= 1 ? dur.ToString(@"h\:mm\:ss") : dur.ToString(@"mm\:ss");
-                    _totalDuration = dur;
-                }
+                FileDurationText.Text = dur.TotalHours >= 1 ? dur.ToString(@"h\:mm\:ss") : dur.ToString(@"mm\:ss");
+                _totalDuration = dur;
             }
 
-            // Parse resolution
             var resMatch = Regex.Match(combined, @"(\d{2,5})x(\d{2,5})");
             if (resMatch.Success)
-            {
                 FileResolutionText.Text = $"{resMatch.Groups[1].Value}×{resMatch.Groups[2].Value}";
-            }
         }
-        catch { /* Probing is best-effort */ }
+        catch { }
     }
 
     private async Task GenerateThumbnailAsync(string path)
@@ -559,23 +781,25 @@ public partial class VideoCompressorView : UserControl
                 bmp.EndInit();
                 bmp.Freeze();
                 VideoThumbnail.Source = bmp;
-
-                // Clean up temp file
                 try { File.Delete(tempThumb); } catch { }
             }
         }
-        catch { /* Thumbnail is best-effort */ }
+        catch { }
     }
 
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
-    private void ResetView()
+    private void ResetView(bool cancelRunningJob)
     {
+        if (cancelRunningJob)
+            CancelCompressIfRunning();
+
         _inputFilePath = null;
         _outputFolderOverride = null;
         _lastOutputPath = null;
+        _compressTask = null;
 
         DropZoneBorder.Visibility = Visibility.Visible;
         FileInfoCard.Visibility = Visibility.Collapsed;
@@ -583,12 +807,17 @@ public partial class VideoCompressorView : UserControl
         QualityPanel.Visibility = Visibility.Collapsed;
         OutputPanel.Visibility = Visibility.Collapsed;
         CompressButton.Visibility = Visibility.Collapsed;
+        CompressButton.IsEnabled = true;
         ProgressPanel.Visibility = Visibility.Collapsed;
         ResultCard.Visibility = Visibility.Collapsed;
+        BackgroundJobBadge.Visibility = Visibility.Collapsed;
 
         VideoThumbnail.Source = null;
         CompressionProgress.Value = 0;
     }
+
+    private static SolidColorBrush BrushFrom(string hex) =>
+        new((Color)ColorConverter.ConvertFromString(hex));
 
     private static string FormatBytes(long bytes)
     {

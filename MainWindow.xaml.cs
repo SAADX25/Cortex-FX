@@ -510,7 +510,12 @@ public partial class MainWindow : Window
             }
             else if (mode == AppMode.VideoCompressor)
             {
-                Dispatcher.BeginInvoke(new Action(() => VideoCompressorEditor.OpenFilePicker()), System.Windows.Threading.DispatcherPriority.Background);
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    // Keep an in-progress / loaded compressor session — don't force a new file dialog.
+                    if (VideoCompressorEditor != null && !VideoCompressorEditor.HasActiveSession)
+                        VideoCompressorEditor.OpenFilePicker();
+                }), System.Windows.Threading.DispatcherPriority.Background);
             }
         }
 
