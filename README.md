@@ -1,4 +1,4 @@
-<![CDATA[<div align="center">
+<div align="center">
 
 <img src="Assets/logo.ico" width="80" alt="Cortex FX Logo"/>
 
@@ -392,4 +392,3 @@ License information will be added here.
 Built with .NET 10 · WPF · FFmpeg · ImageMagick
 
 </div>
-]]>
