@@ -76,6 +76,7 @@ public partial class MainWindow : Window
     private double[]? _waveformCachePeaks;
     private bool _isSavingAudioSelection;
     private bool _suppressVolumePersist;
+    private TrayIconService? _trayIcon;
 
     // FFME
     private string _ffmpegBinPath = string.Empty;
@@ -129,6 +130,9 @@ public partial class MainWindow : Window
 
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
             UpdateConvertButtonAvailability();
+
+            _trayIcon = new TrayIconService(this);
+            _trayIcon.Attach();
         }
         catch (Exception ex)
         {
@@ -745,12 +749,14 @@ public partial class MainWindow : Window
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
+        // Normal minimize to the Windows taskbar (not the tray)
         WindowState = WindowState.Minimized;
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
-        Close();
+        // X → hide next to the clock; Exit is only from the tray menu
+        _trayIcon?.HideToTray();
     }
 
     private void AddFileToList(string file)
