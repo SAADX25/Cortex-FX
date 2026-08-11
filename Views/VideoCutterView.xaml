@@ -1,0 +1,515 @@
+<UserControl x:Class="CortexFX.Views.VideoCutterView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
+             mc:Ignorable="d"
+             d:DesignHeight="720" d:DesignWidth="960"
+             FontFamily="Segoe UI Variable Display, Segoe UI"
+             Background="Transparent"
+             Focusable="True"
+             PreviewKeyDown="UserControl_PreviewKeyDown">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="AccentColor" Color="#E11D2E"/>
+        <SolidColorBrush x:Key="AccentSoft" Color="#FF6B4A"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#2ED47A"/>
+        <SolidColorBrush x:Key="WarningColor" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="InfoColor" Color="#38BDF8"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#FF4D5E"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#F7FAFC"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#B6BAC4"/>
+        <SolidColorBrush x:Key="TextDim" Color="#828691"/>
+        <SolidColorBrush x:Key="SubtleBorder" Color="#33242B"/>
+        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0E7490" Offset="0"/>
+            <GradientStop Color="#22D3EE" Offset="0.55"/>
+            <GradientStop Color="#E11D2E" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="GhostIconButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="Transparent" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#22FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SegmentActionButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="8" Padding="10,7" MinWidth="44"
+                                Background="#1A2430" BorderBrush="#3D5A6C" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#243848"/>
+                                <Setter TargetName="Bg" Property="BorderBrush" Value="#22D3EE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#102028"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SegmentDangerButton" TargetType="Button" BasedOn="{StaticResource SegmentActionButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="8" Padding="10,7" MinWidth="44"
+                                Background="#2A1418" BorderBrush="#7A3038" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#3A1A20"/>
+                                <Setter TargetName="Bg" Property="BorderBrush" Value="#FF4D5E"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#1A0C10"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ToolChipButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="10" Padding="12,8"
+                                Background="#141018" BorderBrush="{StaticResource SubtleBorder}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1F151A"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#E11D2E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#0C1218" Offset="0"/>
+                <GradientStop Color="#08090D" Offset="0.55"/>
+                <GradientStop Color="#140A10" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Ellipse Grid.RowSpan="2" Width="380" Height="380" HorizontalAlignment="Right" VerticalAlignment="Top"
+                 Margin="0,-120,-100,0" IsHitTestVisible="False" Opacity="0.28">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Color="#6622D3EE" Offset="0"/>
+                    <GradientStop Color="#0022D3EE" Offset="1"/>
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Padding="22,16,22,12" BorderBrush="#2A1D22" BorderThickness="0,0,0,1">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#102028" Offset="0"/>
+                    <GradientStop Color="#100E13" Offset="0.55"/>
+                    <GradientStop Color="#0C0D12" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="BackButton" Grid.Column="0" Click="BackButton_Click"
+                        Style="{StaticResource GhostIconButton}" Width="38" Height="38" Padding="0">
+                    <TextBlock Text="&#xE72B;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                               Foreground="{StaticResource InfoColor}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Video Cutter" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                        <Border Background="#102830" BorderBrush="#22D3EE" BorderThickness="1"
+                                CornerRadius="8" Padding="9,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="FAST CUT" FontSize="9" FontWeight="Bold" Foreground="{StaticResource InfoColor}"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="Mark In/Out, stack keep-segments, export with stream-copy speed."
+                               FontSize="12" Foreground="{StaticResource TextDim}" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <Border x:Name="BackgroundJobBadge" Grid.Column="2" Visibility="Collapsed"
+                        Background="#1A2A18" BorderBrush="#2ED47A" BorderThickness="1"
+                        CornerRadius="10" Padding="12,6" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="#2ED47A" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Export continues in background"
+                                   FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SuccessColor}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+            <StackPanel Margin="22,18,18,24">
+
+                <!-- Drop zone -->
+                <Border x:Name="DropZoneBorder" Height="160" CornerRadius="18"
+                        AllowDrop="True" Drop="DropZone_Drop" DragEnter="DropZone_DragEnter"
+                        DragLeave="DropZone_DragLeave" MouseLeftButtonUp="DropZone_Click"
+                        Cursor="Hand" Margin="0,0,0,16" BorderThickness="1.5" BorderBrush="#35505C">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#101820" Offset="0"/>
+                            <GradientStop Color="#0C0D12" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <Border Width="52" Height="52" CornerRadius="14" Margin="0,0,0,12"
+                                Background="#152530" BorderBrush="#2A6070" BorderThickness="1">
+                            <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="22"
+                                       Foreground="{StaticResource InfoColor}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Drop a video to cut" FontSize="17" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="MP4 · MOV · MKV · WEBM · AVI · and more via FFmpeg"
+                                   FontSize="12" Foreground="{StaticResource TextDim}"
+                                   HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Editor workspace -->
+                <Grid x:Name="EditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Preview -->
+                    <Border Grid.Row="0" CornerRadius="16" BorderBrush="#2A4050" BorderThickness="1"
+                            Background="#05070A" ClipToBounds="True" Height="320" Margin="0,0,0,14">
+                        <Grid>
+                            <ffme:MediaElement x:Name="PreviewMedia"
+                                              Background="#05070A"
+                                              LoadedBehavior="Manual"
+                                              UnloadedBehavior="Close"
+                                              MediaOpened="PreviewMedia_MediaOpened"
+                                              MediaFailed="PreviewMedia_MediaFailed"/>
+                            <TextBlock x:Name="PreviewPlaceholder"
+                                       Text="Preview ready"
+                                       FontSize="13" Foreground="{StaticResource TextDim}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsHitTestVisible="False"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Transport -->
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource ToolChipButton}" Click="PlayPause_Click" Margin="0,0,8,0" ToolTip="Play / Pause (K)">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="PlayPauseIcon" Text="&#xE768;" FontFamily="Segoe MDL2 Assets"
+                                               FontSize="13" Foreground="{StaticResource InfoColor}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PlayPauseLabel" Text="Play" Margin="8,0,0,0" FontSize="12"
+                                               FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource ToolChipButton}" Click="NudgeBack_Click" Margin="0,0,8,0" ToolTip="-1s (J)">
+                                <TextBlock Text="-1s" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                            </Button>
+                            <Button Style="{StaticResource ToolChipButton}" Click="NudgeForward_Click" ToolTip="+1s (L)">
+                                <TextBlock Text="+1s" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                            </Button>
+                        </StackPanel>
+
+                        <TextBlock Grid.Column="1" x:Name="PositionText" Text="00:00.0 / 00:00.0"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}"/>
+
+                        <TextBlock Grid.Column="2" x:Name="FileNameText" Text=""
+                                   FontSize="12" Foreground="{StaticResource TextDim}"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="220"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Timeline -->
+                    <Border Grid.Row="2" CornerRadius="14" Padding="14,12" Margin="0,0,0,14"
+                            Background="#10151C" BorderBrush="#2A4050" BorderThickness="1">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <TextBlock Text="1 · Timeline" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="In " FontSize="11" Foreground="{StaticResource TextDim}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="InPointText" Text="00:00.0" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource SuccessColor}" Margin="0,0,14,0"/>
+                                    <TextBlock Text="Out " FontSize="11" Foreground="{StaticResource TextDim}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="OutPointText" Text="00:00.0" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource DangerColor}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid x:Name="TimelineHitArea" Height="44" Cursor="Hand"
+                                  MouseLeftButtonDown="Timeline_MouseLeftButtonDown"
+                                  MouseMove="Timeline_MouseMove"
+                                  MouseLeftButtonUp="Timeline_MouseLeftButtonUp"
+                                  MouseLeave="Timeline_MouseLeave"
+                                  SizeChanged="Timeline_SizeChanged">
+                                <Border CornerRadius="8" Background="#0A0E12" BorderBrush="#2A4050" BorderThickness="1"/>
+                                <Border x:Name="SelectionBand" CornerRadius="6" Background="#3322D3EE"
+                                        HorizontalAlignment="Left" VerticalAlignment="Stretch" Margin="0,8"/>
+                                <Border x:Name="Playhead" Width="2" Background="#FF6B4A"
+                                        HorizontalAlignment="Left" Margin="0,4"/>
+                                <Border x:Name="InMarker" Width="3" Background="#2ED47A"
+                                        HorizontalAlignment="Left" Margin="0,2"/>
+                                <Border x:Name="OutMarker" Width="3" Background="#FF4D5E"
+                                        HorizontalAlignment="Left" Margin="0,2"/>
+                            </Grid>
+
+                            <Slider x:Name="ScrubSlider" Minimum="0" Maximum="1" Value="0"
+                                    Margin="0,10,0,0" ValueChanged="ScrubSlider_ValueChanged"/>
+
+                            <WrapPanel Margin="0,12,0,0">
+                                <Button Style="{StaticResource ToolChipButton}" Click="SetIn_Click" Margin="0,0,8,8">
+                                    <TextBlock Text="Set In" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource SuccessColor}"/>
+                                </Button>
+                                <Button Style="{StaticResource ToolChipButton}" Click="SetOut_Click" Margin="0,0,8,8">
+                                    <TextBlock Text="Set Out" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource DangerColor}"/>
+                                </Button>
+                                <Button Style="{StaticResource ToolChipButton}" Click="AddSegment_Click" Margin="0,0,8,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                                   Foreground="{StaticResource InfoColor}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Add keep segment" Margin="8,0,0,0" FontSize="12"
+                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource ToolChipButton}" Click="PlaySelection_Click" Margin="0,0,8,8">
+                                    <TextBlock Text="Play In→Out" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                </Button>
+                                <Button Style="{StaticResource ToolChipButton}" Click="ClearFile_Click" Margin="0,0,0,8">
+                                    <TextBlock Text="Clear video" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource DangerColor}"/>
+                                </Button>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Segments -->
+                    <Border Grid.Row="3" CornerRadius="14" Padding="14,12" Margin="0,0,0,14"
+                            Background="#10151C" BorderBrush="#2A4050" BorderThickness="1">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <TextBlock Text="2 · Keep segments" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock x:Name="SegmentsSummaryText" HorizontalAlignment="Right"
+                                           Text="0 segments · 00:00.0 total" FontSize="12"
+                                           Foreground="{StaticResource TextDim}"/>
+                            </Grid>
+                            <TextBlock x:Name="EmptySegmentsHint"
+                                       Text="Add one or more In/Out ranges. They export in order as a single montage."
+                                       FontSize="12" Foreground="{StaticResource TextDim}" Margin="0,0,0,8"
+                                       TextWrapping="Wrap"/>
+                            <ItemsControl x:Name="SegmentsList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="10" Padding="12,10" Margin="0,0,0,8"
+                                                Background="#0C1116" BorderBrush="#2A4050" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding DisplayTitle}" FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource TextPrimary}"/>
+                                                    <TextBlock Text="{Binding DisplayRange}" FontSize="11"
+                                                               Foreground="{StaticResource TextDim}" Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Button Style="{StaticResource SegmentActionButton}" ToolTip="Move up"
+                                                            Click="SegmentMoveUp_Click" Tag="{Binding}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="&#xE74A;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                                       Foreground="#7DD3FC" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="Up" FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="#E8F4FC" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource SegmentActionButton}" ToolTip="Move down"
+                                                            Click="SegmentMoveDown_Click" Tag="{Binding}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="&#xE74B;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                                       Foreground="#7DD3FC" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="Down" FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="#E8F4FC" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource SegmentDangerButton}" ToolTip="Remove segment"
+                                                            Click="SegmentRemove_Click" Tag="{Binding}" Margin="0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                                       Foreground="#FF6B7A" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="Delete" FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="#FFB4BC" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Output -->
+                    <Border Grid.Row="4" CornerRadius="14" Padding="14,12" Margin="0,0,0,14"
+                            Background="#10151C" BorderBrush="#2A4050" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="36" Height="36" CornerRadius="10" Background="#152530"
+                                    BorderBrush="#2A6070" BorderThickness="1" Margin="0,0,12,0">
+                                <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           Foreground="{StaticResource InfoColor}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="3 · Export to" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextDim}"/>
+                                <TextBlock x:Name="OutputPathText" Text="" FontSize="13"
+                                           Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Style="{StaticResource ToolChipButton}" Click="ChangeOutput_Click">
+                                <TextBlock Text="Change folder" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Export CTA -->
+                    <Button x:Name="ExportButton" Grid.Row="5" Click="ExportButton_Click"
+                            Height="54" Cursor="Hand" Margin="0,0,0,14" BorderThickness="0" Background="Transparent">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" CornerRadius="14" Background="{StaticResource AccentGradient}">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#22D3EE" BlurRadius="18" ShadowDepth="0" Opacity="0.28"/>
+                                    </Border.Effect>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="&#xE8B8;" FontFamily="Segoe MDL2 Assets" FontSize="17"
+                                                   Foreground="White" Margin="0,0,10,0"/>
+                                        <TextBlock Text="Export Cut" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- Progress -->
+                    <Border x:Name="ProgressPanel" Visibility="Collapsed" CornerRadius="14" Padding="18"
+                            Margin="0,0,0,14" Background="#10151C" BorderBrush="#2A4050" BorderThickness="1">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <TextBlock x:Name="ProgressStatusText" Text="Exporting..." FontSize="14"
+                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock x:Name="ProgressPercentText" Text="0%" FontSize="14" FontWeight="Bold"
+                                           Foreground="{StaticResource InfoColor}" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <ProgressBar x:Name="ExportProgress" Height="8" Minimum="0" Maximum="100" Value="0"
+                                         Background="#0A0E12" BorderThickness="0" Foreground="{StaticResource InfoColor}"/>
+                            <Button x:Name="CancelButton" Content="Cancel export" Click="CancelExport_Click"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                    HorizontalAlignment="Left" Margin="0,12,0,0" Padding="0"
+                                    Foreground="{StaticResource DangerColor}" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Result -->
+                    <Border x:Name="ResultCard" Visibility="Collapsed" CornerRadius="14" Padding="20"
+                            Background="#102016" BorderBrush="#2ED47A" BorderThickness="1">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE930;" FontFamily="Segoe MDL2 Assets" FontSize="18"
+                                           Foreground="{StaticResource SuccessColor}" Margin="0,0,10,0"/>
+                                <TextBlock x:Name="ResultTitle" Text="Cut exported"
+                                           FontSize="17" FontWeight="Bold" Foreground="{StaticResource SuccessColor}"/>
+                            </StackPanel>
+                            <TextBlock x:Name="ResultDetailText" Text="" FontSize="12"
+                                       Foreground="{StaticResource TextDim}" Margin="0,8,0,14" TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource ToolChipButton}" Click="OpenOutputFolder_Click" Margin="0,0,10,0">
+                                    <TextBlock Text="Open folder" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                </Button>
+                                <Button Style="{StaticResource ToolChipButton}" Click="CutAnother_Click">
+                                    <TextBlock Text="Cut another" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource DangerColor}"/>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -59,6 +59,135 @@ public sealed class FFmpegService : IFFmpegService
     }
 
     /// <inheritdoc />
+    public async Task CutVideoSegmentsAsync(string inputFile, string outputFile,
+                                            IReadOnlyList<VideoCutSegment> segments,
+                                            CancellationToken ct = default,
+                                            IProgress<double>? progress = null)
+    {
+        EnsureFFmpeg();
+
+        if (string.IsNullOrWhiteSpace(inputFile) || !File.Exists(inputFile))
+            throw new FileNotFoundException("Input video not found.", inputFile);
+
+        if (segments == null || segments.Count == 0)
+            throw new ArgumentException("At least one cut segment is required.", nameof(segments));
+
+        var valid = segments
+            .Where(s => s.End > s.Start && s.Duration.TotalMilliseconds >= 40)
+            .OrderBy(s => s.Start)
+            .ToList();
+
+        if (valid.Count == 0)
+            throw new ArgumentException("No valid cut segments (end must be after start).", nameof(segments));
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputFile))!);
+
+        if (valid.Count == 1)
+        {
+            progress?.Report(5);
+            await ExtractSegmentAsync(inputFile, outputFile, valid[0], preferCopy: true, ct);
+            progress?.Report(100);
+            return;
+        }
+
+        string tempRoot = Path.Combine(Path.GetTempPath(), "CortexFX_Cut_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var partFiles = new List<string>(valid.Count);
+
+        try
+        {
+            for (int i = 0; i < valid.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                string partPath = Path.Combine(tempRoot, $"part_{i:D3}.mp4");
+                await ExtractSegmentAsync(inputFile, partPath, valid[i], preferCopy: true, ct);
+                partFiles.Add(partPath);
+                progress?.Report(Math.Clamp((i + 1) * 70.0 / valid.Count, 1, 70));
+            }
+
+            string listPath = Path.Combine(tempRoot, "concat.txt");
+            await File.WriteAllLinesAsync(listPath, partFiles.Select(ToConcatFileLine), ct);
+
+            try
+            {
+                string concatCopy =
+                    $"-f concat -safe 0 -i \"{listPath}\" -c copy -movflags +faststart -y \"{outputFile}\"";
+                await RunFFmpegAsync(concatCopy, ct);
+            }
+            catch (ProcessExecutionException)
+            {
+                // Concat-copy can fail across odd codecs — re-encode the stitched result.
+                string concatEncode =
+                    $"-f concat -safe 0 -i \"{listPath}\" {BuildFastReencodeArgs()} -movflags +faststart -y \"{outputFile}\"";
+                await RunFFmpegAsync(concatEncode, ct);
+            }
+
+            progress?.Report(100);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempRoot))
+                    Directory.Delete(tempRoot, recursive: true);
+            }
+            catch
+            {
+                // Best-effort temp cleanup.
+            }
+        }
+    }
+
+    private async Task ExtractSegmentAsync(string inputFile, string outputFile, VideoCutSegment segment,
+                                           bool preferCopy, CancellationToken ct)
+    {
+        string ss = FormatTs(segment.Start);
+        string dur = FormatTs(segment.Duration);
+
+        if (preferCopy)
+        {
+            try
+            {
+                // Input seek + duration + stream copy = fast cut on SSD / HDD.
+                string copyArgs =
+                    $"-ss {ss} -i \"{inputFile}\" -t {dur} -map 0 -c copy -avoid_negative_ts make_zero -y \"{outputFile}\"";
+                await RunFFmpegAsync(copyArgs, ct);
+                if (File.Exists(outputFile) && new FileInfo(outputFile).Length > 0)
+                    return;
+            }
+            catch (ProcessExecutionException)
+            {
+                // Fall through to re-encode.
+            }
+        }
+
+        string encodeArgs =
+            $"-ss {ss} -i \"{inputFile}\" -t {dur} {BuildFastReencodeArgs()} -movflags +faststart -y \"{outputFile}\"";
+        await RunFFmpegAsync(encodeArgs, ct);
+    }
+
+    private string BuildFastReencodeArgs()
+    {
+        var caps = HwCapabilities;
+        if (caps.HasNvenc)
+            return "-c:v h264_nvenc -cq 20 -preset p4 -c:a aac -b:a 160k";
+        if (caps.HasQuickSync)
+            return "-c:v h264_qsv -global_quality 20 -preset very_fast -c:a aac -b:a 160k";
+        if (caps.HasAmf)
+            return "-c:v h264_amf -quality speed -rc cqp -qp_i 20 -qp_p 20 -c:a aac -b:a 160k";
+        return "-c:v libx264 -preset veryfast -crf 20 -c:a aac -b:a 160k";
+    }
+
+    private static string FormatTs(TimeSpan value) =>
+        value.ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture);
+
+    private static string ToConcatFileLine(string path)
+    {
+        string normalized = Path.GetFullPath(path).Replace('\\', '/').Replace("'", "'\\''");
+        return $"file '{normalized}'";
+    }
+
+    /// <inheritdoc />
     public async Task ExtractAudioAsync(string inputFile, string outputFile, CancellationToken ct = default,
                                         IProgress<double>? progress = null)
     {

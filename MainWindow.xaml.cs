@@ -27,6 +27,7 @@ using System.Threading;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
+using CortexFX.Core.Audio;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
@@ -58,6 +59,8 @@ public partial class MainWindow : Window
     private string? _pendingAudioFile;
     private AudioFileReader? _audioReader;
     private WaveOutEvent? _waveOut;
+    private LiveSpectrumAnalyzer? _spectrumAnalyzer;
+    private readonly float[] _spectrumBands = new float[48];
     private TimeSpan _selectionStart = TimeSpan.Zero;
     private TimeSpan _selectionEnd = TimeSpan.Zero;
     private System.Windows.Threading.DispatcherTimer? _playbackTimer;
@@ -69,6 +72,7 @@ public partial class MainWindow : Window
     private int _waveformCacheBuckets;
     private double[]? _waveformCachePeaks;
     private bool _isSavingAudioSelection;
+    private bool _suppressVolumePersist;
 
     // FFME
     private string _ffmpegBinPath = string.Empty;
@@ -90,9 +94,11 @@ public partial class MainWindow : Window
         {
             InitializeComponent();
 
-            // Initialize the Video Compressor view
+            // Initialize the Video Compressor / Cutter views
             VideoCompressorEditor.Initialize(_config.FFmpegPath);
             VideoCompressorEditor.CloseRequested += (s, e) => SwitchToMode(AppMode.Dashboard);
+            VideoCutterEditor.Initialize(_config.FFmpegPath);
+            VideoCutterEditor.CloseRequested += (s, e) => SwitchToMode(AppMode.Dashboard);
 
             FilesList.ItemsSource = _filesToConvert;
             // Trigger initial population
@@ -132,6 +138,7 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        ApplyPersistedAudioVolume();
         StatusText.Text = "Checking local tools...";
         ConsoleLogger.Info("Startup", "Background startup checks started.");
 
@@ -271,6 +278,11 @@ public partial class MainWindow : Window
             CollapseMainContent(VideoCompressorEditor, activeView);
         }
 
+        if (VideoCutterEditor != null)
+        {
+            CollapseMainContent(VideoCutterEditor, activeView);
+        }
+
         bool wasVisible = activeView.Visibility == Visibility.Visible;
         activeView.Visibility = Visibility.Visible;
 
@@ -335,6 +347,7 @@ public partial class MainWindow : Window
         ExcelToPdf,
         PdfToImage,
         VideoCompressor,
+        VideoCutter,
         AudioTrimmer,
         Unknown
     }
@@ -384,6 +397,18 @@ public partial class MainWindow : Window
             {
                 if (VideoCompressorEditor != null) ShowMainContent(VideoCompressorEditor);
                 CurrentToolTitle.Text = "Video Compressor";
+                BackBtn.Visibility = Visibility.Visible;
+            }
+            else if (tool == "VideoCutter")
+            {
+                if (VideoCutterEditor != null) ShowMainContent(VideoCutterEditor);
+                CurrentToolTitle.Text = "Video Cutter";
+                BackBtn.Visibility = Visibility.Visible;
+            }
+            else if (tool == "AudioCutter")
+            {
+                if (AudioEditorGrid != null) ShowMainContent(AudioEditorGrid);
+                CurrentToolTitle.Text = "Audio Cutter";
                 BackBtn.Visibility = Visibility.Visible;
             }
         }
@@ -449,6 +474,15 @@ public partial class MainWindow : Window
         else if (mode == AppMode.VideoCompressor)
         {
             UpdateUIMode(true, "VideoCompressor");
+        }
+        else if (mode == AppMode.VideoCutter)
+        {
+            UpdateUIMode(true, "VideoCutter");
+        }
+        else if (mode == AppMode.AudioTrimmer)
+        {
+            // UI is shown after a file is chosen (or an active session is restored).
+            _currentMode = AppMode.AudioTrimmer;
         }
         else
         {
@@ -517,6 +551,18 @@ public partial class MainWindow : Window
                         VideoCompressorEditor.OpenFilePicker();
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
+            else if (mode == AppMode.VideoCutter)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (VideoCutterEditor != null && !VideoCutterEditor.HasActiveSession)
+                        VideoCutterEditor.OpenFilePicker();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            else if (mode == AppMode.AudioTrimmer)
+            {
+                Dispatcher.BeginInvoke(new Action(OpenAudioCutterPickerIfNeeded), System.Windows.Threading.DispatcherPriority.Background);
+            }
         }
 
         e.Handled = true;
@@ -554,9 +600,40 @@ public partial class MainWindow : Window
             "XLSX_PDF" => AppMode.ExcelToPdf,
             "PDF_JPG" => AppMode.PdfToImage,
             "VIDEO_COMPRESSOR" => AppMode.VideoCompressor,
+            "VIDEO_CUTTER" => AppMode.VideoCutter,
+            "AUDIO_CUTTER" => AppMode.AudioTrimmer,
             "MORE_TOOLS" => AppMode.Universal, // Changed from AdvancedGallery to Universal
             _ => AppMode.Unknown
         };
+    }
+
+    private void OpenAudioCutterPickerIfNeeded()
+    {
+        // Keep an active trim session when returning from Back.
+        if (!string.IsNullOrEmpty(_currentAudioFile) && File.Exists(_currentAudioFile))
+        {
+            ShowMainContent(AudioEditorGrid);
+            CurrentToolTitle.Text = "Audio Cutter";
+            BackBtn.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var dlg = new OpenFileDialog
+        {
+            Title = "Select an Audio File",
+            Filter = "Audio Files|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.wma;*.opus;*.aiff;*.aif|All Files|*.*"
+        };
+
+        if (dlg.ShowDialog() == true)
+        {
+            _audioReturnMode = AppMode.Dashboard;
+            _audioReturnFilterMode = null;
+            LoadAudioEditor(dlg.FileName);
+        }
+        else
+        {
+            SwitchToMode(AppMode.Dashboard);
+        }
     }
 
     private void RefreshFormatsFromSelectedFiles()
@@ -1721,23 +1798,25 @@ public partial class MainWindow : Window
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
             BackBtn.Visibility = Visibility.Visible;
             ShowMainContent(AudioEditorGrid);
-            CurrentToolTitle.Text = $"Audio Editor - {System.IO.Path.GetFileName(filePath)}";
+            CurrentToolTitle.Text = "Audio Cutter";
             AudioEditorFileNameText.Text = System.IO.Path.GetFileName(filePath);
 
-            // Initialize Audio
+            // Initialize Audio + live spectrum analyzer in the playback chain
             _playbackTimer?.Stop();
             if (_audioReader != null) { _audioReader.Dispose(); }
             if (_waveOut != null) { _waveOut.Dispose(); }
+            _spectrumAnalyzer = null;
 
             _audioReader = new AudioFileReader(filePath);
+            _spectrumAnalyzer = new LiveSpectrumAnalyzer(_audioReader, bandCount: _spectrumBands.Length, fftLength: 1024);
             _waveOut = new WaveOutEvent { DesiredLatency = 80 };
-            _waveOut.Init(_audioReader);
-            _audioReader.Volume = 1;
-
-            // Reset Volume Slider
-            if (VolumeSlider != null)
+            _waveOut.Init(_spectrumAnalyzer);
+            ApplyPersistedAudioVolume();
+            _spectrumAnalyzer.ResetLevels();
+            if (SpectrumStatusText != null)
             {
-                VolumeSlider.Value = 1;
+                SpectrumStatusText.Visibility = Visibility.Visible;
+                SpectrumStatusText.Text = "Play selection to see real-time spectrum";
             }
 
             // Reset Selection
@@ -1754,20 +1833,39 @@ public partial class MainWindow : Window
                 UpdateSelectionVisuals();
                 UpdateTimeDisplay();
                 UpdatePlaybackCursor();
+                ClearSpectrumCanvas();
             }));
 
-            // Setup Timer
+            // Setup / refresh playback timer (waveform cursor + live spectrum)
             if (_playbackTimer == null)
             {
-                _playbackTimer = new System.Windows.Threading.DispatcherTimer();
-                _playbackTimer.Interval = TimeSpan.FromMilliseconds(16);
-                _playbackTimer.Tick += (s, e) => UpdatePlaybackCursor();
+                _playbackTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(16)
+                };
             }
+
+            _playbackTimer.Tick -= AudioPlaybackTimer_Tick;
+            _playbackTimer.Tick += AudioPlaybackTimer_Tick;
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Error loading audio: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             CloseAudioEditor(returnToPrevious: true);
+        }
+    }
+
+    private void AudioPlaybackTimer_Tick(object? sender, EventArgs e)
+    {
+        UpdatePlaybackCursor();
+        UpdateLiveSpectrum();
+    }
+
+    private void SpectrumCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+        {
+            UpdateLiveSpectrum();
         }
     }
 
@@ -1963,6 +2061,88 @@ public partial class MainWindow : Window
     private void ClearWaveformCanvas()
     {
         WaveformCanvas?.Children.Clear();
+    }
+
+    private void ClearSpectrumCanvas()
+    {
+        SpectrumCanvas?.Children.Clear();
+    }
+
+    private void UpdateLiveSpectrum()
+    {
+        if (SpectrumCanvas == null || _spectrumAnalyzer == null)
+        {
+            return;
+        }
+
+        bool playing = _waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing;
+        if (!playing)
+        {
+            return;
+        }
+
+        _spectrumAnalyzer.CopyBandLevels(_spectrumBands);
+        DrawSpectrumBars(_spectrumBands);
+    }
+
+    private void DrawSpectrumBars(IReadOnlyList<float> bands)
+    {
+        if (SpectrumCanvas == null)
+        {
+            return;
+        }
+
+        double width = SpectrumHost?.ActualWidth > 1 ? SpectrumHost.ActualWidth : SpectrumCanvas.ActualWidth;
+        double height = SpectrumHost?.ActualHeight > 1 ? SpectrumHost.ActualHeight : SpectrumCanvas.ActualHeight;
+        if (width <= 1 || height <= 1 || bands.Count == 0)
+        {
+            return;
+        }
+
+        SpectrumCanvas.Width = width;
+        SpectrumCanvas.Height = height;
+        SpectrumCanvas.Children.Clear();
+        if (SpectrumStatusText != null)
+        {
+            SpectrumStatusText.Visibility = Visibility.Collapsed;
+        }
+
+        double gap = 2;
+        double barWidth = Math.Max(2, (width - gap * (bands.Count - 1)) / bands.Count);
+
+        for (int i = 0; i < bands.Count; i++)
+        {
+            double level = Math.Clamp(bands[i], 0, 1);
+            // Ease the visual curve a bit so quiet content still moves.
+            level = Math.Pow(level, 0.85);
+            double barHeight = Math.Max(2, level * height);
+            double x = i * (barWidth + gap);
+            double y = height - barHeight;
+
+            var rect = new System.Windows.Shapes.Rectangle
+            {
+                Width = barWidth,
+                Height = barHeight,
+                RadiusX = 2,
+                RadiusY = 2,
+                Fill = CreateSpectrumBrush(level, i, bands.Count)
+            };
+            Canvas.SetLeft(rect, x);
+            Canvas.SetTop(rect, y);
+            SpectrumCanvas.Children.Add(rect);
+        }
+    }
+
+    private static Brush CreateSpectrumBrush(double level, int index, int total)
+    {
+        double t = total <= 1 ? 0 : (double)index / (total - 1);
+        byte r = (byte)(56 + (225 - 56) * t);      // cyan -> coral
+        byte g = (byte)(189 - (189 - 70) * t);
+        byte b = (byte)(248 - (248 - 90) * t);
+        byte a = (byte)(140 + 115 * Math.Clamp(level, 0, 1));
+        var brush = new SolidColorBrush(Color.FromArgb(a, r, g, b));
+        brush.Freeze();
+        return brush;
     }
 
     private static Brush CreateWaveformBrush(double peak)
@@ -2248,10 +2428,90 @@ public partial class MainWindow : Window
 
     private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        double volume = Math.Clamp(e.NewValue, 0, 2);
+        if (VolumePercentText != null)
+            VolumePercentText.Text = $"{(int)Math.Round(volume * 100)}%";
+
         if (_audioReader != null)
+            _audioReader.Volume = (float)volume;
+
+        if (_suppressVolumePersist || !IsLoaded)
+            return;
+
+        UserPreferences.Current.AudioVolume = volume;
+        UserPreferences.Current.Save();
+    }
+
+    private void ApplyPersistedAudioVolume()
+    {
+        double volume = Math.Clamp(UserPreferences.Current.AudioVolume, 0, 2);
+        _suppressVolumePersist = true;
+        try
         {
-            _audioReader.Volume = (float)e.NewValue;
+            if (VolumeSlider != null)
+                VolumeSlider.Value = volume;
+            if (_audioReader != null)
+                _audioReader.Volume = (float)volume;
+            if (VolumePercentText != null)
+                VolumePercentText.Text = $"{(int)Math.Round(volume * 100)}%";
         }
+        finally
+        {
+            _suppressVolumePersist = false;
+        }
+    }
+
+    private static double GetExportVolumeGain()
+    {
+        return Math.Clamp(UserPreferences.Current.AudioVolume, 0.01, 2.0);
+    }
+
+    private static bool FormatSupportsEmbeddedCover(string extension) =>
+        extension is ".mp3" or ".m4a" or ".aac" or ".flac" or ".ogg" or ".opus" or ".wma";
+
+    private static string BuildAudioExportArgs(string inputFile, string outputFile, string start, string duration, double volumeGain)
+    {
+        string outExt = System.IO.Path.GetExtension(outputFile).ToLowerInvariant();
+        string inExt = System.IO.Path.GetExtension(inputFile).ToLowerInvariant();
+        bool volumeChanged = Math.Abs(volumeGain - 1.0) > 0.001;
+        bool sameContainer = string.Equals(outExt, inExt, StringComparison.OrdinalIgnoreCase);
+        bool keepCover = FormatSupportsEmbeddedCover(outExt);
+        string id3 = outExt == ".mp3" ? "-id3v2_version 3 " : string.Empty;
+
+        // Fast path: trim only — copy audio + embedded album art (do NOT use -vn).
+        if (!volumeChanged && sameContainer)
+        {
+            if (keepCover)
+            {
+                return $"-ss {start} -i \"{inputFile}\" -t {duration} " +
+                       $"-map_metadata 0 -map 0 -c copy {id3}-y \"{outputFile}\"";
+            }
+
+            return $"-ss {start} -i \"{inputFile}\" -t {duration} -map 0:a:0 -c copy -y \"{outputFile}\"";
+        }
+
+        string codecArgs = outExt switch
+        {
+            ".mp3" => "-c:a libmp3lame -q:a 2",
+            ".wav" => "-c:a pcm_s16le",
+            ".flac" => "-c:a flac",
+            ".ogg" => "-c:a libvorbis -q:a 5",
+            ".m4a" or ".aac" => "-c:a aac -b:a 192k",
+            ".wma" => "-c:a wmav2 -b:a 192k",
+            ".opus" => "-c:a libopus -b:a 128k",
+            _ => "-c:a libmp3lame -q:a 2"
+        };
+
+        string volumeFilter = volumeChanged
+            ? $"-af \"volume={volumeGain.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" "
+            : string.Empty;
+
+        // Keep album art thumbnail from the source when the output format supports it.
+        string coverArgs = keepCover
+            ? "-map_metadata 0 -map 0:a:0 -map 0:v? -c:v copy -disposition:v:0 attached_pic "
+            : "-map_metadata 0 -map 0:a:0 ";
+
+        return $"-ss {start} -i \"{inputFile}\" -t {duration} {coverArgs}{volumeFilter}{codecArgs} {id3}-y \"{outputFile}\"";
     }
 
     private void PlaySelection_Click(object sender, RoutedEventArgs e)
@@ -2275,6 +2535,12 @@ public partial class MainWindow : Window
 
                 _audioReader.CurrentTime = _selectionStart;
                 UpdatePlaybackCursor();
+                _spectrumAnalyzer?.ResetLevels();
+                if (SpectrumStatusText != null)
+                {
+                    SpectrumStatusText.Visibility = Visibility.Collapsed;
+                }
+
                 _waveOut.Play();
                 _playbackTimer?.Start();
             }
@@ -2302,6 +2568,13 @@ public partial class MainWindow : Window
                 }
 
                 _playbackTimer?.Stop();
+                _spectrumAnalyzer?.ResetLevels();
+                ClearSpectrumCanvas();
+                if (SpectrumStatusText != null)
+                {
+                    SpectrumStatusText.Visibility = Visibility.Visible;
+                    SpectrumStatusText.Text = "Play selection to see real-time spectrum";
+                }
 
                 if (resetToSelectionStart)
                 {
@@ -2350,14 +2623,36 @@ public partial class MainWindow : Window
             ext = ".wav";
         }
 
-        // 3. Open SaveFileDialog
+        // 3. Open SaveFileDialog (all common audio formats)
+        string preferredExt = string.IsNullOrWhiteSpace(ext) ? ".mp3" : ext.ToLowerInvariant();
         var saveDialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Save Trimmed Audio",
-            FileName = $"{name}_Trimmed{ext}",
-            DefaultExt = ext,
-            Filter = $"Audio File (*{ext})|*{ext}|All Files (*.*)|*.*",
+            FileName = $"{name}_Trimmed{preferredExt}",
+            DefaultExt = preferredExt,
+            Filter =
+                "MP3 (*.mp3)|*.mp3|" +
+                "WAV (*.wav)|*.wav|" +
+                "M4A / AAC (*.m4a)|*.m4a|" +
+                "FLAC (*.flac)|*.flac|" +
+                "OGG (*.ogg)|*.ogg|" +
+                "OPUS (*.opus)|*.opus|" +
+                "WMA (*.wma)|*.wma|" +
+                "All Files (*.*)|*.*",
             InitialDirectory = dir
+        };
+
+        // Pre-select matching filter index when possible
+        saveDialog.FilterIndex = preferredExt switch
+        {
+            ".mp3" => 1,
+            ".wav" => 2,
+            ".m4a" or ".aac" => 3,
+            ".flac" => 4,
+            ".ogg" => 5,
+            ".opus" => 6,
+            ".wma" => 7,
+            _ => 1
         };
 
         if (saveDialog.ShowDialog() == true)
@@ -2377,12 +2672,11 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // 5. Construct Arguments with Escaped Quotes
+            // 5. Construct Arguments — apply saved volume preference to every export format
             string start = _selectionStart.ToString(@"hh\:mm\:ss\.fff");
             string duration = selectedDuration.ToString(@"hh\:mm\:ss\.fff");
-
-            // IMPORTANT: Wrap paths in escaped quotes to handle spaces and special chars
-            string args = $"-ss {start} -i \"{_currentAudioFile}\" -t {duration} -vn -c copy -y \"{outputFile}\"";
+            double volumeGain = GetExportVolumeGain();
+            string args = BuildAudioExportArgs(_currentAudioFile, outputFile, start, duration, volumeGain);
 
             try
             {
@@ -2391,7 +2685,23 @@ public partial class MainWindow : Window
                 SaveSelectionBtn.Content = "Saving...";
 
                 await _processManager.RunAsync(_config.FFmpegPath, args);
-                MessageBox.Show($"Saved Trimmed Audio:\n{outputFile}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                _lastOutputFolder = System.IO.Path.GetDirectoryName(outputFile);
+                SaveSelectionBtn.Content = "Save Cut";
+
+                int percent = (int)Math.Round(volumeGain * 100);
+                string volumeNote = Math.Abs(volumeGain - 1.0) > 0.001
+                    ? $"Volume preference ({percent}%) was baked into the file."
+                    : "Your trimmed audio is ready.";
+
+                var success = new ModernSuccessDialog(
+                    "Export complete",
+                    volumeNote,
+                    outputFile)
+                {
+                    Owner = this
+                };
+                success.ShowDialog();
             }
             catch (OperationCanceledException)
             {
@@ -2405,7 +2715,7 @@ public partial class MainWindow : Window
             {
                 _isSavingAudioSelection = false;
                 SaveSelectionBtn.IsEnabled = true;
-                SaveSelectionBtn.Content = "Save";
+                SaveSelectionBtn.Content = "Save Cut";
             }
         }
     }
@@ -2425,6 +2735,7 @@ public partial class MainWindow : Window
             _waveOut.Dispose();
             _waveOut = null;
         }
+        _spectrumAnalyzer = null;
         if (_audioReader != null)
         {
             _audioReader.Dispose();
@@ -2449,6 +2760,7 @@ public partial class MainWindow : Window
         _waveformCacheBuckets = 0;
         _waveformCachePeaks = null;
         ClearWaveformCanvas();
+        ClearSpectrumCanvas();
         SelectionBand.Width = 0;
 
         if (returnToPrevious)
