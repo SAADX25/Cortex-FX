@@ -68,7 +68,7 @@ if (!(Test-Path -LiteralPath $ProjectFile)) {
 [xml]$ProjectXml = Get-Content -LiteralPath $ProjectFile
 $Version = $ProjectXml.Project.PropertyGroup.Version | Select-Object -First 1
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    $Version = "1.0.0"
+    $Version = "1.5.0"
 }
 
 $PublishDir = Join-Path $PublishRoot "CortexFX_v$Version"

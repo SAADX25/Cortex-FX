@@ -7,7 +7,7 @@
 #define MyScriptDir AddBackslash(SourcePath)
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.5.0"
 #endif
 
 #ifndef MyBuildPath
