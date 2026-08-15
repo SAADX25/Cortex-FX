@@ -17,9 +17,27 @@ public partial class App : Application
     /// <summary>Shared DI container (used when a control cannot take constructor injection).</summary>
     public static IServiceProvider Services { get; private set; } = null!;
 
+    private SingleInstanceService? _singleInstance;
+    private MainWindow? _mainWindow;
+    private string? _pendingActivationPath;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        _singleInstance = SingleInstanceService.Create();
+        if (!_singleInstance.IsPrimary)
+        {
+            SingleInstanceService.TryNotifyRunningInstance(e.Args);
+            Shutdown();
+            return;
+        }
+
+        _singleInstance.StartListening(path =>
+        {
+            Dispatcher.BeginInvoke(() => HandleExternalActivation(path));
+        });
+
         ConsoleLogger.Initialize();
         DispatcherUnhandledException += (_, args) =>
         {
@@ -48,7 +66,7 @@ public partial class App : Application
         Version? version = typeof(App).Assembly.GetName().Version;
         string versionText = version != null
             ? $"v{version.Major}.{version.Minor}.{version.Build}"
-            : "v1.5.0";
+            : "v1.6.0";
 
         ConsoleLogger.Info("App", $"Cortex FX {versionText} starting...");
 
@@ -70,14 +88,33 @@ public partial class App : Application
             ? Array.Empty<object>()
             : [startupFile];
 
-        var mainWindow = ActivatorUtilities.CreateInstance<MainWindow>(Services, startupParameters);
-        mainWindow.Show();
+        _mainWindow = ActivatorUtilities.CreateInstance<MainWindow>(Services, startupParameters);
+        _mainWindow.Show();
         ConsoleLogger.Success("App", "Main window ready.");
+
+        if (_pendingActivationPath != null)
+        {
+            HandleExternalActivation(_pendingActivationPath);
+            _pendingActivationPath = null;
+        }
+    }
+
+    private void HandleExternalActivation(string path)
+    {
+        if (_mainWindow == null)
+        {
+            _pendingActivationPath = path;
+            return;
+        }
+
+        _mainWindow.ActivateFromExternalLaunch(path);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         ConsoleLogger.Info("App", "Shutting down...");
+        _singleInstance?.Dispose();
+        _singleInstance = null;
         // Dispose ProcessManager → kills all tracked processes
         if (Services is IDisposable disposable)
         {

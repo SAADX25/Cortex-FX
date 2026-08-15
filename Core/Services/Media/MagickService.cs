@@ -2,6 +2,7 @@ using System.IO;
 using ImageMagick;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Interfaces;
+using CortexFX.Core.Services.Infrastructure;
 
 namespace CortexFX.Core.Services.Media;
 
@@ -216,7 +217,17 @@ public sealed class MagickService : IMagickService
 
         args.Append($"\"{outputFile}\"");
 
-        await _processManager.RunAsync(_config.MagickPath, args.ToString(), ct);
+        try
+        {
+            await _processManager.RunAsync(_config.MagickPath, args.ToString(), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Portable magick.exe in Resources is a module build without coder DLLs.
+            // Magick.NET in-process is the reliable engine; use it if the CLI fails.
+            ConsoleLogger.Warning("Magick", $"CLI conversion failed; using in-process ImageMagick. {ex.Message}");
+            await Task.Run(() => ConvertManaged(inputFile, outputFile, options, ct), ct);
+        }
     }
 
     private void EnsureMagickCli()

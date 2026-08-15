@@ -1,5 +1,5 @@
 ; =============================================================================
-; Cortex FX — Inno Setup script (v1.5.0+)
+; Cortex FX — Inno Setup script (v1.6.0+)
 ;
 ; Do NOT compile this alone unless Publish\CortexFX_v{version}\ already exists.
 ; Preferred:  powershell -ExecutionPolicy Bypass -File .\build.ps1
@@ -12,7 +12,7 @@
 #define MyScriptDir AddBackslash(SourcePath)
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.5.0"
+  #define MyAppVersion "1.6.0"
 #endif
 
 #ifndef MyBuildPath

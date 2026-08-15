@@ -624,7 +624,7 @@
                     </StackPanel>
 
                     <!-- Center Version Indicator -->
-                    <TextBlock x:Name="VersionText" Text="v1.5.0" 
+                    <TextBlock x:Name="VersionText" Text="v1.6.0" 
                                Foreground="{StaticResource AccentColor}" FontWeight="Bold" FontSize="14"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsHitTestVisible="False">

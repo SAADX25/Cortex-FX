@@ -112,7 +112,7 @@ public partial class MainWindow : Window
             PopulateFormats("Document");
 
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.5.0";
+            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.6.0";
             ConsoleLogger.Info("UI", $"Version label set to {VersionText.Text}.");
 
             // File passed from Explorer context menu
@@ -140,6 +140,24 @@ public partial class MainWindow : Window
             MessageBox.Show($"Startup Error: {ex}", "Cortex FX Crash", MessageBoxButton.OK, MessageBoxImage.Error);
             Application.Current.Shutdown();
         }
+    }
+
+    /// <summary>
+    /// Called when the user launches Cortex FX again (desktop shortcut, Explorer, etc.)
+    /// while it is already running in the tray.
+    /// </summary>
+    internal void ActivateFromExternalLaunch(string? filePath)
+    {
+        _trayIcon?.RestoreFromTray();
+
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            return;
+        }
+
+        ConsoleLogger.Info("Startup", $"File received from another launch: {ConsoleLogger.ShortPath(filePath)}");
+        AddFileToList(filePath);
+        ShowConversionView();
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
