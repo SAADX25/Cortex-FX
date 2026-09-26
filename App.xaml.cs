@@ -75,14 +75,6 @@ public partial class App : Application
         Services = serviceCollection.BuildServiceProvider();
         ConsoleLogger.Success("App", "Services loaded.");
 
-        // Kill leftover Office COM processes from a previous crash (don't block first paint).
-        var processManager = Services.GetRequiredService<IProcessManager>();
-        _ = Task.Run(() =>
-        {
-            processManager.KillZombieProcesses("WINWORD", "POWERPNT", "EXCEL");
-            ConsoleLogger.Info("Office", "Startup cleanup completed.");
-        });
-
         string? startupFile = e.Args.Length > 0 ? e.Args[0] : null;
         object[] startupParameters = startupFile == null
             ? Array.Empty<object>()
@@ -137,6 +129,9 @@ public partial class App : Application
         services.AddSingleton<IMagickService, MagickService>();
         services.AddSingleton<IOfficeInteropService, OfficeInteropService>();
         services.AddSingleton<IPdfRenderService, PdfRenderService>();
+        services.AddSingleton<PdfAnalysisService>();
+        services.AddSingleton<PdfOcrService>();
+        services.AddSingleton<IPdfToWordService, PdfToWordService>();
         services.AddSingleton<IOptionalConversionService, OptionalConversionService>();
         services.AddSingleton<IResourceValidationService, ResourceValidationService>();
 

@@ -46,12 +46,14 @@ public sealed class ProcessManager : IProcessManager
         catch (OperationCanceledException)
         {
             KillSafe(process);
+            UntrackProcess(process.Id);
             ConsoleLogger.Warning("Process", $"Cancelled {Path.GetFileName(exePath)}.");
             throw;
         }
 
         string stdout = await stdoutTask.ConfigureAwait(false);
         string stderr = await stderrTask.ConfigureAwait(false);
+        UntrackProcess(process.Id);
         var result = new ProcessResult(process.ExitCode, stdout, stderr);
 
         if (result.ExitCode != 0)
@@ -80,7 +82,31 @@ public sealed class ProcessManager : IProcessManager
             // Process may have exited before it could be inspected.
         }
 
-        _trackedProcesses[pid] = startTime;
+        if (startTime.HasValue) _trackedProcesses[pid] = startTime;
+    }
+
+    public void UntrackProcess(int pid) => _trackedProcesses.TryRemove(pid, out _);
+
+    public bool IsTrackedProcess(int pid)
+    {
+        if (!_trackedProcesses.TryGetValue(pid, out var startTime) || !startTime.HasValue) return false;
+        try
+        {
+            using var proc = Process.GetProcessById(pid);
+            return !proc.HasExited && proc.StartTime == startTime.Value;
+        }
+        catch { return false; }
+    }
+
+    public void KillTrackedProcess(int pid)
+    {
+        if (!_trackedProcesses.TryRemove(pid, out var startTime) || !startTime.HasValue) return;
+        try
+        {
+            using var proc = Process.GetProcessById(pid);
+            if (!proc.HasExited && proc.StartTime == startTime.Value) proc.Kill();
+        }
+        catch { /* Already exited or access denied. */ }
     }
 
     /// <inheritdoc />
@@ -88,59 +114,22 @@ public sealed class ProcessManager : IProcessManager
     {
         foreach (var tracked in _trackedProcesses.ToArray())
         {
-            int pid = tracked.Key;
-            _trackedProcesses.TryRemove(pid, out _);
-
-            try
-            {
-                var proc = Process.GetProcessById(pid);
-                if (!proc.HasExited)
-                {
-                    bool sameProcess = tracked.Value == null || proc.StartTime == tracked.Value.Value;
-                    if (sameProcess)
-                    {
-                        proc.Kill();
-                    }
-                }
-                proc.Dispose();
-            }
-            catch
-            {
-                // Process already exited or access denied — safe to ignore
-            }
+            KillTrackedProcess(tracked.Key);
         }
     }
 
     /// <inheritdoc />
     public void KillZombieProcesses(params string[] processNames)
     {
-        foreach (var name in processNames)
+        foreach (var tracked in _trackedProcesses.ToArray())
         {
             try
             {
-                var procs = Process.GetProcessesByName(name);
-                foreach (var p in procs)
-                {
-                    // A process with no visible window title is likely a zombie
-                    // from a crashed COM automation session
-                    if (string.IsNullOrEmpty(p.MainWindowTitle))
-                    {
-                        try
-                        {
-                            p.Kill();
-                        }
-                        catch
-                        {
-                            // Access denied or already gone
-                        }
-                    }
-                    p.Dispose();
-                }
+                using var proc = Process.GetProcessById(tracked.Key);
+                if (processNames.Any(n => string.Equals(n, proc.ProcessName, StringComparison.OrdinalIgnoreCase)))
+                    KillTrackedProcess(tracked.Key);
             }
-            catch
-            {
-                // GetProcessesByName can throw on access issues
-            }
+            catch { UntrackProcess(tracked.Key); }
         }
     }
 

@@ -99,18 +99,20 @@ public sealed class OfficeInteropService : IOfficeInteropService
                 ct.ThrowIfCancellationRequested();
                 progress?.Report(10);
 
+                var existingWordPids = CapturePids("WINWORD");
                 app = new Word.Application { Visible = false };
                 app.DisplayAlerts = WdAlertLevel.wdAlertsNone;
-                TrackOfficePid(app);
+                TrackOfficePid(app, existingWordPids);
 
                 progress?.Report(30);
-                doc = app.Documents.Open(inputFile, false, true);
+                doc = app.Documents.Open(inputFile, false, true, false);
 
                 ct.ThrowIfCancellationRequested();
                 progress?.Report(60);
 
                 doc.SaveAs2(outputFile, WdSaveFormat.wdFormatXMLDocument);
                 doc.Close(false);
+                doc.Dispose();
                 doc = null;
 
                 Log("PDF→Word conversion successful.");
@@ -196,9 +198,10 @@ public sealed class OfficeInteropService : IOfficeInteropService
         try
         {
             progress?.Report(10);
+            var existingWordPids = CapturePids("WINWORD");
             app = new Word.Application { Visible = false };
             app.DisplayAlerts = WdAlertLevel.wdAlertsNone;
-            TrackOfficePid(app);
+            TrackOfficePid(app, existingWordPids);
 
             doc = app.Documents.Open(inputFile, false, true);
 
@@ -212,6 +215,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
             string absPath = Path.GetFullPath(outputFile);
             doc.ExportAsFixedFormat(absPath, WdExportFormat.wdExportFormatPDF, false, optimization);
             doc.Close(false);
+            doc.Dispose();
             doc = null;
 
             Log("Word→PDF successful.");
@@ -238,9 +242,10 @@ public sealed class OfficeInteropService : IOfficeInteropService
         try
         {
             progress?.Report(10);
+            var existingExcelPids = CapturePids("EXCEL");
             app = new Excel.Application { Visible = false };
             app.DisplayAlerts = false;
-            TrackOfficePid(app);
+            TrackOfficePid(app, existingExcelPids);
 
             wb = app.Workbooks.Open(inputFile, 0, true);
 
@@ -254,6 +259,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
             string absPath = Path.GetFullPath(outputFile);
             wb.ExportAsFixedFormat(XlFixedFormatType.xlTypePDF, absPath, quality, true, false);
             wb.Close(false);
+            wb.Dispose();
             wb = null;
 
             Log("Excel→PDF successful.");
@@ -276,18 +282,16 @@ public sealed class OfficeInteropService : IOfficeInteropService
     {
         Log($"Starting PPT→PDF: {inputFile}");
 
-        // Kill ghost PowerPoint processes before creating a new instance
-        _processManager.KillZombieProcesses("POWERPNT");
-
         PowerPoint.Application? app = null;
         PowerPoint.Presentation? pres = null;
         try
         {
             progress?.Report(10);
+            var existingPowerPointPids = CapturePids("POWERPNT");
             app = new PowerPoint.Application();
             // NOTE: Do NOT set Visible property on PowerPoint.Application — causes PropertySet crash
             app.DisplayAlerts = PpAlertLevel.ppAlertsNone;
-            TrackOfficePid(app);
+            TrackOfficePid(app, existingPowerPointPids);
 
             progress?.Report(30);
             pres = app.Presentations.Open(inputFile,
@@ -320,6 +324,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
             }
 
             pres.Close();
+            pres.Dispose();
             pres = null;
 
             Log("PPT→PDF successful.");
@@ -350,15 +355,17 @@ public sealed class OfficeInteropService : IOfficeInteropService
         {
             progress?.Report(10);
 
+            var existingPowerPointPids = CapturePids("POWERPNT");
             pptApp = new PowerPoint.Application();
             pptApp.DisplayAlerts = PpAlertLevel.ppAlertsNone;
-            TrackOfficePid(pptApp);
+            TrackOfficePid(pptApp, existingPowerPointPids);
 
             pres = pptApp.Presentations.Add(NetOffice.OfficeApi.Enums.MsoTriState.msoFalse);
 
+            var existingWordPids = CapturePids("WINWORD");
             wordApp = new Word.Application { Visible = false };
             wordApp.DisplayAlerts = WdAlertLevel.wdAlertsNone;
-            TrackOfficePid(wordApp);
+            TrackOfficePid(wordApp, existingWordPids);
 
             sourceDoc = wordApp.Documents.Open(inputFile, false, true);
 
@@ -397,6 +404,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
             }
 
             sourceDoc.Close(false);
+            sourceDoc.Dispose();
             sourceDoc = null;
 
             if (!ct.IsCancellationRequested)
@@ -406,6 +414,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
                 pres.SaveAs(absPath, PpSaveAsFileType.ppSaveAsOpenXMLPresentation);
             }
             pres.Close();
+            pres.Dispose();
             pres = null;
 
             Log("Word→PPT successful.");
@@ -474,10 +483,21 @@ public sealed class OfficeInteropService : IOfficeInteropService
 
     // PID tracking helpers
 
-    private void TrackOfficePid(object application)
+    private static HashSet<int>? CapturePids(string name)
+    {
+        try
+        {
+            var processes = Process.GetProcessesByName(name);
+            try { return processes.Select(p => p.Id).ToHashSet(); }
+            finally { foreach (var process in processes) process.Dispose(); }
+        }
+        catch { return null; }
+    }
+
+    private void TrackOfficePid(object application, HashSet<int>? existingPids)
     {
         int pid = GetOfficePid(application);
-        if (pid > 0)
+        if (pid > 0 && existingPids != null && !existingPids.Contains(pid))
         {
             _processManager.TrackProcess(pid);
         }
@@ -506,77 +526,51 @@ public sealed class OfficeInteropService : IOfficeInteropService
         }
     }
 
-    // Cleanup: COM release + GC + PID kill fallback
+    // Cleanup: release COM on the same STA thread; terminate only tracked instances if Quit fails.
 
     private void CleanupWord(Word.Application? app, Word.Document? doc)
     {
         int pid = app != null ? GetOfficePid(app) : 0;
 
-        if (doc != null) { try { doc.Close(false); } catch { } try { Marshal.ReleaseComObject(doc); } catch { } }
-        if (app != null) { try { app.Quit(false); Marshal.ReleaseComObject(app); } catch { } }
-
-        ForceGC();
-        KillIfAlive(pid);
+        if (doc != null) { try { doc.Close(false); } catch { } try { doc.Dispose(); } catch { } }
+        if (app != null) { if (_processManager.IsTrackedProcess(pid)) { try { app.Quit(false); } catch { } } try { app.Dispose(); } catch { } }
+        FinishOfficeProcess(pid);
     }
 
     private void CleanupExcel(Excel.Application? app, Excel.Workbook? wb)
     {
         int pid = app != null ? GetOfficePid(app) : 0;
 
-        if (wb != null) { try { wb.Close(false); } catch { } try { Marshal.ReleaseComObject(wb); } catch { } }
-        if (app != null) { try { app.Quit(); Marshal.ReleaseComObject(app); } catch { } }
-
-        ForceGC();
-        KillIfAlive(pid);
+        if (wb != null) { try { wb.Close(false); } catch { } try { wb.Dispose(); } catch { } }
+        if (app != null) { if (_processManager.IsTrackedProcess(pid)) { try { app.Quit(); } catch { } } try { app.Dispose(); } catch { } }
+        FinishOfficeProcess(pid);
     }
 
     private void CleanupPowerPoint(PowerPoint.Application? app, PowerPoint.Presentation? pres)
     {
         int pid = app != null ? GetOfficePid(app) : 0;
 
-        if (pres != null) { try { pres.Close(); } catch { } try { Marshal.FinalReleaseComObject(pres); } catch { } }
-        if (app != null) { try { app.Quit(); } catch { } try { Marshal.FinalReleaseComObject(app); } catch { } }
+        if (pres != null) { try { pres.Close(); } catch { } try { pres.Dispose(); } catch { } }
+        if (app != null) { if (_processManager.IsTrackedProcess(pid)) { try { app.Quit(); } catch { } } try { app.Dispose(); } catch { } }
 
-        ForceGC();
-
-        // PowerPoint is the worst offender — give it 2s to die naturally, then kill
-        if (pid > 0)
-        {
-            try
-            {
-                var proc = Process.GetProcessById(pid);
-                if (!proc.HasExited && !proc.WaitForExit(2000))
-                {
-                    proc.Kill();
-                    Log($"Force killed zombie PowerPoint (PID: {pid})");
-                }
-                proc.Dispose();
-            }
-            catch { }
-        }
+        FinishOfficeProcess(pid);
     }
 
-    private static void ForceGC()
-    {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-    }
-
-    private void KillIfAlive(int pid)
+    private void FinishOfficeProcess(int pid)
     {
         if (pid <= 0) return;
         try
         {
-            var proc = Process.GetProcessById(pid);
-            if (!proc.HasExited)
+            if (!_processManager.IsTrackedProcess(pid)) return;
+            using var proc = Process.GetProcessById(pid);
+            if (!proc.HasExited && !proc.WaitForExit(1500))
             {
-                proc.Kill();
-                Log($"Aggressive cleanup: Killed Office process (PID: {pid})");
+                _processManager.KillTrackedProcess(pid);
+                Log($"Stopped tracked Office process (PID: {pid}) after Quit timed out.");
             }
         }
         catch { }
+        finally { _processManager.UntrackProcess(pid); }
     }
 
     // Utilities

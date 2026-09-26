@@ -58,6 +58,9 @@ public interface IProcessManager : IDisposable
     /// Track a process ID for cleanup on application exit.
     /// </summary>
     void TrackProcess(int pid);
+    bool IsTrackedProcess(int pid);
+    void UntrackProcess(int pid);
+    void KillTrackedProcess(int pid);
 
     /// <summary>
     /// Kill all tracked processes. Called on application shutdown.
@@ -65,7 +68,7 @@ public interface IProcessManager : IDisposable
     void KillAllTracked();
 
     /// <summary>
-    /// Kill zombie Office processes that have no visible window (backgrounded COM instances).
+    /// Clean up only tracked processes with matching names.
     /// </summary>
     void KillZombieProcesses(params string[] processNames);
 }

@@ -60,10 +60,7 @@ public sealed class ResourceValidationService : IResourceValidationService
 
     public Task<ResourceValidationResult> ValidateCoreResourcesAsync(CancellationToken ct = default)
     {
-        return Task.Run(() =>
-        {
-            ct.ThrowIfCancellationRequested();
-            return ValidateCoreResources();
-        }, ct);
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(ValidateCoreResources());
     }
 }

@@ -236,16 +236,3 @@ public sealed class MagickService : IMagickService
             throw new FileNotFoundException($"ImageMagick CLI not found at: {_config.MagickPath}");
     }
 }
-
-/// <summary>
-/// Basic image info used when suggesting an output format.
-/// </summary>
-public class ImageMetadata
-{
-    public int Width { get; init; }
-    public int Height { get; init; }
-    public string Format { get; init; } = string.Empty;
-    public long FileSizeBytes { get; init; }
-    public double MegaPixels => (Width * Height) / 1_000_000.0;
-    public bool IsLarge => FileSizeBytes > 50 * 1024 * 1024;
-}

@@ -7,13 +7,15 @@ Human-friendly map of the project so you can add features without hunting throug
 ```text
 CortexFX/
   App.xaml(.cs)              Entry point + DI registration only
-  MainWindow.xaml(.cs)       Shell: dashboard, navigation, universal convert, audio cutter
+  MainWindow.xaml(.cs)       Shell: dashboard, navigation, universal convert
+  MainWindow.AudioCutter.cs  Audio cutter state and playback logic (partial shell)
   Assets/                    App icons (logo.ico)
   Controls/                  Reusable UI pieces (ToolCard, …)
   Converters/                WPF value converters
   Dialogs/                   Modal windows (ModernSuccessDialog, ModernConfirmDialog)
   Views/
     Video/                   Feature UIs: VideoCompressorView, VideoCutterView
+    Audio/                   AudioCutterView markup and event forwarding
   ViewModels/                MVVM helpers (optional for new tools)
   Models/                    ConversionJob, FileModel, …
   Core/
@@ -23,7 +25,7 @@ CortexFX/
     Interfaces/              Service contracts + ProcessExecutionException
     Services/
       Media/                 FFmpegService, MagickService
-      Documents/             ConversionRouter, Office, PdfRender, OptionalConversion
+      Documents/             ConversionRouter, Office, PdfRender, PDF analysis/OCR/Word, optional conversion
       Infrastructure/        ProcessManager, logging, prefs, registry, validation
   Resources/                 Bundled tools (ffmpeg, magick, …) — do not put C# here
   docs/                      This guide
@@ -40,6 +42,10 @@ UI (MainWindow / Views)
 ```
 
 Specialized tools (Video Compressor, Video Cutter, Audio Cutter) may call engines directly for a tighter UX, but shared format rules still live in `MediaTypes`.
+
+PDF to DOCX uses `IPdfToWordService`: Pdfium checks each page for extractable text; a text PDF goes to serialized Word PDF Reflow, while a scanned PDF goes to optional Tesseract OCR after 300 DPI rendering. Word failure or a valid Word DOCX with no editable text triggers OCR fallback. Package validity and editable text are checked separately; a malformed package is reported as a failure. OCR uses `eng+ara` trained data and is optional; an absent executable gives a user-facing error. Intermediate files are deleted. PDF to PPTX uses this same DOCX stage.
+
+Batch work is limited globally to eight jobs and by engine: Office 1, FFmpeg 2, ImageMagick 3, PDF rendering 2, PDF to Word/OCR 1. Office automation runs on STA threads. Process cleanup tracks PID and start time; it never sweeps all Office processes by name. FFmpeg keeps bounded recent diagnostic lines and discards repetitive progress output.
 
 ## How to add a new tool (checklist)
 
@@ -69,10 +75,14 @@ Keep Views thin: UI + calling services. Keep Services free of Window/UserControl
 | Settings / Overlays / Shell | Settings, folders, context menu |
 | Drag-Drop & File Picking | Drop zone, open dialogs |
 | Universal Conversion | Batch convert pipeline |
-| Audio Cutter | Trim UI, waveform, export |
+| Audio Cutter | In `MainWindow.AudioCutter.cs`; view markup in `Views/Audio` |
 | Audio Choice Overlay | Trim vs convert prompt |
 
-**Next cleanup (optional):** extract Audio Cutter into `Views/Audio/AudioCutterView` the same way Video tools were extracted.
+Audio playback and shell navigation still share `MainWindow` state; the view extraction preserves the existing controls and behavior. A later pass can move the playback controller out of the partial window class.
+
+## Tests and CI
+
+`CortexFX.Tests` contains pure unit tests with fake engines, so Microsoft Office and bundled binaries are not required for the test run. Use `dotnet restore CortexFX.slnx`, `dotnet build CortexFX.slnx -c Release`, and `dotnet test CortexFX.slnx -c Release`. `.github/workflows/ci.yml` runs these steps on a Windows runner with .NET 10.
 
 ## DI registration
 

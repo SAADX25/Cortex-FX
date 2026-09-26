@@ -3,7 +3,6 @@ using CortexFX.Core.Configuration;
 using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
 using CortexFX.Core.Services.Infrastructure;
-using CortexFX.Core.Services.Media;
 using CortexFX.Models;
 
 namespace CortexFX.Core.Services.Documents;
@@ -19,8 +18,12 @@ public sealed class ConversionRouter : IConversionRouter
     private readonly IOfficeInteropService _office;
     private readonly IPdfRenderService _pdfRenderer;
     private readonly IOptionalConversionService _optional;
-    private readonly FFmpegService _ffmpegConcrete; // typed helpers (HW retry, video args)
-    private readonly MagickService _magickConcrete;  // image metadata for suggestions
+    private readonly IPdfToWordService _pdfToWord;
+    private readonly SemaphoreSlim _officeLimit = new(1);
+    private readonly SemaphoreSlim _ffmpegLimit = new(2);
+    private readonly SemaphoreSlim _magickLimit = new(3);
+    private readonly SemaphoreSlim _pdfLimit = new(2);
+    private readonly SemaphoreSlim _ocrLimit = new(1);
 
     /// <summary>
     /// Maximum parallel conversions. Defaults to CPU core count, capped at 8
@@ -35,7 +38,8 @@ public sealed class ConversionRouter : IConversionRouter
         IMagickService magick,
         IOfficeInteropService office,
         IPdfRenderService pdfRenderer,
-        IOptionalConversionService optional)
+        IOptionalConversionService optional,
+        IPdfToWordService pdfToWord)
     {
         _config = config;
         _ffmpeg = ffmpeg;
@@ -43,11 +47,7 @@ public sealed class ConversionRouter : IConversionRouter
         _office = office;
         _pdfRenderer = pdfRenderer;
         _optional = optional;
-
-        // Store concrete types for access to non-interface methods
-        // (smart builders, metadata reader). Safe because DI wires the same instance.
-        _ffmpegConcrete = (ffmpeg as FFmpegService)!;
-        _magickConcrete = (magick as MagickService)!;
+        _pdfToWord = pdfToWord;
     }
 
     // IConversionRouter
@@ -186,7 +186,7 @@ public sealed class ConversionRouter : IConversionRouter
             // Audio → audio
             if (MediaTypes.AudioExtensions.Contains(ext) && MediaTypes.AudioOutputFormats.Contains(target))
             {
-                string args = _ffmpegConcrete.BuildAudioArguments(job.InputPath, outputPath, target, job.QualityLevel);
+                string args = _ffmpeg.BuildAudioArguments(job.InputPath, outputPath, target, job.QualityLevel);
                 await _ffmpeg.ConvertAsync(job.InputPath, outputPath, args, ct, progress);
                 return ConversionResult.Ok(outputPath);
             }
@@ -194,16 +194,16 @@ public sealed class ConversionRouter : IConversionRouter
             // Video → video
             if (MediaTypes.VideoExtensions.Contains(ext) && MediaTypes.VideoOutputFormats.Contains(target))
             {
-                string args = _ffmpegConcrete.BuildVideoArguments(job.InputPath, outputPath,
+                string args = _ffmpeg.BuildVideoArguments(job.InputPath, outputPath,
                     job.QualityLevel, target);
                 try
                 {
                     await _ffmpeg.ConvertAsync(job.InputPath, outputPath, args, ct, progress);
                 }
-                catch (ProcessExecutionException ex) when (_ffmpegConcrete.UsesHardwareEncoder(args))
+                catch (ProcessExecutionException ex) when (_ffmpeg.UsesHardwareEncoder(args))
                 {
                     ConsoleLogger.Warning("Conversion", $"Hardware video encoder failed ({ex.ExitCode}); retrying with software encoder.");
-                    string softwareArgs = _ffmpegConcrete.BuildVideoArguments(job.InputPath, outputPath,
+                    string softwareArgs = _ffmpeg.BuildVideoArguments(job.InputPath, outputPath,
                         job.QualityLevel, target, preferHardware: false);
                     await _ffmpeg.ConvertAsync(job.InputPath, outputPath, softwareArgs, ct, progress);
                 }
@@ -224,9 +224,27 @@ public sealed class ConversionRouter : IConversionRouter
         {
             return ConversionResult.Fail($"{ex.ExecutableName} failed with exit code {ex.ExitCode}. See the log for technical details.");
         }
+        catch (FileNotFoundException ex)
+        {
+            ConsoleLogger.Error("Conversion", ex.ToString());
+            return ConversionResult.Fail("The selected conversion engine or input file is unavailable.");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("OCR", StringComparison.OrdinalIgnoreCase) ||
+                                                   ex.Message.Contains("Microsoft Word is required", StringComparison.OrdinalIgnoreCase))
+        {
+            ConsoleLogger.Error("Conversion", ex.ToString());
+            return ConversionResult.Fail(ex.Message);
+        }
+        catch (InvalidDataException ex) when (ex.Message.Contains("DOCX failed validation", StringComparison.OrdinalIgnoreCase) ||
+                                              ex.Message.Contains("OCR did not", StringComparison.OrdinalIgnoreCase))
+        {
+            ConsoleLogger.Error("Conversion", ex.ToString());
+            return ConversionResult.Fail(ex.Message);
+        }
         catch (Exception ex)
         {
-            return ConversionResult.Fail(ex.Message);
+            ConsoleLogger.Error("Conversion", ex.ToString());
+            return ConversionResult.Fail("Conversion failed. See the log for technical details.");
         }
     }
 
@@ -253,9 +271,16 @@ public sealed class ConversionRouter : IConversionRouter
 
         var tasks = jobs.Select(async (job, index) =>
         {
-            await throttle.WaitAsync(ct);
+            bool enteredGlobal = false;
+            bool enteredEngine = false;
+            SemaphoreSlim? engine = null;
             try
             {
+                await throttle.WaitAsync(ct);
+                enteredGlobal = true;
+                engine = GetEngineLimit(job);
+                await engine.WaitAsync(ct);
+                enteredEngine = true;
                 ct.ThrowIfCancellationRequested();
 
                 var fileProgress = new Progress<double>(p =>
@@ -275,12 +300,14 @@ public sealed class ConversionRouter : IConversionRouter
             }
             catch (Exception ex)
             {
-                results[index] = ConversionResult.Fail(ex.Message);
+                ConsoleLogger.Error("Conversion", ex.ToString());
+                results[index] = ConversionResult.Fail("The selected conversion engine is unavailable or failed. See the log for details.");
             }
             finally
             {
                 Interlocked.Increment(ref completed);
-                throttle.Release();
+                if (enteredEngine) engine!.Release();
+                if (enteredGlobal) throttle.Release();
 
                 batchProgress?.Report(new BatchProgress(
                     TotalFiles: jobs.Count,
@@ -292,6 +319,18 @@ public sealed class ConversionRouter : IConversionRouter
 
         await Task.WhenAll(tasks);
         return results;
+    }
+
+    private SemaphoreSlim GetEngineLimit(ConversionJob job)
+    {
+        string ext = Path.GetExtension(job.InputPath).ToLowerInvariant();
+        string target = job.TargetFormat.ToLowerInvariant();
+        if (ext == ".pdf" && target == "docx") return _ocrLimit;
+        if (IsDocumentToPdf(ext, target) || IsDocumentBridge(ext, target) ||
+            ext == ".pdf" && target is "pptx" or "xlsx") return _officeLimit;
+        if (ext == ".pdf") return _pdfLimit;
+        if (MediaTypes.RasterImageExtensions.Contains(ext)) return _magickLimit;
+        return _ffmpegLimit;
     }
 
     // Suggest better defaults from file metadata
@@ -323,7 +362,7 @@ public sealed class ConversionRouter : IConversionRouter
         // Case 2: Ultra-high-res image → ICO (ICO max is 256×256)
         if (MediaTypes.ImageExtensions.Contains(ext) && target == "ico")
         {
-            var meta = _magickConcrete?.ReadMetadata(filePath);
+            var meta = _magick.ReadMetadata(filePath);
             if (meta != null && (meta.Width > 1024 || meta.Height > 1024))
             {
                 return new ConversionSuggestion
@@ -338,7 +377,7 @@ public sealed class ConversionRouter : IConversionRouter
         // Case 3: Large image → WEBP (suggest quality reduction)
         if (MediaTypes.ImageExtensions.Contains(ext) && target == "webp")
         {
-            var meta = _magickConcrete?.ReadMetadata(filePath);
+            var meta = _magick.ReadMetadata(filePath);
             if (meta != null && meta.FileSizeBytes > 20 * 1024 * 1024) // > 20MB image
             {
                 return new ConversionSuggestion
@@ -381,10 +420,17 @@ public sealed class ConversionRouter : IConversionRouter
         switch (target)
         {
             case "docx":
-                await _office.ConvertPdfToWordAsync(inputFile, outputPath, ct, progress);
+                await _pdfToWord.ConvertAsync(inputFile, outputPath, ct, progress);
                 break;
             case "pptx":
-                await _office.ConvertPdfToPowerPointAsync(inputFile, outputPath, ct, progress);
+                string tempDocx = Path.Combine(Path.GetTempPath(), "CortexFX_PdfPpt_" + Guid.NewGuid().ToString("N") + ".docx");
+                try
+                {
+                    await _pdfToWord.ConvertAsync(inputFile, tempDocx, ct, new Progress<double>(p => progress?.Report(p * 0.5)));
+                    await _office.ConvertWordToPowerPointAsync(tempDocx, outputPath, ct,
+                        new Progress<double>(p => progress?.Report(50 + p * 0.5)));
+                }
+                finally { try { if (File.Exists(tempDocx)) File.Delete(tempDocx); } catch { } }
                 break;
             case "xlsx":
                 return ConversionResult.Fail("PDF to XLSX is not supported yet. Convert the PDF to DOCX first, then extract tables manually.");
@@ -411,7 +457,7 @@ public sealed class ConversionRouter : IConversionRouter
                 await _office.ConvertToPdfAsync(inputFile, tempPdf, 1, ct, pdfProgress);
 
                 var wordProgress = new Progress<double>(p => progress?.Report(50 + (p * 0.5)));
-                await _office.ConvertPdfToWordAsync(tempPdf, outputPath, ct, wordProgress);
+                await _pdfToWord.ConvertAsync(tempPdf, outputPath, ct, wordProgress);
             }
             finally
             {

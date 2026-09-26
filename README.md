@@ -42,7 +42,8 @@ Convert images, videos, audio, documents, archives, and e-books — entirely off
 | **FFmpeg** | Video & audio conversion, trimming, compression |
 | **ImageMagick** | Image format conversion (including HEIC/HEIF) |
 | **Microsoft Office COM** | Document conversion (DOCX, PPTX, XLSX -> PDF, etc.) |
-| **Poppler / pdftocairo** | PDF rendering and PDF -> image export |
+| **Pdfium** | PDF text analysis and PDF -> image export |
+| **Tesseract** *(optional)* | Editable PDF -> DOCX OCR for scanned pages |
 | **LibreOffice** *(optional)* | Open-source document conversion fallback |
 | **7-Zip** *(optional)* | Archive extraction and compression |
 | **Calibre** *(optional)* | E-book format conversion |
@@ -62,9 +63,17 @@ Convert images, videos, audio, documents, archives, and e-books — entirely off
 - Integrated **Audio Cutter** with live waveform and spectrum analysis
 
 ### Documents
-- **PDF** <-> DOCX, PPTX, XLSX, ODT, RTF, TXT
+- **PDF** to DOCX or PPTX; Office documents to PDF (other document pairs depend on optional engines)
 - PDF to image and image merge to PDF
 - Office COM automation for faithful document rendering
+
+PDF to Word first checks whether the pages contain extractable text. Text PDFs use Microsoft Word PDF Reflow on a serialized STA thread. Scanned PDFs use local Tesseract OCR at 300 DPI and produce editable text in DOCX; the layout may differ from the original. A valid Word DOCX containing only page images triggers OCR fallback. A malformed DOCX package is reported as a validation failure. Both Word and OCR results must contain editable text before success is reported.
+
+OCR is optional and is not included in the release. Install Tesseract for Windows with both `eng` and `ara` language data, then place `tesseract.exe` and its `tessdata` directory in `Resources` beside the application, or put Tesseract on `PATH`. Without it, scanned PDF conversion reports a clear missing OCR message. Tesseract and its trained data remain local; no network service is used.
+
+Batch conversion limits concurrent work by engine: Office 1, FFmpeg 2, ImageMagick 3, PDF rendering 2, and PDF-to-Word/OCR 1. Office cleanup terminates only processes started and tracked by Cortex FX. FFmpeg diagnostics keep a bounded recent history.
+
+Unit tests live in `CortexFX.Tests`; `dotnet test CortexFX.slnx -c Release` runs them without Office or bundled media tools. GitHub Actions builds and tests on Windows with .NET 10.
 
 ### Archives *(optional — requires 7-Zip)*
 - Input: ZIP, RAR | Output: 7Z, ZIP, TAR
@@ -108,6 +117,7 @@ Cortex-FX/
 |   |
 |   |-- Interfaces/                 # Service contracts
 |   |   |-- IConversionRouter.cs    # Main conversion dispatch interface
+|   |   |-- IPdfToWordService.cs     # PDF to editable Word interface
 |   |   |-- IFFmpegService.cs       # FFmpeg operations interface
 |   |   |-- IMagickService.cs       # ImageMagick operations interface
 |   |   |-- IOfficeInteropService.cs# Office COM automation interface
@@ -119,6 +129,9 @@ Cortex-FX/
 |   `-- Services/
 |       |-- Documents/              # Document & PDF conversion services
 |       |   |-- ConversionRouter.cs        # Dispatches to correct engine
+|       |   |-- PdfToWordService.cs        # Word/OCR selection and DOCX validation
+|       |   |-- PdfAnalysisService.cs      # Extractable-text detection
+|       |   |-- PdfOcrService.cs           # Optional Tesseract OCR
 |       |   |-- OfficeInteropService.cs    # Microsoft Office COM automation
 |       |   |-- OptionalConversionService.cs # LibreOffice / Calibre / 7-Zip
 |       |   `-- PdfRenderService.cs        # PDF to image via Pdfium
@@ -201,7 +214,8 @@ IConversionRouter  (Core/Services/Documents/ConversionRouter)
     |
     `---> Document Services
             OfficeInteropService     --> Microsoft Office COM
-            PdfRenderService         --> pdftocairo.exe / Pdfium
+            PdfRenderService         --> Pdfium
+            PdfToWordService         --> Word PDF Reflow / optional Tesseract OCR
             OptionalConversionService--> LibreOffice / Calibre / 7-Zip
 ```
 
@@ -352,7 +366,7 @@ Open **Settings > Resource Status**. Core tools must be in the `Resources` folde
 
 ### Office & PDF Issues
 
-Microsoft Office must be **installed and activated** for Office COM conversions. PDF-to-Word and PDF-to-PowerPoint depend on Word's built-in PDF import and may vary by Office version.
+Microsoft Office must be **installed and activated** for Office COM conversions and text-based PDF-to-Word. Scanned PDF conversion uses optional local Tesseract. PDF-to-PowerPoint uses the resulting DOCX and still requires PowerPoint.
 
 ### Optional Tool Issues
 

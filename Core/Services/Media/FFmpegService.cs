@@ -392,8 +392,8 @@ public sealed class FFmpegService : IFFmpegService
         };
 
         using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        var stdout = new StringBuilder();
-        var stderr = new StringBuilder();
+        var stdout = new RecentLines(80);
+        var stderr = new RecentLines(120);
         TimeSpan? duration = null;
         double lastProgress = 0;
         object progressLock = new();
@@ -432,7 +432,6 @@ public sealed class FFmpegService : IFFmpegService
                 return;
             }
 
-            stdout.AppendLine(e.Data);
             if (TryParseProgressTimestamp(e.Data, out var position))
             {
                 ReportProgress(position);
@@ -441,6 +440,8 @@ public sealed class FFmpegService : IFFmpegService
             {
                 ReportProgress(null);
             }
+            else if (!e.Data.StartsWith("progress=", StringComparison.OrdinalIgnoreCase))
+                stdout.Add(e.Data);
         };
 
         process.ErrorDataReceived += (_, e) =>
@@ -450,12 +451,12 @@ public sealed class FFmpegService : IFFmpegService
                 return;
             }
 
-            stderr.AppendLine(e.Data);
             duration ??= TryParseDuration(e.Data);
             if (TryParseStatusTimestamp(e.Data, out var position))
             {
                 ReportProgress(position);
             }
+            else stderr.Add(e.Data);
         };
 
         ConsoleLogger.Info("Process", $"Starting {Path.GetFileName(_config.FFmpegPath)}.");
@@ -468,10 +469,12 @@ public sealed class FFmpegService : IFFmpegService
         {
             await process.WaitForExitAsync(ct).ConfigureAwait(false);
             process.WaitForExit();
+            _processManager.UntrackProcess(process.Id);
         }
         catch (OperationCanceledException)
         {
             KillSafe(process);
+            _processManager.UntrackProcess(process.Id);
             ConsoleLogger.Warning("Process", $"Cancelled {Path.GetFileName(_config.FFmpegPath)}.");
             throw;
         }
@@ -487,6 +490,23 @@ public sealed class FFmpegService : IFFmpegService
 
         ConsoleLogger.Success("Process", $"{Path.GetFileName(_config.FFmpegPath)} completed.");
         return result;
+    }
+
+    private sealed class RecentLines(int capacity)
+    {
+        private readonly Queue<string> _lines = new();
+        public void Add(string line)
+        {
+            lock (_lines)
+            {
+                _lines.Enqueue(line.Length > 2000 ? line[..2000] : line);
+                while (_lines.Count > capacity) _lines.Dequeue();
+            }
+        }
+        public override string ToString()
+        {
+            lock (_lines) return string.Join(Environment.NewLine, _lines);
+        }
     }
 
     private static string BuildExecutionArguments(string arguments, bool enableProgress)

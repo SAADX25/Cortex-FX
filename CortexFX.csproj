@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="CortexFX.Tests\**\*.cs" />
     <Resource Include="Assets\logo.ico" />
   </ItemGroup>
 

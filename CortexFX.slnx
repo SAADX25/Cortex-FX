@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CortexFX.csproj" />
+  <Project Path="CortexFX.Tests/CortexFX.Tests.csproj" />
+</Solution>

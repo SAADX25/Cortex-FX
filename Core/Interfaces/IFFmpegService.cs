@@ -11,6 +11,9 @@ public readonly record struct VideoCutSegment(TimeSpan Start, TimeSpan End)
 /// </summary>
 public interface IFFmpegService
 {
+    string BuildVideoArguments(string inputFile, string outputFile, double qualityLevel, string targetFormat, bool preferHardware = true);
+    string BuildAudioArguments(string inputFile, string outputFile, string? targetFormat = null, double qualityLevel = 75);
+    bool UsesHardwareEncoder(string arguments);
     /// <summary>Run FFmpeg with the given argument string.</summary>
     Task ConvertAsync(string inputFile, string outputFile, string arguments,
                       CancellationToken ct = default, IProgress<double>? progress = null);
