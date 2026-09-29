@@ -7,7 +7,7 @@
 **A powerful local file conversion desktop app for Windows.**  
 Convert images, videos, audio, documents, archives, and e-books — entirely offline, on your machine.
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue?style=for-the-badge)](https://github.com/SAADX25/Cortex-FX/releases)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue?style=for-the-badge)](https://github.com/SAADX25/Cortex-FX/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-0078d4?style=for-the-badge&logo=windows)](https://github.com/SAADX25/Cortex-FX)
 [![Framework](https://img.shields.io/badge/.NET-10.0--windows-512bd4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
 [![UI](https://img.shields.io/badge/UI-WPF-68217a?style=for-the-badge&logo=microsoft)](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/)
@@ -278,9 +278,11 @@ Resources/
 ## Quick Start
 
 1. Download the latest release from [GitHub Releases](https://github.com/SAADX25/Cortex-FX/releases).
-2. Run the installer (`CortexFX_Setup_v1.6.0.exe`) **or** extract the portable ZIP.
+2. Run the installer (`CortexFX_Setup_v1.7.0.exe`) **or** extract the portable ZIP.
 3. Ensure the `Resources` folder is present beside `CortexFX.exe` (portable only).
 4. Open Cortex FX, pick a tool from the dashboard, add files, choose an output folder, and click **Convert**.
+
+Installed users can open **Settings → Check for updates**. Cortex FX checks the latest stable GitHub release, downloads its Windows installer, verifies the download, then closes and starts Setup. Setup uses the same application ID to upgrade the existing installation. Portable ZIP users can continue updating by replacing their extracted files manually.
 
 > If Windows SmartScreen warns on first launch, click **More info -> Run anyway** only if the file came from the official release page.
 
@@ -315,7 +317,7 @@ dotnet run --project .\CortexFX.csproj
 ### Manual Publish
 
 ```powershell
-dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.6.0
+dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.7.0
 ```
 
 ### Using the Build Script
@@ -346,8 +348,8 @@ Before tagging a release:
 
 | Artifact | Description |
 |---|---|
-| `Publish\CortexFX_Setup_v1.6.0.exe` | Windows installer |
-| `Publish\CortexFX_Portable_v1.6.0-win-x64.zip` | Self-contained portable build |
+| `Publish\CortexFX_Setup_v1.7.0.exe` | Windows installer |
+| `Publish\CortexFX_Portable_v1.7.0-win-x64.zip` | Self-contained portable build |
 
 ---
 

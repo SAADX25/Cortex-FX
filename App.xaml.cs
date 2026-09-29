@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using CortexFX.Core.Configuration;
 using CortexFX.Core.Interfaces;
@@ -66,7 +67,7 @@ public partial class App : Application
         Version? version = typeof(App).Assembly.GetName().Version;
         string versionText = version != null
             ? $"v{version.Major}.{version.Minor}.{version.Build}"
-            : "v1.6.0";
+            : "v1.7.0";
 
         ConsoleLogger.Info("App", $"Cortex FX {versionText} starting...");
 
@@ -134,6 +135,8 @@ public partial class App : Application
         services.AddSingleton<IPdfToWordService, PdfToWordService>();
         services.AddSingleton<IOptionalConversionService, OptionalConversionService>();
         services.AddSingleton<IResourceValidationService, ResourceValidationService>();
+        services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromMinutes(10) });
+        services.AddSingleton<UpdateService>();
 
         services.AddSingleton<IConversionRouter, ConversionRouter>();
 

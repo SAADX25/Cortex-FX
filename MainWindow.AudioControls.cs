@@ -20,11 +20,15 @@ public partial class MainWindow
     private System.Windows.Controls.TextBlock StartTimeDisplay => AudioEditorGrid.StartTimeDisplay;
     private System.Windows.Controls.TextBlock EndTimeDisplay => AudioEditorGrid.EndTimeDisplay;
     private System.Windows.Controls.TextBlock DurationTimeDisplay => AudioEditorGrid.DurationTimeDisplay;
-    private System.Windows.Controls.Slider VolumeSlider => AudioEditorGrid.VolumeSlider;
-    private System.Windows.Controls.TextBlock VolumePercentText => AudioEditorGrid.VolumePercentText;
     private System.Windows.Controls.Button SetStartBtn => AudioEditorGrid.SetStartBtn;
     private System.Windows.Controls.Button SetEndBtn => AudioEditorGrid.SetEndBtn;
     private System.Windows.Controls.Button PlaySelectionBtn => AudioEditorGrid.PlaySelectionBtn;
-    private System.Windows.Controls.Button StopSelectionBtn => AudioEditorGrid.StopSelectionBtn;
+    private System.Windows.Controls.TextBlock PlaybackButtonIcon => AudioEditorGrid.PlaybackButtonIcon;
+    private System.Windows.Controls.TextBlock PlaybackButtonLabel => AudioEditorGrid.PlaybackButtonLabel;
+    private System.Windows.Controls.Button PreviewSoundBtn => AudioEditorGrid.PreviewSoundBtn;
+    private System.Windows.Controls.TextBlock PreviewSoundIcon => AudioEditorGrid.PreviewSoundIcon;
+    private System.Windows.Controls.TextBlock PreviewSoundLabel => AudioEditorGrid.PreviewSoundLabel;
+    private System.Windows.Controls.Slider AudioGainSlider => AudioEditorGrid.AudioGainSlider;
+    private System.Windows.Controls.TextBlock AudioGainText => AudioEditorGrid.AudioGainText;
     private System.Windows.Controls.Button SaveSelectionBtn => AudioEditorGrid.SaveSelectionBtn;
 }

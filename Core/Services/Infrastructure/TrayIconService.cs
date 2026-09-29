@@ -111,6 +111,11 @@ public sealed class TrayIconService : IDisposable
         Application.Current.Shutdown();
     }
 
+    public void ExitForUpdate()
+    {
+        ExitApp();
+    }
+
     private static System.Windows.Media.ImageSource? LoadIconImage()
     {
         try

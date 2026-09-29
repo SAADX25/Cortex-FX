@@ -1,7 +1,7 @@
 @echo off
 setlocal
 set "PROJECT_DIR=e:\Code-Setup\Cortex-FX"
-set "VERSION=1.6.0"
+set "VERSION=1.7.0"
 set "PUBLISH_DIR=%PROJECT_DIR%\Publish\CortexFX_v%VERSION%"
 set "OUTPUT_DIR=%PROJECT_DIR%\Publish"
 set "INNO=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"

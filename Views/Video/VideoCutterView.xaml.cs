@@ -35,14 +35,19 @@ public partial class VideoCutterView : UserControl
     private TimeSpan _inPoint = TimeSpan.Zero;
     private TimeSpan _outPoint = TimeSpan.Zero;
     private TimeSpan _playSelectionEnd = TimeSpan.Zero;
+    private TimeSpan _fallbackPosition = TimeSpan.Zero;
     private bool _isPlayingSelection;
-    private bool _suppressScrub;
     private bool _timelineDragging;
+    private TimelineDragTarget _timelineDragTarget;
+    private double _timelineHandleOffsetX;
     private bool _mediaReady;
+    private bool _previewFocused;
     private CancellationTokenSource? _cts;
     private Task? _exportTask;
     private readonly DispatcherTimer _uiTimer;
     private readonly ObservableCollection<SegmentItem> _segments = new();
+
+    private enum TimelineDragTarget { None, Playhead, In, Out }
 
     private static readonly string[] SupportedExtensions =
     {
@@ -60,13 +65,20 @@ public partial class VideoCutterView : UserControl
             if (IsVisible)
             {
                 RefreshSessionChrome();
+                if (EditorPanel.Visibility == Visibility.Visible &&
+                    !string.IsNullOrEmpty(_inputFilePath) &&
+                    _duration > TimeSpan.Zero &&
+                    TimelineFrames.Children.Count == 0)
+                    StartTimelineFrames(_inputFilePath);
                 Focus();
             }
             else
             {
                 _ = PausePreviewAsync();
+                CancelTimelineFrames();
             }
         };
+        Unloaded += (_, _) => CancelTimelineFrames();
         PreviewMedia.PositionChanged += PreviewMedia_PositionChanged;
     }
 
@@ -78,12 +90,32 @@ public partial class VideoCutterView : UserControl
 
     private void RefreshSessionChrome()
     {
+        PreviewFocusButton.Visibility = EditorPanel.Visibility == Visibility.Visible
+            ? Visibility.Visible : Visibility.Collapsed;
         BackgroundJobBadge.Visibility = IsExporting ? Visibility.Visible : Visibility.Collapsed;
         if (IsExporting)
         {
             ProgressPanel.Visibility = Visibility.Visible;
             ExportButton.IsEnabled = false;
         }
+    }
+
+    private void PreviewFocusButton_Click(object sender, RoutedEventArgs e)
+    {
+        _previewFocused = !_previewFocused;
+        ApplyPreviewFocusState();
+    }
+
+    private void ApplyPreviewFocusState()
+    {
+        CutterSidePanel.Visibility = _previewFocused ? Visibility.Collapsed : Visibility.Visible;
+        CutterTimelinePanel.Visibility = _previewFocused ? Visibility.Collapsed : Visibility.Visible;
+        CutterExportDock.Visibility = _previewFocused ? Visibility.Collapsed : Visibility.Visible;
+        Grid.SetColumnSpan(EditorLeftPanel, _previewFocused ? 2 : 1);
+        EditorLeftPanel.Margin = _previewFocused ? new Thickness(0) : new Thickness(0, 0, 10, 0);
+        PreviewFocusButtonLabel.Text = _previewFocused ? "Exit focus" : "Focus preview";
+        PreviewFocusButton.ToolTip = _previewFocused
+            ? "Return to trim controls" : "Expand the video preview";
     }
 
     private void BackButton_Click(object sender, RoutedEventArgs e)
@@ -145,6 +177,13 @@ public partial class VideoCutterView : UserControl
             return;
         }
 
+        if (!File.Exists(path))
+        {
+            MessageBox.Show("The selected video file could not be found.",
+                "File not found", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         string ext = Path.GetExtension(path).ToLowerInvariant();
         if (Array.IndexOf(SupportedExtensions, ext) < 0)
         {
@@ -154,6 +193,7 @@ public partial class VideoCutterView : UserControl
         }
 
         await PausePreviewAsync();
+        CancelTimelineFrames();
         _mediaReady = false;
         _segments.Clear();
         UpdateSegmentsSummary();
@@ -166,6 +206,9 @@ public partial class VideoCutterView : UserControl
 
         DropZoneBorder.Visibility = Visibility.Collapsed;
         EditorPanel.Visibility = Visibility.Visible;
+        PreviewFocusButton.Visibility = Visibility.Visible;
+        _previewFocused = false;
+        ApplyPreviewFocusState();
         ResultCard.Visibility = Visibility.Collapsed;
         ProgressPanel.Visibility = Visibility.Collapsed;
         PreviewPlaceholder.Visibility = Visibility.Visible;
@@ -198,13 +241,12 @@ public partial class VideoCutterView : UserControl
 
         _inPoint = TimeSpan.Zero;
         _outPoint = _duration;
-        _suppressScrub = true;
-        ScrubSlider.Maximum = Math.Max(0.001, _duration.TotalSeconds);
-        ScrubSlider.Value = 0;
-        _suppressScrub = false;
+        _fallbackPosition = TimeSpan.Zero;
 
         UpdateTimeLabels();
         UpdateTimelineVisuals();
+        if (!string.IsNullOrEmpty(_inputFilePath))
+            StartTimelineFrames(_inputFilePath);
         PreviewPlaceholder.Visibility = Visibility.Collapsed;
         await PreviewMedia.Pause();
         UpdatePlayPauseUi(false);
@@ -252,12 +294,11 @@ public partial class VideoCutterView : UserControl
                 _duration = dur;
                 _inPoint = TimeSpan.Zero;
                 _outPoint = dur;
-                _suppressScrub = true;
-                ScrubSlider.Maximum = Math.Max(0.001, dur.TotalSeconds);
-                ScrubSlider.Value = 0;
-                _suppressScrub = false;
+                _fallbackPosition = TimeSpan.Zero;
                 UpdateTimeLabels();
                 UpdateTimelineVisuals();
+                if (string.Equals(_inputFilePath, path, StringComparison.OrdinalIgnoreCase))
+                    StartTimelineFrames(path);
             }
         }
         catch { }
@@ -280,6 +321,8 @@ public partial class VideoCutterView : UserControl
         }
         else
         {
+            if (_duration > TimeSpan.Zero && PreviewMedia.Position >= _duration - TimeSpan.FromMilliseconds(50))
+                await SeekToAsync(TimeSpan.Zero);
             await PreviewMedia.Play();
             _uiTimer.Start();
             UpdatePlayPauseUi(true);
@@ -310,6 +353,10 @@ public partial class VideoCutterView : UserControl
 
     private async void NudgeForward_Click(object sender, RoutedEventArgs e) => await SeekRelativeAsync(1);
 
+    private async void NudgeFineBack_Click(object sender, RoutedEventArgs e) => await SeekRelativeAsync(-0.1);
+
+    private async void NudgeFineForward_Click(object sender, RoutedEventArgs e) => await SeekRelativeAsync(0.1);
+
     private async Task SeekRelativeAsync(double seconds)
     {
         if (_duration <= TimeSpan.Zero) return;
@@ -319,17 +366,15 @@ public partial class VideoCutterView : UserControl
 
     private TimeSpan GetCurrentPosition()
     {
-        if (_mediaReady)
+        if (_mediaReady && !_timelineDragging)
             return PreviewMedia.Position;
-        return TimeSpan.FromSeconds(ScrubSlider.Value);
+        return _fallbackPosition;
     }
 
     private async Task SeekToAsync(TimeSpan position)
     {
         position = ClampTime(position);
-        _suppressScrub = true;
-        ScrubSlider.Value = position.TotalSeconds;
-        _suppressScrub = false;
+        _fallbackPosition = position;
 
         if (_mediaReady)
         {
@@ -341,25 +386,10 @@ public partial class VideoCutterView : UserControl
         UpdateTimelineVisuals();
     }
 
-    private async void ScrubSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_suppressScrub || _duration <= TimeSpan.Zero) return;
-        var pos = TimeSpan.FromSeconds(e.NewValue);
-        if (_mediaReady)
-        {
-            try { await PreviewMedia.Seek(pos); }
-            catch { PreviewMedia.Position = pos; }
-        }
-        UpdateTimeLabels();
-        UpdateTimelineVisuals();
-    }
-
     private void PreviewMedia_PositionChanged(object? sender, PositionChangedEventArgs e)
     {
-        if (_suppressScrub || _timelineDragging) return;
-        _suppressScrub = true;
-        ScrubSlider.Value = e.Position.TotalSeconds;
-        _suppressScrub = false;
+        if (_timelineDragging) return;
+        _fallbackPosition = e.Position;
         UpdateTimeLabels();
         UpdateTimelineVisuals();
 
@@ -369,10 +399,8 @@ public partial class VideoCutterView : UserControl
 
     private void UiTimer_Tick(object? sender, EventArgs e)
     {
-        if (!_mediaReady || _suppressScrub || _timelineDragging) return;
-        _suppressScrub = true;
-        ScrubSlider.Value = PreviewMedia.Position.TotalSeconds;
-        _suppressScrub = false;
+        if (!_mediaReady || _timelineDragging) return;
+        _fallbackPosition = PreviewMedia.Position;
         UpdateTimeLabels();
         UpdateTimelineVisuals();
 
@@ -432,21 +460,45 @@ public partial class VideoCutterView : UserControl
 
     private void Timeline_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_duration <= TimeSpan.Zero || TimelineHitArea.ActualWidth <= 0) return;
+        double x = e.GetPosition(TimelineHitArea).X;
+        _timelineDragTarget = HitTestTimelineHandle(x);
+        double scale = TimelineHitArea.ActualWidth / _duration.TotalSeconds;
+        _timelineHandleOffsetX = _timelineDragTarget switch
+        {
+            TimelineDragTarget.In => _inPoint.TotalSeconds * scale - x,
+            TimelineDragTarget.Out => _outPoint.TotalSeconds * scale - x,
+            _ => 0
+        };
         _timelineDragging = true;
         TimelineHitArea.CaptureMouse();
-        _ = SeekFromTimelineAsync(e.GetPosition(TimelineHitArea).X);
+        if (_timelineDragTarget == TimelineDragTarget.Playhead)
+            UpdateTimelineDrag(x);
+        e.Handled = true;
     }
 
     private void Timeline_MouseMove(object sender, MouseEventArgs e)
     {
-        if (!_timelineDragging) return;
-        _ = SeekFromTimelineAsync(e.GetPosition(TimelineHitArea).X);
+        double x = e.GetPosition(TimelineHitArea).X;
+        if (!_timelineDragging)
+        {
+            TimelineHitArea.Cursor = HitTestTimelineHandle(x) is TimelineDragTarget.In or TimelineDragTarget.Out
+                ? Cursors.SizeWE : Cursors.Hand;
+            return;
+        }
+        if (e.LeftButton == MouseButtonState.Pressed)
+            UpdateTimelineDrag(x);
     }
 
     private void Timeline_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (_timelineDragging)
+            UpdateTimelineDrag(e.GetPosition(TimelineHitArea).X);
         _timelineDragging = false;
-        TimelineHitArea.ReleaseMouseCapture();
+        _timelineDragTarget = TimelineDragTarget.None;
+        if (TimelineHitArea.IsMouseCaptured)
+            TimelineHitArea.ReleaseMouseCapture();
+        e.Handled = true;
     }
 
     private void Timeline_MouseLeave(object sender, MouseEventArgs e)
@@ -454,7 +506,51 @@ public partial class VideoCutterView : UserControl
         if (e.LeftButton != MouseButtonState.Pressed)
         {
             _timelineDragging = false;
-            TimelineHitArea.ReleaseMouseCapture();
+            _timelineDragTarget = TimelineDragTarget.None;
+            if (TimelineHitArea.IsMouseCaptured)
+                TimelineHitArea.ReleaseMouseCapture();
+        }
+    }
+
+    private TimelineDragTarget HitTestTimelineHandle(double x)
+    {
+        if (_duration <= TimeSpan.Zero || TimelineHitArea.ActualWidth <= 0)
+            return TimelineDragTarget.Playhead;
+
+        double scale = TimelineHitArea.ActualWidth / _duration.TotalSeconds;
+        double inDistance = Math.Abs(x - _inPoint.TotalSeconds * scale);
+        double outDistance = Math.Abs(x - _outPoint.TotalSeconds * scale);
+        const double handleRadius = 11;
+        if (inDistance <= handleRadius || outDistance <= handleRadius)
+            return inDistance <= outDistance ? TimelineDragTarget.In : TimelineDragTarget.Out;
+        return TimelineDragTarget.Playhead;
+    }
+
+    private void UpdateTimelineDrag(double x)
+    {
+        if (_duration <= TimeSpan.Zero || TimelineHitArea.ActualWidth <= 0) return;
+        double effectiveX = _timelineDragTarget is TimelineDragTarget.In or TimelineDragTarget.Out
+            ? x + _timelineHandleOffsetX : x;
+        var time = TimeSpan.FromSeconds(
+            _duration.TotalSeconds * Math.Clamp(effectiveX / TimelineHitArea.ActualWidth, 0, 1));
+        var minimumRange = TimeSpan.FromMilliseconds(Math.Min(100, _duration.TotalMilliseconds));
+        switch (_timelineDragTarget)
+        {
+            case TimelineDragTarget.In:
+                _inPoint = ClampTime(time <= _outPoint - minimumRange
+                    ? time : _outPoint - minimumRange);
+                UpdateTimeLabels();
+                UpdateTimelineVisuals();
+                break;
+            case TimelineDragTarget.Out:
+                _outPoint = ClampTime(time >= _inPoint + minimumRange
+                    ? time : _inPoint + minimumRange);
+                UpdateTimeLabels();
+                UpdateTimelineVisuals();
+                break;
+            case TimelineDragTarget.Playhead:
+                _ = SeekFromTimelineAsync(x);
+                break;
         }
     }
 
@@ -474,11 +570,11 @@ public partial class VideoCutterView : UserControl
         double outX = (_outPoint.TotalSeconds / _duration.TotalSeconds) * width;
         double playX = (GetCurrentPosition().TotalSeconds / _duration.TotalSeconds) * width;
 
-        SelectionBand.Margin = new Thickness(Math.Min(inX, outX), 8, 0, 8);
+        SelectionBand.Margin = new Thickness(Math.Min(inX, outX), 2, 0, 2);
         SelectionBand.Width = Math.Max(2, Math.Abs(outX - inX));
-        InMarker.Margin = new Thickness(inX, 2, 0, 2);
-        OutMarker.Margin = new Thickness(outX, 2, 0, 2);
-        Playhead.Margin = new Thickness(playX, 4, 0, 4);
+        InMarker.Margin = new Thickness(Math.Clamp(inX, 0, Math.Max(0, width - InMarker.Width)), 1, 0, 1);
+        OutMarker.Margin = new Thickness(Math.Clamp(outX, 0, Math.Max(0, width - OutMarker.Width)), 1, 0, 1);
+        Playhead.Margin = new Thickness(Math.Clamp(playX, 0, Math.Max(0, width - Playhead.Width)), 2, 0, 2);
     }
 
     private void UpdateTimeLabels()
@@ -690,6 +786,7 @@ public partial class VideoCutterView : UserControl
 
     private async Task ResetViewAsync(bool cancelExport)
     {
+        CancelTimelineFrames();
         if (cancelExport)
             CancelExportIfRunning();
 
@@ -702,19 +799,23 @@ public partial class VideoCutterView : UserControl
         _duration = TimeSpan.Zero;
         _inPoint = TimeSpan.Zero;
         _outPoint = TimeSpan.Zero;
+        _fallbackPosition = TimeSpan.Zero;
         _mediaReady = false;
         _segments.Clear();
         UpdateSegmentsSummary();
 
         DropZoneBorder.Visibility = Visibility.Visible;
         EditorPanel.Visibility = Visibility.Collapsed;
+        PreviewFocusButton.Visibility = Visibility.Collapsed;
+        _previewFocused = false;
+        ApplyPreviewFocusState();
         ProgressPanel.Visibility = Visibility.Collapsed;
         ResultCard.Visibility = Visibility.Collapsed;
         BackgroundJobBadge.Visibility = Visibility.Collapsed;
         ExportButton.IsEnabled = true;
         PreviewPlaceholder.Visibility = Visibility.Visible;
         PreviewPlaceholder.Text = "Preview ready";
-        FileNameText.Text = "";
+        FileNameText.Text = "Open a video to begin";
         OutputPathText.Text = "";
         ExportProgress.Value = 0;
     }

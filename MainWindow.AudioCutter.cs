@@ -14,7 +14,6 @@ using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using CortexFX.Core.Audio;
 using CortexFX.Core.Constants;
-using CortexFX.Core.Services.Infrastructure;
 using CortexFX.Dialogs;
 using CortexFX.Models;
 
@@ -29,6 +28,7 @@ public partial class MainWindow
     private WaveOutEvent? _waveOut;
     private LiveSpectrumAnalyzer? _spectrumAnalyzer;
     private readonly float[] _spectrumBands = new float[48];
+    private readonly float[] _displaySpectrumBands = new float[48];
     private TimeSpan _selectionStart = TimeSpan.Zero;
     private TimeSpan _selectionEnd = TimeSpan.Zero;
     private System.Windows.Threading.DispatcherTimer? _playbackTimer;
@@ -40,7 +40,8 @@ public partial class MainWindow
     private int _waveformCacheBuckets;
     private double[]? _waveformCachePeaks;
     private bool _isSavingAudioSelection;
-    private bool _suppressVolumePersist;
+    private bool _isPreviewMuted;
+    private double _previewVolume = 1.0;
 
     #region Audio Cutter
 
@@ -80,8 +81,15 @@ public partial class MainWindow
             _spectrumAnalyzer = new LiveSpectrumAnalyzer(_audioReader, bandCount: _spectrumBands.Length, fftLength: 1024);
             _waveOut = new WaveOutEvent { DesiredLatency = 80 };
             _waveOut.Init(_spectrumAnalyzer);
-            ApplyPersistedAudioVolume();
+            _isPreviewMuted = false;
+            _previewVolume = 1.0;
+            AudioGainSlider.Value = 100;
+            AudioGainText.Text = "100%";
+            _audioReader.Volume = 1f;
+            UpdatePreviewSoundButton();
+            UpdatePlaybackButton(false);
             _spectrumAnalyzer.ResetLevels();
+            Array.Clear(_displaySpectrumBands);
             if (SpectrumStatusText != null)
             {
                 SpectrumStatusText.Visibility = Visibility.Visible;
@@ -126,6 +134,11 @@ public partial class MainWindow
 
     private void AudioPlaybackTimer_Tick(object? sender, EventArgs e)
     {
+        if (_waveOut == null || _waveOut.PlaybackState != PlaybackState.Playing)
+        {
+            StopAudioPlayback(resetToSelectionStart: false);
+            return;
+        }
         UpdatePlaybackCursor();
         UpdateLiveSpectrum();
     }
@@ -214,6 +227,14 @@ public partial class MainWindow
     private void ApplyWaveformPeaks(double[] peaks, double width, double height)
     {
         DrawWaveformBars(peaks, width, height);
+        WaveformCanvas.BeginAnimation(UIElement.OpacityProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(420))
+            {
+                EasingFunction = new System.Windows.Media.Animation.CubicEase
+                {
+                    EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                }
+            });
         UpdateSelectionVisuals();
         UpdatePlaybackCursor();
     }
@@ -351,7 +372,13 @@ public partial class MainWindow
         }
 
         _spectrumAnalyzer.CopyBandLevels(_spectrumBands);
-        DrawSpectrumBars(_spectrumBands);
+        for (int i = 0; i < _spectrumBands.Length; i++)
+        {
+            float target = _spectrumBands[i];
+            float ease = target > _displaySpectrumBands[i] ? 0.42f : 0.15f;
+            _displaySpectrumBands[i] += (target - _displaySpectrumBands[i]) * ease;
+        }
+        DrawSpectrumBars(_displaySpectrumBands);
     }
 
     private void DrawSpectrumBars(IReadOnlyList<float> bands)
@@ -484,6 +511,7 @@ public partial class MainWindow
                 _waveOut.Pause();
                 _audioReader.CurrentTime = _selectionEnd;
                 _playbackTimer?.Stop();
+                UpdatePlaybackButton(false);
                 UpdateCurrentTimeDisplay();
             }
         }
@@ -695,60 +723,19 @@ public partial class MainWindow
         EndMarker.Margin = new Thickness(endX, 0, 0, 0);
     }
 
-    internal void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        double volume = Math.Clamp(e.NewValue, 0, 2);
-        if (VolumePercentText != null)
-            VolumePercentText.Text = $"{(int)Math.Round(volume * 100)}%";
-
-        if (_audioReader != null)
-            _audioReader.Volume = (float)volume;
-
-        if (_suppressVolumePersist || !IsLoaded)
-            return;
-
-        UserPreferences.Current.AudioVolume = volume;
-        UserPreferences.Current.Save();
-    }
-
-    private void ApplyPersistedAudioVolume()
-    {
-        double volume = Math.Clamp(UserPreferences.Current.AudioVolume, 0, 2);
-        _suppressVolumePersist = true;
-        try
-        {
-            if (VolumeSlider != null)
-                VolumeSlider.Value = volume;
-            if (_audioReader != null)
-                _audioReader.Volume = (float)volume;
-            if (VolumePercentText != null)
-                VolumePercentText.Text = $"{(int)Math.Round(volume * 100)}%";
-        }
-        finally
-        {
-            _suppressVolumePersist = false;
-        }
-    }
-
-    private static double GetExportVolumeGain()
-    {
-        return Math.Clamp(UserPreferences.Current.AudioVolume, 0.01, 2.0);
-    }
-
     private static bool FormatSupportsEmbeddedCover(string extension) =>
         extension is ".mp3" or ".m4a" or ".aac" or ".flac" or ".ogg" or ".opus" or ".wma";
 
-    private static string BuildAudioExportArgs(string inputFile, string outputFile, string start, string duration, double volumeGain)
+    internal static string BuildAudioExportArgs(string inputFile, string outputFile, string start, string duration)
     {
         string outExt = System.IO.Path.GetExtension(outputFile).ToLowerInvariant();
         string inExt = System.IO.Path.GetExtension(inputFile).ToLowerInvariant();
-        bool volumeChanged = Math.Abs(volumeGain - 1.0) > 0.001;
         bool sameContainer = string.Equals(outExt, inExt, StringComparison.OrdinalIgnoreCase);
         bool keepCover = FormatSupportsEmbeddedCover(outExt);
         string id3 = outExt == ".mp3" ? "-id3v2_version 3 " : string.Empty;
 
         // Fast path: trim only — copy audio + embedded album art (do NOT use -vn).
-        if (!volumeChanged && sameContainer)
+        if (sameContainer)
         {
             if (keepCover)
             {
@@ -771,16 +758,12 @@ public partial class MainWindow
             _ => "-c:a libmp3lame -q:a 2"
         };
 
-        string volumeFilter = volumeChanged
-            ? $"-af \"volume={volumeGain.ToString(System.Globalization.CultureInfo.InvariantCulture)}\" "
-            : string.Empty;
-
         // Keep album art thumbnail from the source when the output format supports it.
         string coverArgs = keepCover
             ? "-map_metadata 0 -map 0:a:0 -map 0:v? -c:v copy -disposition:v:0 attached_pic "
             : "-map_metadata 0 -map 0:a:0 ";
 
-        return $"-ss {start} -i \"{inputFile}\" -t {duration} {coverArgs}{volumeFilter}{codecArgs} {id3}-y \"{outputFile}\"";
+        return $"-ss {start} -i \"{inputFile}\" -t {duration} {coverArgs}{codecArgs} {id3}-y \"{outputFile}\"";
     }
 
     internal void PlaySelection_Click(object sender, RoutedEventArgs e)
@@ -791,8 +774,8 @@ public partial class MainWindow
             {
                 if (_waveOut.PlaybackState == PlaybackState.Playing)
                 {
-                    _waveOut.Pause();
-                    _playbackTimer?.Stop();
+                    StopAudioPlayback(resetToSelectionStart: true);
+                    return;
                 }
 
                 NormalizeSelection();
@@ -805,6 +788,7 @@ public partial class MainWindow
                 _audioReader.CurrentTime = _selectionStart;
                 UpdatePlaybackCursor();
                 _spectrumAnalyzer?.ResetLevels();
+                Array.Clear(_displaySpectrumBands);
                 if (SpectrumStatusText != null)
                 {
                     SpectrumStatusText.Visibility = Visibility.Collapsed;
@@ -812,6 +796,7 @@ public partial class MainWindow
 
                 _waveOut.Play();
                 _playbackTimer?.Start();
+                UpdatePlaybackButton(true);
             }
             catch (Exception ex)
             {
@@ -820,9 +805,50 @@ public partial class MainWindow
         }
     }
 
-    internal void StopSelection_Click(object sender, RoutedEventArgs e)
+    internal void PreviewSound_Click(object sender, RoutedEventArgs e)
     {
-        StopAudioPlayback(resetToSelectionStart: true);
+        if (_previewVolume <= 0)
+        {
+            AudioGainSlider.Value = 100;
+            _isPreviewMuted = false;
+        }
+        else
+        {
+            _isPreviewMuted = !_isPreviewMuted;
+        }
+        if (_audioReader != null)
+        {
+            _audioReader.Volume = _isPreviewMuted ? 0f : (float)_previewVolume;
+        }
+        UpdatePreviewSoundButton();
+    }
+
+    internal void AudioGainSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _previewVolume = Math.Clamp(e.NewValue / 100.0, 0.0, 1.0);
+        AudioGainText.Text = $"{(int)Math.Round(_previewVolume * 100)}%";
+        UpdatePreviewSoundButton();
+        if (_audioReader != null && !_isPreviewMuted)
+        {
+            _audioReader.Volume = (float)_previewVolume;
+        }
+    }
+
+    private void UpdatePreviewSoundButton()
+    {
+        bool silent = _isPreviewMuted || _previewVolume <= 0;
+        PreviewSoundIcon.Text = silent ? "\uE74F" : "\uE767";
+        PreviewSoundLabel.Text = silent ? "Muted" : "Sound";
+        PreviewSoundBtn.ToolTip = _previewVolume <= 0
+            ? "Restore sound to 100%"
+            : _isPreviewMuted ? "Unmute preview sound" : "Mute preview sound";
+    }
+
+    private void UpdatePlaybackButton(bool playing)
+    {
+        PlaybackButtonIcon.Text = playing ? "\uE71A" : "\uE768";
+        PlaybackButtonLabel.Text = playing ? "Stop" : "Play";
+        PlaySelectionBtn.ToolTip = playing ? "Stop preview" : "Play selected range";
     }
 
     private void StopAudioPlayback(bool resetToSelectionStart)
@@ -837,7 +863,9 @@ public partial class MainWindow
                 }
 
                 _playbackTimer?.Stop();
+                UpdatePlaybackButton(false);
                 _spectrumAnalyzer?.ResetLevels();
+                Array.Clear(_displaySpectrumBands);
                 ClearSpectrumCanvas();
                 if (SpectrumStatusText != null)
                 {
@@ -939,11 +967,9 @@ public partial class MainWindow
                 return;
             }
 
-            // Bake preferred volume into the export (all formats)
             string start = _selectionStart.ToString(@"hh\:mm\:ss\.fff");
             string duration = selectedDuration.ToString(@"hh\:mm\:ss\.fff");
-            double volumeGain = GetExportVolumeGain();
-            string args = BuildAudioExportArgs(_currentAudioFile, outputFile, start, duration, volumeGain);
+            string args = BuildAudioExportArgs(_currentAudioFile, outputFile, start, duration);
 
             try
             {
@@ -956,14 +982,9 @@ public partial class MainWindow
                 _lastOutputFolder = System.IO.Path.GetDirectoryName(outputFile);
                 SaveSelectionBtn.Content = "Save Cut";
 
-                int percent = (int)Math.Round(volumeGain * 100);
-                string volumeNote = Math.Abs(volumeGain - 1.0) > 0.001
-                    ? $"Volume preference ({percent}%) was baked into the file."
-                    : "Your trimmed audio is ready.";
-
                 var success = new ModernSuccessDialog(
                     "Export complete",
-                    volumeNote,
+                    "Your trimmed audio is ready at its original volume.",
                     outputFile)
                 {
                     Owner = this
@@ -985,11 +1006,6 @@ public partial class MainWindow
                 SaveSelectionBtn.Content = "Save Cut";
             }
         }
-    }
-
-    internal void CloseAudioEditor_Click(object sender, RoutedEventArgs e)
-    {
-        CloseAudioEditor(returnToPrevious: true);
     }
 
     private void CloseAudioEditor(bool returnToPrevious)

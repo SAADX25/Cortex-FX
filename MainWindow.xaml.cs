@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private readonly IProcessManager _processManager;
     private readonly IMagickService _magickService;
     private readonly IResourceValidationService _resourceValidator;
+    private readonly UpdateService _updateService;
     private ObservableCollection<FileModel> _filesToConvert = new ObservableCollection<FileModel>();
     private CancellationTokenSource? _cancellationTokenSource;
     private bool _isConverting;
@@ -72,6 +73,7 @@ public partial class MainWindow : Window
         IProcessManager processManager,
         IMagickService magickService,
         IResourceValidationService resourceValidator,
+        UpdateService updateService,
         string? startupFile = null)
     {
         _config = config;
@@ -79,6 +81,7 @@ public partial class MainWindow : Window
         _processManager = processManager;
         _magickService = magickService;
         _resourceValidator = resourceValidator;
+        _updateService = updateService;
 
         try
         {
@@ -94,7 +97,7 @@ public partial class MainWindow : Window
             PopulateFormats("Document");
 
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.6.0";
+            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.7.0";
             ConsoleLogger.Info("UI", $"Version label set to {VersionText.Text}.");
 
             // File passed from Explorer context menu
@@ -144,7 +147,6 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        ApplyPersistedAudioVolume();
         StatusText.Text = "Checking local tools...";
         ConsoleLogger.Info("Startup", "Background startup checks started.");
 
@@ -276,6 +278,9 @@ public partial class MainWindow : Window
 
     private void ShowMainContent(FrameworkElement activeView)
     {
+        BackBtn.Margin = ReferenceEquals(activeView, VideoCutterEditor)
+            ? new Thickness(12, 3, 12, 3)
+            : new Thickness(12, 8, 12, 8);
         CollapseMainContent(DashboardView, activeView);
         CollapseMainContent(ConversionView, activeView);
         if (AudioEditorGrid != null)
@@ -877,6 +882,52 @@ public partial class MainWindow : Window
         SettingsOverlay.Visibility = Visibility.Collapsed;
     }
 
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isConverting)
+        {
+            UpdateStatusText.Text = "Finish the current conversion before updating.";
+            return;
+        }
+
+        CheckForUpdatesButton.IsEnabled = false;
+        try
+        {
+            UpdateStatusText.Text = "Checking GitHub Releases...";
+            Version installedVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 7, 0);
+            UpdateRelease? release = await _updateService.CheckAsync(installedVersion);
+            if (release == null)
+            {
+                UpdateStatusText.Text = "You already have the latest version.";
+                return;
+            }
+
+            UpdateStatusText.Text = $"Version {release.Tag} is available.";
+            if (MessageBox.Show(
+                    $"Download and install Cortex FX {release.Tag}? The app will close while Setup replaces the installed version.",
+                    "Cortex FX Update", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+
+            var progress = new Progress<double>(percent =>
+                UpdateStatusText.Text = $"Downloading {release.Tag}... {percent:0}%");
+            string installer = await _updateService.DownloadInstallerAsync(release, progress);
+            UpdateStatusText.Text = "Starting installer...";
+            Process.Start(new ProcessStartInfo(installer) { UseShellExecute = true });
+            _trayIcon?.ExitForUpdate();
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogger.Error("Update", ex.ToString());
+            UpdateStatusText.Text = "Update failed. Check your connection or open GitHub Releases.";
+            MessageBox.Show($"Could not install the update:\n{ex.Message}", "Cortex FX Update",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            CheckForUpdatesButton.IsEnabled = true;
+        }
+    }
+
     private void ShowResourceStatus_Click(object sender, RoutedEventArgs e)
     {
         var status = _resourceValidator.ValidateCoreResources();
@@ -1384,6 +1435,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        UpdateImageOptionVisibility();
         UpdateConversionSummary();
 
         if (_isConverting)
@@ -1400,6 +1452,22 @@ public partial class MainWindow : Window
 
         ConvertButton.IsEnabled = hasFiles && hasOutput && hasFormat;
         ConvertButton.Content = "CONVERT";
+    }
+
+    private void UpdateImageOptionVisibility()
+    {
+        if (ImageOptionsCard == null || chkMergePdf == null || FormatComboBox == null)
+            return;
+
+        bool allRasterImages = _filesToConvert.Count > 0 && _filesToConvert.All(file =>
+            MediaTypes.RasterImageExtensions.Contains(System.IO.Path.GetExtension(file.FullPath).ToLowerInvariant()));
+        ImageOptionsCard.Visibility = allRasterImages ? Visibility.Visible : Visibility.Collapsed;
+
+        bool mergeAvailable = allRasterImages && _filesToConvert.Count > 1 &&
+            FormatComboBox.SelectedItem is ComboBoxItem selected &&
+            string.Equals(selected.Content?.ToString(), "PDF", StringComparison.OrdinalIgnoreCase);
+        chkMergePdf.Visibility = mergeAvailable ? Visibility.Visible : Visibility.Collapsed;
+        if (!mergeAvailable) chkMergePdf.IsChecked = false;
     }
 
     private void SetConversionUiState(bool isConverting)
@@ -1777,22 +1845,6 @@ public partial class MainWindow : Window
 
     private void FormatComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (chkMergePdf == null) return;
-
-        if (FormatComboBox.SelectedItem is ComboBoxItem item && item.Content != null)
-        {
-            string fmt = item.Content.ToString()!.ToUpper();
-            if (fmt == "PDF")
-            {
-                chkMergePdf.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                chkMergePdf.Visibility = Visibility.Collapsed;
-                chkMergePdf.IsChecked = false;
-            }
-        }
-
         UpdateConvertButtonAvailability();
     }
 
