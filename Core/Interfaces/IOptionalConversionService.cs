@@ -10,6 +10,10 @@ public interface IOptionalConversionService
 {
     bool CanConvert(string inputExtension, string targetFormat);
 
+    /// <summary>Checks installed tools without starting a conversion process.</summary>
+    string? GetUnavailableReason(string inputExtension, string targetFormat) =>
+        CanConvert(inputExtension, targetFormat) ? null : "This conversion is not supported by an optional engine.";
+
     Task<ConversionResult> ConvertAsync(
         string inputFile,
         string outputPath,

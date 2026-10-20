@@ -7,6 +7,7 @@ using CortexFX.Core.Services.Documents;
 using CortexFX.Core.Services.Infrastructure;
 using CortexFX.Core.Services.Media;
 using CortexFX.ViewModels;
+using CortexFX.Core.Radial;
 
 namespace CortexFX;
 
@@ -105,6 +106,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _mainWindow?.DisposeRadialWheel();
         ConsoleLogger.Info("App", "Shutting down...");
         _singleInstance?.Dispose();
         _singleInstance = null;
@@ -139,6 +141,8 @@ public partial class App : Application
         services.AddSingleton<UpdateService>();
 
         services.AddSingleton<IConversionRouter, ConversionRouter>();
+        services.AddSingleton<RadialConversionService>();
+        services.AddSingleton<RadialActionCatalog>();
 
         // Fresh instance each time they are resolved
         services.AddTransient<MainViewModel>();

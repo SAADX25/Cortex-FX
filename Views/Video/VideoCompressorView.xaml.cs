@@ -46,6 +46,7 @@ public partial class VideoCompressorView : UserControl
     private TimeSpan _totalDuration = TimeSpan.Zero;
     private string _activeEncoderLabel = "CPU";
     private HardwareCaps _hwCaps = new();
+    private bool _applyingPreset;
 
     private static readonly string[] SupportedExtensions =
         { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".ts", ".mts" };
@@ -67,6 +68,7 @@ public partial class VideoCompressorView : UserControl
     {
         InitializeComponent();
         IsVisibleChanged += VideoCompressorView_IsVisibleChanged;
+        Preset_Checked(PresetSocial, new RoutedEventArgs());
     }
 
     private void VideoCompressorView_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -153,6 +155,15 @@ public partial class VideoCompressorView : UserControl
             TryLoadFile(dlg.FileName);
     }
 
+    private void ChooseVideo_Click(object sender, RoutedEventArgs e) => OpenFilePicker();
+
+    private void DropZone_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Enter or Key.Space)) return;
+        OpenFilePicker();
+        e.Handled = true;
+    }
+
     // File Loading
 
     private async void TryLoadFile(string path)
@@ -201,6 +212,7 @@ public partial class VideoCompressorView : UserControl
         UpdateEncoderCapabilityText();
 
         OutputPathText.Text = Path.GetDirectoryName(path) ?? path;
+        UpdateOutputSummary();
     }
 
     private void RemoveFile_Click(object sender, RoutedEventArgs e)
@@ -228,55 +240,94 @@ public partial class VideoCompressorView : UserControl
 
         string tag = rb.Tag?.ToString() ?? "";
 
-        switch (tag)
+        _applyingPreset = true;
+        try
         {
-            case "Social Media":
-                CrfSlider.Value = 28;
-                Res720.IsChecked = true;
-                CodecH264.IsChecked = true;
-                break;
-            case "Email Ready":
-                CrfSlider.Value = 32;
-                Res480.IsChecked = true;
-                CodecH264.IsChecked = true;
-                break;
-            case "Balanced":
-                CrfSlider.Value = 24;
-                Res1080.IsChecked = true;
-                CodecH264.IsChecked = true;
-                break;
-            case "High Quality":
-                // Prefer H.264 (often GPU-accelerated). H.265 software is very slow.
-                CrfSlider.Value = 20;
-                ResOriginal.IsChecked = true;
-                CodecH264.IsChecked = true;
-                break;
-            case "Custom":
-                break;
+            switch (tag)
+            {
+                case "Social Media":
+                    CrfSlider.Value = 28;
+                    Res720.IsChecked = true;
+                    CodecH264.IsChecked = true;
+                    break;
+                case "Email Ready":
+                    CrfSlider.Value = 32;
+                    Res480.IsChecked = true;
+                    CodecH264.IsChecked = true;
+                    break;
+                case "Balanced":
+                    CrfSlider.Value = 24;
+                    Res1080.IsChecked = true;
+                    CodecH264.IsChecked = true;
+                    break;
+                case "High Quality":
+                    // Prefer H.264 (often GPU-accelerated). H.265 software is very slow.
+                    CrfSlider.Value = 20;
+                    ResOriginal.IsChecked = true;
+                    CodecH264.IsChecked = true;
+                    break;
+                case "Custom":
+                    break;
+            }
         }
+        finally { _applyingPreset = false; }
 
         if (PresetHintText != null)
         {
             PresetHintText.Text = tag switch
             {
-                "Social Media" => "Social Media — sharp enough for feeds, much smaller size.",
-                "Email Ready" => "Email Ready — tiny files that send quickly.",
-                "Balanced" => "Balanced — good quality with a sensible file size.",
-                "High Quality" => "High Quality — keeps detail. Uses fast H.264 (GPU when available).",
-                "Custom" => "Custom — drag the slider and pick resolution & codec yourself.",
+                "Social Media" => "Made for everyday sharing.",
+                "Email Ready" => "Compact settings; attachment limits still apply.",
+                "Balanced" => "Detail and file size, in balance.",
+                "High Quality" => "Keep more of the original detail.",
+                "Custom" => "Your quality, resolution and codec.",
                 _ => "Choose how aggressively you want to shrink the video."
             };
         }
 
-        CrfSlider.IsEnabled = tag == "Custom";
         UpdateQualityLabel();
+        UpdateOutputSummary();
     }
 
     private void CrfSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (CrfValueText != null)
             CrfValueText.Text = ((int)CrfSlider.Value).ToString();
+        SelectCustomForManualChange();
         UpdateQualityLabel();
+        UpdateOutputSummary();
+    }
+
+    private void OutputChoices_Changed(object sender, RoutedEventArgs e)
+    {
+        SelectCustomForManualChange();
+        UpdateOutputSummary();
+    }
+
+    private void SelectCustomForManualChange()
+    {
+        if (IsInitialized && !_applyingPreset && PresetCustom is not null && PresetCustom.IsChecked != true)
+            PresetCustom.IsChecked = true;
+    }
+
+    private void UpdateOutputSummary()
+    {
+        if (OutputSummaryText is null || OutputSummaryHint is null || CodecH265 is null) return;
+        string codec = CodecH265.IsChecked == true ? "H.265" : "H.264";
+        string resolution = Res1080.IsChecked == true ? "1080p" : Res720.IsChecked == true ? "720p" :
+            Res480.IsChecked == true ? "480p" : "Original resolution";
+        string preset = PresetSocial.IsChecked == true ? "Social Media" : PresetEmail.IsChecked == true ? "Email Ready" :
+            PresetBalanced.IsChecked == true ? "Balanced" : PresetHighQ.IsChecked == true ? "High Quality" : "Custom";
+        OutputSummaryText.Text = $"MP4 · {codec} · {resolution}";
+        OutputSummaryHint.Text = $"{preset} · CRF {(int)CrfSlider.Value}";
+    }
+
+    private void SetEditingEnabled(bool enabled)
+    {
+        PresetsPanel.IsEnabled = enabled;
+        QualityPanel.IsEnabled = enabled;
+        OutputPanel.IsEnabled = enabled;
+        RemoveVideoButton.IsEnabled = enabled;
     }
 
     private void UpdateQualityLabel()
@@ -287,27 +338,28 @@ public partial class VideoCompressorView : UserControl
         if (crf <= 20)
         {
             QualityLabelText.Text = "Near-original detail · larger file";
-            QualityLabelText.Foreground = BrushFrom("#2ED47A");
+            QualityLabelText.Foreground = BrushFrom("#8DE0BA");
         }
         else if (crf <= 26)
         {
             QualityLabelText.Text = "Balanced quality · recommended for most videos";
-            QualityLabelText.Foreground = BrushFrom("#F59E0B");
+            QualityLabelText.Foreground = BrushFrom("#EBC58A");
         }
         else if (crf <= 32)
         {
             QualityLabelText.Text = "Smaller file · fine for social & sharing";
-            QualityLabelText.Foreground = BrushFrom("#FF6B4A");
+            QualityLabelText.Foreground = BrushFrom("#EDB49F");
         }
         else
         {
             QualityLabelText.Text = "Maximum compression · visible quality loss";
-            QualityLabelText.Foreground = BrushFrom("#FF4D5E");
+            QualityLabelText.Foreground = BrushFrom("#FF98AB");
         }
     }
 
     private void ChangeOutput_Click(object sender, RoutedEventArgs e)
     {
+        if (IsCompressing) return;
         var dlg = new System.Windows.Forms.FolderBrowserDialog
         {
             Description = "Select output folder for compressed video"
@@ -361,6 +413,8 @@ public partial class VideoCompressorView : UserControl
         args += $" -c:a aac -b:a 128k -movflags +faststart \"{outPath}\"";
 
         CompressButton.IsEnabled = false;
+        SetEditingEnabled(false);
+        CancelButton.IsEnabled = true;
         ProgressPanel.Visibility = Visibility.Visible;
         ResultCard.Visibility = Visibility.Collapsed;
         BackgroundJobBadge.Visibility = Visibility.Visible;
@@ -376,6 +430,7 @@ public partial class VideoCompressorView : UserControl
         {
             try
             {
+                token.ThrowIfCancellationRequested();
                 try
                 {
                     await RunFFmpegAsync(args, token);
@@ -386,6 +441,7 @@ public partial class VideoCompressorView : UserControl
                     var (swEncoder, swQualityArgs, swLabel) = ResolveEncoder(wantHevc, crf, forceSoftware: true);
                     encoder = swEncoder;
                     encoderLabel = swLabel;
+                    _activeEncoderLabel = swLabel;
                     string swArgs = $"-hide_banner -y -i \"{_inputFilePath}\" {swQualityArgs}";
                     if (!string.IsNullOrEmpty(scaleFilter))
                         swArgs += $" -vf \"{scaleFilter}\"";
@@ -404,15 +460,17 @@ public partial class VideoCompressorView : UserControl
                 {
                     if (token.IsCancellationRequested)
                     {
-                        ProgressStatusText.Text = "Cancelled";
-                        BackgroundJobBadge.Visibility = Visibility.Collapsed;
-                        try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
+                        ShowCancelledState(outPath);
                     }
                     else
                     {
                         ShowResult(outPath);
                     }
                 });
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                await Dispatcher.InvokeAsync(() => ShowCancelledState(outPath));
             }
             catch (Exception ex)
             {
@@ -429,11 +487,12 @@ public partial class VideoCompressorView : UserControl
                 await Dispatcher.InvokeAsync(() =>
                 {
                     CompressButton.IsEnabled = true;
+                    SetEditingEnabled(true);
                     BackgroundJobBadge.Visibility = Visibility.Collapsed;
                     _compressTask = null;
                 });
             }
-        }, token);
+        });
 
         await _compressTask;
     }
@@ -442,6 +501,16 @@ public partial class VideoCompressorView : UserControl
     {
         CancelCompressIfRunning();
         ProgressStatusText.Text = "Cancelling...";
+        CancelButton.IsEnabled = false;
+    }
+
+    private void ShowCancelledState(string outputPath)
+    {
+        ProgressStatusText.Text = "Cancelled";
+        ProgressDetailText.Text = "Your original video is unchanged.";
+        BackgroundJobBadge.Visibility = Visibility.Collapsed;
+        CancelButton.IsEnabled = false;
+        try { if (File.Exists(outputPath)) File.Delete(outputPath); } catch { }
     }
 
     private void CancelCompressIfRunning()
@@ -558,13 +627,13 @@ public partial class VideoCompressorView : UserControl
                 _hwCaps.HasQuickSync || _hwCaps.HasQuickSyncHevc ? "Intel Quick Sync" :
                 "AMD AMF";
 
-            EncoderCapabilityText.Text = $"GPU acceleration available ({gpu}). Compression uses the GPU when possible — much faster than CPU-only.";
-            EncoderCapabilityText.Foreground = BrushFrom("#2ED47A");
+            EncoderCapabilityText.Text = $"{gpu} supported. Automatic CPU fallback if unavailable.";
+            EncoderCapabilityText.Foreground = BrushFrom("#9BC4FF");
         }
         else
         {
-            EncoderCapabilityText.Text = "No GPU encoder detected. Using a fast CPU preset. Tip: SSD helps loading files, but encode speed depends on CPU/GPU — prefer H.264 for speed.";
-            EncoderCapabilityText.Foreground = BrushFrom("#F59E0B");
+            EncoderCapabilityText.Text = "CPU encoding. H.264 is recommended for faster compression.";
+            EncoderCapabilityText.Foreground = BrushFrom("#B9C3D4");
         }
     }
 
@@ -572,6 +641,7 @@ public partial class VideoCompressorView : UserControl
 
     private Task RunFFmpegAsync(string arguments, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         _ffmpegProcess = new Process
@@ -654,6 +724,13 @@ public partial class VideoCompressorView : UserControl
                 tcs.TrySetResult(true);
         };
 
+        if (!_ffmpegProcess.Start())
+        {
+            tcs.TrySetException(new InvalidOperationException("Failed to start FFmpeg."));
+            return tcs.Task;
+        }
+
+        _ffmpegProcess.BeginErrorReadLine();
         ct.Register(() =>
         {
             try
@@ -664,13 +741,6 @@ public partial class VideoCompressorView : UserControl
             catch { }
         });
 
-        if (!_ffmpegProcess.Start())
-        {
-            tcs.TrySetException(new InvalidOperationException("Failed to start FFmpeg."));
-            return tcs.Task;
-        }
-
-        _ffmpegProcess.BeginErrorReadLine();
         return tcs.Task;
     }
 
@@ -690,17 +760,24 @@ public partial class VideoCompressorView : UserControl
         if (savingsPercent > 0)
         {
             ResultTitle.Text = "Compression complete";
+            ResultTitle.Foreground = BrushFrom("#8DE0BA");
+            ResultCard.BorderBrush = BrushFrom("#416F5A");
+            ResultCard.Background = BrushFrom("#15241F");
             ResultSavingsText.Text = $"Saved {savingsPercent:F0}% — {FormatBytes(inputSize - outputSize)} smaller";
         }
         else
         {
             ResultTitle.Text = "File got larger";
+            ResultTitle.Foreground = BrushFrom("#EBC58A");
+            ResultCard.BorderBrush = BrushFrom("#796344");
+            ResultCard.Background = BrushFrom("#272218");
             ResultSavingsText.Text = "Try a higher CRF or a lower resolution for better compression.";
         }
 
         ResultCard.Visibility = Visibility.Visible;
         ProgressPanel.Visibility = Visibility.Collapsed;
         BackgroundJobBadge.Visibility = Visibility.Collapsed;
+        ResultCard.BringIntoView();
     }
 
     private void OpenOutputFolder_Click(object sender, RoutedEventArgs e)
@@ -825,6 +902,8 @@ public partial class VideoCompressorView : UserControl
 
         VideoThumbnail.Source = null;
         CompressionProgress.Value = 0;
+        SetEditingEnabled(true);
+        UpdateOutputSummary();
     }
 
     private static SolidColorBrush BrushFrom(string hex) =>

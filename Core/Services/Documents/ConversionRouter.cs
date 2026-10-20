@@ -62,6 +62,32 @@ public sealed class ConversionRouter : IConversionRouter
         return Array.Empty<string>();
     }
 
+    public string? GetUnavailableReason(string inputExtension, string targetFormat)
+    {
+        string ext = "." + inputExtension.TrimStart('.').ToLowerInvariant();
+        string target = targetFormat.TrimStart('.').ToLowerInvariant();
+        if (IsDocumentToPdf(ext, target) || IsWordExport(ext, target))
+        {
+            string application = DocumentApplication(ext);
+            if (_office.IsApplicationInstalled(application) ||
+                _optional.CanConvert(ext, target) && _optional.GetUnavailableReason(ext, target) is null) return null;
+            return $"Microsoft {application} or LibreOffice is required to convert {ext.ToUpperInvariant()} to {target.ToUpperInvariant()}.";
+        }
+        if (ext == ".pdf" && IsOfficeTarget(target))
+        {
+            if (target == "xlsx") return "PDF to Excel is not supported.";
+            if (!_office.IsApplicationInstalled("Word")) return "Microsoft Word is required for PDF to DOCX conversion.";
+            if (target == "pptx" && !_office.IsApplicationInstalled("PowerPoint"))
+                return "Microsoft PowerPoint is required for PDF to PPTX conversion.";
+            return null;
+        }
+        if (IsDocumentBridge(ext, target))
+            return _office.IsApplicationInstalled("Word") && _office.IsApplicationInstalled("PowerPoint") ? null :
+                "Microsoft Word and PowerPoint are required for this conversion.";
+        if (_optional.CanConvert(ext, target)) return _optional.GetUnavailableReason(ext, target);
+        return null;
+    }
+
     /// <inheritdoc />
     public async Task<ConversionResult> ConvertAsync(ConversionJob job, CancellationToken ct = default,
                                                        IProgress<double>? progress = null)
@@ -70,6 +96,9 @@ public sealed class ConversionRouter : IConversionRouter
         {
             string ext = Path.GetExtension(job.InputPath).ToLowerInvariant();
             string target = job.TargetFormat.ToLowerInvariant();
+            ct.ThrowIfCancellationRequested();
+            string? unavailable = GetUnavailableReason(ext, target);
+            if (unavailable is not null) return ConversionResult.Fail(unavailable);
 
             // Resolve output directory (with optional subfolder)
             string outputDir = ResolveOutputDirectory(job);
@@ -90,6 +119,8 @@ public sealed class ConversionRouter : IConversionRouter
             // Document → PDF
             if (IsDocumentToPdf(ext, target))
             {
+                if (!_office.IsApplicationInstalled(DocumentApplication(ext)))
+                    return await _optional.ConvertAsync(job.InputPath, outputPath, ext, target, ct, progress);
                 int engineQuality = job.QualityLevel < 30 ? 0 : 1;
                 await _office.ConvertToPdfAsync(job.InputPath, outputPath, engineQuality, ct, progress);
                 return ConversionResult.Ok(outputPath);
@@ -105,6 +136,13 @@ public sealed class ConversionRouter : IConversionRouter
             if (IsDocumentBridge(ext, target))
             {
                 return await HandleDocumentBridgeAsync(job.InputPath, outputPath, ext, target, ct, progress);
+            }
+
+            // Word already supports these formats; LibreOffice is only a fallback.
+            if (IsWordExport(ext, target) && _office.IsApplicationInstalled("Word"))
+            {
+                await _office.ConvertWordDocumentAsync(job.InputPath, outputPath, target, ct, progress);
+                return ConversionResult.Ok(outputPath);
             }
 
             // LibreOffice / 7-Zip / Calibre when present
@@ -326,7 +364,7 @@ public sealed class ConversionRouter : IConversionRouter
         string ext = Path.GetExtension(job.InputPath).ToLowerInvariant();
         string target = job.TargetFormat.ToLowerInvariant();
         if (ext == ".pdf" && target == "docx") return _ocrLimit;
-        if (IsDocumentToPdf(ext, target) || IsDocumentBridge(ext, target) ||
+        if (IsDocumentToPdf(ext, target) || IsWordExport(ext, target) || IsDocumentBridge(ext, target) ||
             ext == ".pdf" && target is "pptx" or "xlsx") return _officeLimit;
         if (ext == ".pdf") return _pdfLimit;
         if (MediaTypes.RasterImageExtensions.Contains(ext)) return _magickLimit;
@@ -397,10 +435,20 @@ public sealed class ConversionRouter : IConversionRouter
     private static bool IsDocumentToPdf(string ext, string target)
     {
         return target == "pdf" && (
-            ext is ".docx" or ".doc" ||
+            MediaTypes.WordExtensions.Contains(ext) ||
             ext is ".xlsx" or ".xls" ||
             ext is ".pptx" or ".ppt");
     }
+
+    private static bool IsWordExport(string ext, string target) =>
+        MediaTypes.WordExtensions.Contains(ext) && target is "docx" or "odt" or "rtf" or "txt";
+
+    private static string DocumentApplication(string ext) => ext switch
+    {
+        ".xlsx" or ".xls" => "Excel",
+        ".pptx" or ".ppt" => "PowerPoint",
+        _ => "Word"
+    };
 
     private static bool IsOfficeTarget(string target)
     {

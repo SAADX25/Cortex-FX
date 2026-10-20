@@ -1,0 +1,21 @@
+Cortex FX local audio separation
+
+UVR-MDX-NET-Voc_FT model: Ultimate Vocal Remover (UVR), Anjok07 and UVR developers.
+https://github.com/Anjok07/ultimatevocalremovergui
+UVR README requests attribution from third-party developers using the models.
+See UVR-LICENSE.txt (MIT) and the upstream README License section.
+Model distributed by sherpa-onnx with the metadata required by its UVR engine:
+https://github.com/k2-fsa/sherpa-onnx/releases/tag/source-separation-models
+
+Inference executable: sherpa-onnx v1.13.8, CPU, Windows x64 shared-MT build.
+https://github.com/k2-fsa/sherpa-onnx/releases/tag/v1.13.8
+Apache-2.0; see Sherpa-LICENSE.txt.
+
+ONNX Runtime v1.28.2 by Microsoft and contributors.
+https://github.com/microsoft/onnxruntime
+MIT; see ONNXRuntime-LICENSE.txt.
+
+No audio or files are uploaded. The model runs locally on the CPU.
+Stem separation is an estimate. Bleed and artifacts can remain depending on the recording.
+The original file is never overwritten. MP3 192 kbps is the default output. Uncompressed stereo 44.1 kHz PCM16 WAV is optional.
+Optional NVIDIA GPU inference uses the separate Gpu folder. See Gpu/NOTICE.txt and Gpu/Licenses/.

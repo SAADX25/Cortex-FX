@@ -16,6 +16,7 @@ public sealed class FFmpegService : IFFmpegService
 {
     private readonly IAppConfiguration _config;
     private readonly IProcessManager _processManager;
+    private readonly bool _reportIndeterminateProgress;
     private static readonly Regex DurationRegex = new(@"Duration:\s*(?<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex StatusTimeRegex = new(@"\btime=(?<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)",
@@ -24,10 +25,11 @@ public sealed class FFmpegService : IFFmpegService
     // Probed once per process
     private readonly Lazy<HardwareCapabilities> _hwCaps;
 
-    public FFmpegService(IAppConfiguration config, IProcessManager processManager)
+    public FFmpegService(IAppConfiguration config, IProcessManager processManager, bool reportIndeterminateProgress = false)
     {
         _config = config;
         _processManager = processManager;
+        _reportIndeterminateProgress = reportIndeterminateProgress;
         _hwCaps = new Lazy<HardwareCapabilities>(() => ProbeHardwareEncoders());
     }
 
@@ -194,7 +196,7 @@ public sealed class FFmpegService : IFFmpegService
     {
         EnsureFFmpeg();
         string targetFormat = Path.GetExtension(outputFile).TrimStart('.');
-        string args = BuildAudioArguments(inputFile, outputFile, targetFormat);
+        string args = BuildAudioArgumentsCore(inputFile, outputFile, targetFormat, 75, preserveCover: false);
         await RunFFmpegAsync(args, ct, progress);
         progress?.Report(100);
     }
@@ -242,6 +244,10 @@ public sealed class FFmpegService : IFFmpegService
     /// Preserves embedded album art when the output format supports it.
     /// </summary>
     public string BuildAudioArguments(string inputFile, string outputFile, string? targetFormat = null, double qualityLevel = 75)
+        => BuildAudioArgumentsCore(inputFile, outputFile, targetFormat, qualityLevel, preserveCover: true);
+
+    private static string BuildAudioArgumentsCore(string inputFile, string outputFile, string? targetFormat,
+                                                  double qualityLevel, bool preserveCover)
     {
         string target = string.IsNullOrWhiteSpace(targetFormat)
             ? Path.GetExtension(outputFile).TrimStart('.').ToLowerInvariant()
@@ -258,7 +264,7 @@ public sealed class FFmpegService : IFFmpegService
             _ => string.Empty
         };
 
-        bool keepCover = target is "mp3" or "m4a" or "aac" or "flac" or "ogg";
+        bool keepCover = preserveCover && target is ("mp3" or "m4a" or "aac" or "flac" or "ogg");
         string id3 = target == "mp3" ? "-id3v2_version 3 " : string.Empty;
 
         if (keepCover)
@@ -414,6 +420,11 @@ public sealed class FFmpegService : IFFmpegService
                 }
                 else
                 {
+                    if (_reportIndeterminateProgress)
+                    {
+                        progress.Report(-1);
+                        return;
+                    }
                     nextProgress = Math.Min(lastProgress + 0.25, 95);
                 }
 

@@ -3,12 +3,26 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Success"
         Width="500" SizeToContent="Height"
+        FontFamily="Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" KeyboardNavigation.TabNavigation="Cycle"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
         ShowInTaskbar="False">
+    <Window.Resources>
+        <Style x:Key="SuccessFocusVisual" TargetType="Control">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Control">
+                        <Border Margin="-3" CornerRadius="13" BorderBrush="#7DD3FC"
+                                BorderThickness="2" IsHitTestVisible="False"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
 
     <Border CornerRadius="16" BorderThickness="1" Padding="0">
         <Border.Effect>
@@ -29,7 +43,7 @@
             </LinearGradientBrush>
         </Border.BorderBrush>
 
-        <Grid>
+        <Grid Style="{DynamicResource RefinedEntranceStyle}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="4"/>
                 <RowDefinition Height="Auto"/>
@@ -78,9 +92,9 @@
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock x:Name="TitleText" Text="Export complete"
-                                   FontSize="20" FontWeight="Bold" Foreground="#F8FAFC"/>
+                                   FontSize="20" FontWeight="SemiBold" Foreground="#F8FAFC" TextWrapping="Wrap" LineHeight="26"/>
                         <TextBlock x:Name="MessageText" Text="Your trimmed audio is ready."
-                                   FontSize="13" Foreground="#94A3B8" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                   FontSize="13" Foreground="#A9B8C9" Margin="0,4,0,0" TextWrapping="Wrap" LineHeight="20"/>
                     </StackPanel>
                 </Grid>
 
@@ -102,13 +116,13 @@
 
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="SAVED FILE" FontSize="10" FontWeight="SemiBold"
-                                       Foreground="#64748B" Margin="0,0,0,4"/>
+                                       Foreground="#94A3B8" Margin="0,0,0,4"/>
                             <TextBlock x:Name="FileNameText" Text="file.mp3"
                                        FontSize="14" FontWeight="SemiBold" Foreground="#E2E8F0"
                                        TextWrapping="Wrap"/>
                             <TextBlock x:Name="PathText" Text=""
-                                       FontSize="11" Foreground="#64748B" Margin="0,6,0,0"
-                                       TextWrapping="Wrap" FontFamily="Consolas"/>
+                                       FontSize="11" Foreground="#94A3B8" Margin="0,6,0,0"
+                                       TextWrapping="Wrap" FontFamily="Consolas" LineHeight="17"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -122,6 +136,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Button x:Name="BtnClose" Grid.Column="0" Content="Close" Click="BtnClose_Click"
+                            FocusVisualStyle="{StaticResource SuccessFocusVisual}" IsCancel="True"
                             Height="42" FontSize="13" FontWeight="SemiBold" Cursor="Hand"
                             Foreground="#E2E8F0">
                         <Button.Template>
@@ -135,12 +150,19 @@
                                         <Setter TargetName="bg" Property="Background" Value="#1E2D3D"/>
                                         <Setter TargetName="bg" Property="BorderBrush" Value="#38BDF8"/>
                                     </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="bg" Property="Opacity" Value="0.76"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
+                                    </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
 
                     <Button x:Name="BtnOpenPath" Grid.Column="2" Content="Open file location"
+                            FocusVisualStyle="{StaticResource SuccessFocusVisual}" IsDefault="True"
                             Click="BtnOpenPath_Click" Height="42" FontSize="13" FontWeight="SemiBold"
                             Cursor="Hand" Foreground="White">
                         <Button.Template>
@@ -164,6 +186,9 @@
                                     </Trigger>
                                     <Trigger Property="IsPressed" Value="True">
                                         <Setter TargetName="bg" Property="Opacity" Value="0.8"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>

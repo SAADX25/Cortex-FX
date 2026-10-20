@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "resourceDirectory": "Resources/AudioSeparation",
+  "packages": [
+    {
+      "id": "sherpa-cpu-1.13.8",
+      "gpu": false,
+      "kind": "tar.bz2",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-v1.13.8-win-x64-shared-MT-Release-no-tts.tar.bz2",
+      "sha256": "4b0a94f7b5c606b1b64a19a831c2127559e4b3d34e195465ebc7be73d9ed4783",
+      "files": [
+        {
+          "archivePath": "sherpa-onnx-v1.13.8-win-x64-shared-MT-Release-no-tts/bin/sherpa-onnx-offline-source-separation.exe",
+          "target": "sherpa-onnx-offline-source-separation.exe",
+          "sha256": "0396fb4e33604c575afa512f4bf52e36204c1524e6c0f41d43bf109977b34743",
+          "bytes": 532480
+        },
+        {
+          "archivePath": "sherpa-onnx-v1.13.8-win-x64-shared-MT-Release-no-tts/bin/onnxruntime.dll",
+          "target": "onnxruntime.dll",
+          "sha256": "7f66f939a881baf4f46a2216496798edf4a1429878b646d12674aa62f27d8a25",
+          "bytes": 17799168
+        },
+        {
+          "archivePath": "sherpa-onnx-v1.13.8-win-x64-shared-MT-Release-no-tts/bin/onnxruntime_providers_shared.dll",
+          "target": "onnxruntime_providers_shared.dll",
+          "sha256": "551d0e1fe4c227d8542314ba718d52f4379e0c7bfe729a37c59833a884e27b4d",
+          "bytes": 104960
+        }
+      ]
+    },
+    {
+      "id": "uvr-voc-ft",
+      "gpu": false,
+      "kind": "file",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/source-separation-models/UVR-MDX-NET-Voc_FT.onnx",
+      "sha256": "e411182ce2c53541fefdcc99a8f46f2fe03978eb22038b9497c1d9d95a00fad4",
+      "files": [
+        {
+          "archivePath": "",
+          "target": "UVR-MDX-NET-Voc_FT.onnx",
+          "sha256": "e411182ce2c53541fefdcc99a8f46f2fe03978eb22038b9497c1d9d95a00fad4",
+          "bytes": 66762795
+        }
+      ]
+    },
+    {
+      "id": "sherpa-cuda12-1.13.8",
+      "gpu": true,
+      "kind": "tar.bz2",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-v1.13.8-cuda-12.x-cudnn-9.x-onnxruntime1.28.2-win-x64-cuda.tar.bz2",
+      "sha256": "066c5b54dbafaa1388001a9c9837ac1374dbba6d6678f193ca06aa0d8e94d8c3",
+      "files": [
+        {
+          "archivePath": "sherpa-onnx-v1.13.8-cuda-12.x-cudnn-9.x-onnxruntime1.28.2-win-x64-cuda/bin/sherpa-onnx-offline-source-separation.exe",
+          "target": "Gpu/sherpa-onnx-offline-source-separation.exe",
+          "sha256": "d5922ae70dfe08f28a3e4fe5138304579355236f4ebaa84fbd7700c6cfc1394c",
+          "bytes": 532480
+        },
+        {
+          "archivePath": "sherpa-onnx-v1.13.8-cuda-12.x-cudnn-9.x-onnxruntime1.28.2-win-x64-cuda/bin/onnxruntime.dll",
+          "target": "Gpu/onnxruntime.dll",
+          "sha256": "f202b5c9b0025993996d60f5b528cdb92ad12aa9b709b12a8089bb3403da30bd",
+          "bytes": 16283448
+        },
+        {
+          "archivePath": "sherpa-onnx-v1.13.8-cuda-12.x-cudnn-9.x-onnxruntime1.28.2-win-x64-cuda/bin/onnxruntime_providers_shared.dll",
+          "target": "Gpu/onnxruntime_providers_shared.dll",
+          "sha256": "f55a8a6216a63c5678f0ccca531403fd34e7325e0b43c771e134a3898c3e5120",
+          "bytes": 21816
+        },
+        {
+          "archivePath": "sherpa-onnx-v1.13.8-cuda-12.x-cudnn-9.x-onnxruntime1.28.2-win-x64-cuda/bin/onnxruntime_providers_cuda.dll",
+          "target": "Gpu/onnxruntime_providers_cuda.dll",
+          "sha256": "0204055e745b092b0d946558b914b61aa395a9fa41fc6e082904c1441de3ef4d",
+          "bytes": 496742712
+        }
+      ]
+    },
+    {
+      "id": "cuda_cudart-windows-x86_64-12.8.90-archive",
+      "gpu": true,
+      "kind": "zip",
+      "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.8.90-archive.zip",
+      "sha256": "4a39058fd8519444a81cfc7ae055d136f48d1a31ffa41ae255b35b2edd61e13b",
+      "files": [
+        {
+          "archivePath": "cuda_cudart-windows-x86_64-12.8.90-archive/bin/cudart64_12.dll",
+          "target": "Gpu/cudart64_12.dll",
+          "sha256": "c2c9a9c22a9bcba90e261825968836787b331038047a26770cffb7a583c28344",
+          "bytes": 573952
+        }
+      ]
+    },
+    {
+      "id": "libcublas-windows-x86_64-12.8.4.1-archive",
+      "gpu": true,
+      "kind": "zip",
+      "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/windows-x86_64/libcublas-windows-x86_64-12.8.4.1-archive.zip",
+      "sha256": "57a470112cec7e112c95253dde8b3c7184d795dbd92b0bde77a4cb7f8c94c8aa",
+      "files": [
+        {
+          "archivePath": "libcublas-windows-x86_64-12.8.4.1-archive/bin/cublas64_12.dll",
+          "target": "Gpu/cublas64_12.dll",
+          "sha256": "9513540e4ec4c51ee9e7304138c2cc255c29a8c181f9e80c38efa25738becd99",
+          "bytes": 113716224
+        },
+        {
+          "archivePath": "libcublas-windows-x86_64-12.8.4.1-archive/bin/cublasLt64_12.dll",
+          "target": "Gpu/cublasLt64_12.dll",
+          "sha256": "b199d1ff892a81b7fd3d57ba1781549609b41500b36008fef326038393ad46c7",
+          "bytes": 674667520
+        }
+      ]
+    },
+    {
+      "id": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive",
+      "gpu": true,
+      "kind": "zip",
+      "url": "https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/windows-x86_64/cudnn-windows-x86_64-9.10.2.21_cuda12-archive.zip",
+      "sha256": "c1a4567d822ebda7373fa1f19255dff4942302de741f830160b6c7d1fb31af23",
+      "files": [
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn_adv64_9.dll",
+          "target": "Gpu/cudnn_adv64_9.dll",
+          "sha256": "f202e8ff36209ac4292fe2ef79d4539487495b3b948f0c978cc63298f43a1850",
+          "bytes": 282445872
+        },
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn_cnn64_9.dll",
+          "target": "Gpu/cudnn_cnn64_9.dll",
+          "sha256": "3f03dec3b81f137f049e1d1c06ff469248eef54ff9424b3b9045fc0f69559d1a",
+          "bytes": 4618272
+        },
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn_engines_precompiled64_9.dll",
+          "target": "Gpu/cudnn_engines_precompiled64_9.dll",
+          "sha256": "ebc2c1f74366b029a4350f7f9a3b109ccd5aa9b4ae02527950793dd29f7b74fb",
+          "bytes": 513926688
+        },
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn_engines_runtime_compiled64_9.dll",
+          "target": "Gpu/cudnn_engines_runtime_compiled64_9.dll",
+          "sha256": "93ab6351ca0f2b6ca842f83d284e56c427525778c14657229801a13cf8121bd8",
+          "bytes": 20201008
+        },
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn_graph64_9.dll",
+          "target": "Gpu/cudnn_graph64_9.dll",
+          "sha256": "a933efeb280a3252297f92d79f7e83003bcbc6f665872d11645d1dbbab9cb598",
+          "bytes": 2420256
+        },
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn_heuristic64_9.dll",
+          "target": "Gpu/cudnn_heuristic64_9.dll",
+          "sha256": "458175f12771a35de0ea39c04250d727c2424d42a7ffe0bc987ae81204748fba",
+          "bytes": 56823328
+        },
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn_ops64_9.dll",
+          "target": "Gpu/cudnn_ops64_9.dll",
+          "sha256": "851d8f4191a24b322b0be738d191a3159455f0da4db47a19f5cc7ad6e55edf61",
+          "bytes": 126508576
+        },
+        {
+          "archivePath": "cudnn-windows-x86_64-9.10.2.21_cuda12-archive/bin/cudnn64_9.dll",
+          "target": "Gpu/cudnn64_9.dll",
+          "sha256": "9edbcdff73b0af070eb160b2ce66e59feca04aa017351d8eedcc5e8e149967d2",
+          "bytes": 266288
+        }
+      ]
+    }
+  ],
+  "microsoftRuntime": [
+    {
+      "archivePath": "",
+      "target": "Gpu/msvcp140_1.dll",
+      "sha256": "206c931bf90fdad8816de3b5e2ef80b2bcaa9406c89ecc05fe6fddffe251e982",
+      "bytes": 35768
+    },
+    {
+      "archivePath": "",
+      "target": "Gpu/msvcp140.dll",
+      "sha256": "7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca",
+      "bytes": 643512
+    },
+    {
+      "archivePath": "",
+      "target": "Gpu/vcruntime140_1.dll",
+      "sha256": "a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e",
+      "bytes": 50112
+    },
+    {
+      "archivePath": "",
+      "target": "Gpu/vcruntime140.dll",
+      "sha256": "d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7",
+      "bytes": 178616
+    }
+  ],
+  "licenses": [
+    "NOTICE.txt",
+    "Sherpa-LICENSE.txt",
+    "UVR-LICENSE.txt",
+    "ONNXRuntime-LICENSE.txt",
+    "ONNXRuntime-ThirdPartyNotices.txt"
+  ],
+  "gpuLicenses": [
+    "Gpu/NOTICE.txt",
+    "Gpu/Licenses/CUDA-Runtime-LICENSE.txt",
+    "Gpu/Licenses/cuBLAS-LICENSE.txt",
+    "Gpu/Licenses/cuDNN-LICENSE.txt"
+  ]
+}

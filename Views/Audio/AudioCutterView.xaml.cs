@@ -8,6 +8,15 @@ public partial class AudioCutterView : UserControl
 {
     internal MainWindow? Owner { get; set; }
     public AudioCutterView() => InitializeComponent();
+    private void Editor_PreviewKeyDown(object sender, KeyEventArgs e) => Owner?.AudioEditor_PreviewKeyDown(sender, e);
+    private void AudioOptions_Changed(object sender, RoutedEventArgs e) => Owner?.AudioOptions_Changed(sender, e);
+    private void AudioScope_Changed(object sender, RoutedEventArgs e) => Owner?.AudioScope_Changed(sender, e);
+    private void SelectAll_Click(object sender, RoutedEventArgs e) => Owner?.SelectAllAudio_Click(sender, e);
+    private void SeparateAudio_Click(object sender, RoutedEventArgs e) => Owner?.SeparateAudio_Click(sender, e);
+    private void CancelSeparation_Click(object sender, RoutedEventArgs e) => Owner?.CancelSeparation_Click(sender, e);
+    private void OpenVocals_Click(object sender, RoutedEventArgs e) => Owner?.OpenVocals_Click(sender, e);
+    private void OpenMusic_Click(object sender, RoutedEventArgs e) => Owner?.OpenMusic_Click(sender, e);
+    private void OpenStemsFolder_Click(object sender, RoutedEventArgs e) => Owner?.OpenStemsFolder_Click(sender, e);
     private void PlaySelection_Click(object sender, RoutedEventArgs e) => Owner?.PlaySelection_Click(sender, e);
     private void PreviewSound_Click(object sender, RoutedEventArgs e) => Owner?.PreviewSound_Click(sender, e);
     private void AudioGainSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => Owner?.AudioGainSlider_ValueChanged(sender, e);

@@ -1,7 +1,7 @@
 ; =============================================================================
 ; Cortex FX — Inno Setup script (v1.7.0+)
 ;
-; Do NOT compile this alone unless Publish\CortexFX_v{version}\ already exists.
+; Do NOT compile this alone unless Publish\CortexFX_v{version}\app\ already exists.
 ; Preferred:  powershell -ExecutionPolicy Bypass -File .\build.ps1
 ; That publishes the app, then calls ISCC with the correct paths.
 ; =============================================================================
@@ -16,7 +16,7 @@
 #endif
 
 #ifndef MyBuildPath
-  #define MyBuildPath MyScriptDir + "Publish\CortexFX_v" + MyAppVersion
+  #define MyBuildPath MyScriptDir + "Publish\CortexFX_v" + MyAppVersion + "\app"
 #endif
 
 #ifndef MyOutputDir

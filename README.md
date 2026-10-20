@@ -8,10 +8,10 @@
 Convert images, videos, audio, documents, archives, and e-books — entirely offline, on your machine.
 
 [![Version](https://img.shields.io/badge/version-1.7.0-blue?style=for-the-badge)](https://github.com/SAADX25/Cortex-FX/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-0078d4?style=for-the-badge&logo=windows)](https://github.com/SAADX25/Cortex-FX)
+[![Platform](https://img.shields.io/badge/platform-Windows%2011%20%7C%2010%20LTSC-0078d4?style=for-the-badge&logo=windows)](https://github.com/SAADX25/Cortex-FX)
 [![Framework](https://img.shields.io/badge/.NET-10.0--windows-512bd4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
 [![UI](https://img.shields.io/badge/UI-WPF-68217a?style=for-the-badge&logo=microsoft)](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/)
-[![License](https://img.shields.io/badge/license-TBD-lightgrey?style=for-the-badge)](LICENSE)
+
 
 </div>
 
@@ -52,6 +52,14 @@ Convert images, videos, audio, documents, archives, and e-books — entirely off
 
 ## Features
 
+### Radial drag-and-drop wheel
+
+Drag files from Explorer or the desktop and hold **Shift** for format conversion, **Alt** for image/video/PDF tools, or **Ctrl** for ZIP, copying paths and SHA-256. Drop onto a segment to run the action in the background. The original files remain in place; results are saved beside them with collision-safe names.
+
+Open **Settings → Radial wheel settings** to change the modifiers, quality, PDF DPI and optional FFmpeg override. The same settings and a file picker are available from Cortex FX's existing tray icon. Closing the main window keeps the wheel available in the background. Press Esc in the wheel or use **Cancel wheel conversion** from the tray to cancel.
+
+The wheel is native C#/WPF and shares Cortex FX's engines; no Python installation or secondary converter executable is needed. See [Radial wheel integration](docs/radial-wheel.md) for details and verification commands.
+
 ### Images
 - Convert between **JPG, PNG, WEBP, BMP, ICO, TIFF, GIF, HEIC/HEIF**
 - Powered by the bundled ImageMagick build
@@ -60,7 +68,10 @@ Convert images, videos, audio, documents, archives, and e-books — entirely off
 - **Video:** MP4, MKV, MOV, AVI, WEBM
 - **Audio:** MP3, WAV, AAC, FLAC, OGG, M4A
 - Built-in **Video Compressor** and **Video Cutter** tools
-- Integrated **Audio Cutter** with live waveform and spectrum analysis
+- Integrated **Audio Studio** with waveform selection, edge trimming, loop preview and spectrum analysis
+- Local **vocals / instrumental separation** with CPU or NVIDIA GPU processing
+- **MP3 192 kbps** output by default, optional uncompressed WAV, and estimated/actual stem sizes
+- Audio setup and verification: [Audio Studio](docs/audio-studio.md), [source and release preparation](docs/github-upload.md)
 
 ### Documents
 - **PDF** to DOCX or PPTX; Office documents to PDF (other document pairs depend on optional engines)
@@ -82,7 +93,7 @@ Unit tests live in `CortexFX.Tests`; `dotnet test CortexFX.slnx -c Release` runs
 - Convert between EPUB, MOBI, AZW3, PDF
 
 ### App Highlights
-- Fully offline — no telemetry, no cloud
+- Local conversion engines; files are processed on the device
 - Batch conversion support
 - Local logging under `%LOCALAPPDATA%\Cortex FX\Logs`
 - Settings panel with **Resource Status** checker
@@ -292,7 +303,7 @@ Installed users can open **Settings → Check for updates**. Cortex FX checks th
 
 ### Prerequisites
 
-- Windows 10 or later
+- Windows x64; see [tested versions and Windows 10 limitations](docs/windows-compatibility.md)
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0-windows`)
 - [Inno Setup 6](https://jrsoftware.org/isinfo.php) *(installer only)*
 - Microsoft Office *(Office COM conversions only)*
@@ -303,6 +314,8 @@ Installed users can open **Settings → Check for updates**. Cortex FX checks th
 dotnet restore .\CortexFX.csproj
 dotnet build   .\CortexFX.csproj -c Release
 ```
+
+Native executables, models and GPU libraries are kept outside Git. Restore the audio engine with `powershell -NoProfile -ExecutionPolicy Bypass -File tools/Restore-AudioResources.ps1`; add `-IncludeGpu` for NVIDIA acceleration. See [GitHub/source preparation](docs/github-upload.md) for the other tools and upload checklist.
 
 ### Run from Source
 
@@ -317,7 +330,7 @@ dotnet run --project .\CortexFX.csproj
 ### Manual Publish
 
 ```powershell
-dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.7.0
+dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.7.0\app
 ```
 
 ### Using the Build Script
@@ -326,10 +339,11 @@ dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o 
 |---|---|
 | `.\build.ps1` | Publish -> validate resources -> build installer |
 | `.\build.ps1 -CreatePortableZip` | Also creates a portable ZIP alongside the installer |
-| `.\build.ps1 -RemoveStagingFolder` | Deletes `Publish\CortexFX_vX.Y.Z` after the installer is built |
+| `.\build.ps1 -CpuOnly -SkipInstaller -CreatePortableZip` | Smaller CPU portable distribution |
+| `.\build.ps1 -RemoveStagingFolder` | Deletes only this build's `app` staging folder after an artifact is created |
 | `.\build.ps1 -SkipInstaller -CreatePortableZip` | Portable ZIP only, no installer |
 
-The script: restores -> builds -> publishes -> validates `Resources` -> creates ZIP -> runs Inno Setup -> removes staging folder.
+The script validates local resources, restores/builds/publishes into a fresh `Publish/CortexFX_v<version>/app` directory, then creates the requested ZIP/installer in its parent directory. Rebuilds use a timestamped parent; existing releases are preserved. Staging is kept unless `-RemoveStagingFolder` is requested and an artifact exists.
 
 ### GitHub Release Checklist
 
@@ -348,8 +362,8 @@ Before tagging a release:
 
 | Artifact | Description |
 |---|---|
-| `Publish\CortexFX_Setup_v1.7.0.exe` | Windows installer |
-| `Publish\CortexFX_Portable_v1.7.0-win-x64.zip` | Self-contained portable build |
+| `Publish\CortexFX_v1.7.0\CortexFX_Setup_v1.7.0.exe` | Windows installer |
+| `Publish\CortexFX_v1.7.0\CortexFX_Portable_v1.7.0-win-x64.zip` | Self-contained portable build |
 
 ---
 
@@ -399,7 +413,7 @@ Open **Settings > Open Log Folder** to browse the current log file. Logs include
 
 ## License
 
-License information will be added here.
+No top-level license has been selected for Cortex FX's own code. Third-party notices and licenses are retained under `Resources/AudioSeparation/`, including NVIDIA GPU component licenses.
 
 ---
 

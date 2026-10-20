@@ -3,750 +3,208 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d"
-             d:DesignHeight="700" d:DesignWidth="900"
-             FontFamily="Segoe UI Variable Display, Segoe UI"
-             Background="Transparent">
-
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1000"
+             FontFamily="Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True"
+             TextOptions.TextFormattingMode="Display" Background="#0E1016">
     <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-
-        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#B91C1C" Offset="0"/>
-            <GradientStop Color="#E11D2E" Offset="0.55"/>
-            <GradientStop Color="#FF5A3D" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SurfaceGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#141018" Offset="0"/>
-            <GradientStop Color="#0A0B10" Offset="0.55"/>
-            <GradientStop Color="#16090E" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="HeroWash" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#33E11D2E" Offset="0"/>
-            <GradientStop Color="#148B1119" Offset="0.45"/>
-            <GradientStop Color="#00000000" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="QualityTrackBrush" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#2ED47A" Offset="0"/>
-            <GradientStop Color="#F59E0B" Offset="0.55"/>
-            <GradientStop Color="#FF4D5E" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SuccessWash" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#16321F" Offset="0"/>
-            <GradientStop Color="#0E1A14" Offset="1"/>
-        </LinearGradientBrush>
-
-        <SolidColorBrush x:Key="AccentColor" Color="#E11D2E"/>
-        <SolidColorBrush x:Key="AccentSoft" Color="#FF6B4A"/>
-        <SolidColorBrush x:Key="AccentGlow" Color="#66E11D2E"/>
-        <SolidColorBrush x:Key="SuccessColor" Color="#2ED47A"/>
-        <SolidColorBrush x:Key="WarningColor" Color="#F59E0B"/>
-        <SolidColorBrush x:Key="InfoColor" Color="#38BDF8"/>
-        <SolidColorBrush x:Key="DangerColor" Color="#FF4D5E"/>
-        <SolidColorBrush x:Key="TextPrimary" Color="#F7FAFC"/>
-        <SolidColorBrush x:Key="TextSecondary" Color="#B6BAC4"/>
-        <SolidColorBrush x:Key="TextDim" Color="#828691"/>
-        <SolidColorBrush x:Key="InputBg" Color="#090A0F"/>
-        <SolidColorBrush x:Key="CardBg" Color="#12131A"/>
-        <SolidColorBrush x:Key="CardHover" Color="#1B1419"/>
-        <SolidColorBrush x:Key="SubtleBorder" Color="#33242B"/>
-        <SolidColorBrush x:Key="StrongBorder" Color="#473039"/>
-
-        <!-- Preset choice cards -->
-        <Style x:Key="PresetRadioStyle" TargetType="RadioButton">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0,0,10,10"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="PresetBorder" CornerRadius="14" Width="148" MinHeight="108"
-                                Background="#100E13" BorderBrush="{StaticResource SubtleBorder}" BorderThickness="1"
-                                Padding="14,14">
-                            <Border.RenderTransform>
-                                <ScaleTransform x:Name="PresetScale" ScaleX="1" ScaleY="1"/>
-                            </Border.RenderTransform>
-                            <Border.RenderTransformOrigin>0.5,0.5</Border.RenderTransformOrigin>
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Width="36" Height="36" CornerRadius="10" HorizontalAlignment="Left"
-                                        Background="#221218" BorderBrush="#4A2530" BorderThickness="1" Margin="0,0,0,10">
-                                    <TextBlock x:Name="PresetIcon" Text="{TemplateBinding Content}"
-                                               FontFamily="Segoe MDL2 Assets" FontSize="15"
-                                               Foreground="{StaticResource AccentSoft}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock x:Name="PresetLabel" Grid.Row="1"
-                                           Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                                           FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
-                                           TextWrapping="Wrap"/>
-                                <TextBlock x:Name="PresetHint" Grid.Row="2"
-                                           Text="{TemplateBinding ToolTip}"
-                                           FontSize="11" Foreground="{StaticResource TextDim}"
-                                           TextWrapping="Wrap" Margin="0,6,0,0" LineHeight="15"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="PresetBorder" Property="BorderBrush" Value="#E11D2E"/>
-                                <Setter TargetName="PresetBorder" Property="Background" Value="#211015"/>
-                                <Setter TargetName="PresetLabel" Property="Foreground" Value="White"/>
-                                <Setter TargetName="PresetIcon" Property="Foreground" Value="#FF6B4A"/>
-                                <Setter TargetName="PresetHint" Property="Foreground" Value="#C9A3A8"/>
-                                <Setter TargetName="PresetBorder" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect Color="#E11D2E" BlurRadius="18" ShadowDepth="0" Opacity="0.28"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="PresetBorder" Property="Background" Value="{StaticResource CardHover}"/>
-                                <Setter TargetName="PresetBorder" Property="BorderBrush" Value="#5A3640"/>
-                            </Trigger>
-                            <EventTrigger RoutedEvent="MouseEnter">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="PresetScale" Storyboard.TargetProperty="ScaleX"
-                                                         To="1.03" Duration="0:0:0.14"/>
-                                        <DoubleAnimation Storyboard.TargetName="PresetScale" Storyboard.TargetProperty="ScaleY"
-                                                         To="1.03" Duration="0:0:0.14"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                            <EventTrigger RoutedEvent="MouseLeave">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="PresetScale" Storyboard.TargetProperty="ScaleX"
-                                                         To="1" Duration="0:0:0.14"/>
-                                        <DoubleAnimation Storyboard.TargetName="PresetScale" Storyboard.TargetProperty="ScaleY"
-                                                         To="1" Duration="0:0:0.14"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Resolution / codec chips -->
-        <Style x:Key="OptionChipStyle" TargetType="RadioButton">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0,0,8,8"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Chip" CornerRadius="10" Padding="14,8"
-                                Background="#0E0F14" BorderBrush="{StaticResource SubtleBorder}" BorderThickness="1">
-                            <TextBlock x:Name="ChipText" Text="{TemplateBinding Content}"
-                                       FontSize="12" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextSecondary}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chip" Property="Background" Value="#2A1218"/>
-                                <Setter TargetName="Chip" Property="BorderBrush" Value="#E11D2E"/>
-                                <Setter TargetName="ChipText" Property="Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chip" Property="BorderBrush" Value="#6A3A44"/>
-                                <Setter TargetName="ChipText" Property="Foreground" Value="{StaticResource TextPrimary}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Quality slider -->
-        <Style x:Key="LuxurySlider" TargetType="Slider">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid VerticalAlignment="Center">
-                            <Border x:Name="TrackBackground" Height="8" CornerRadius="4"
-                                    Background="#1A1216" VerticalAlignment="Center"/>
-                            <Border Height="8" CornerRadius="4" Background="{StaticResource QualityTrackBrush}"
-                                    Opacity="0.55" VerticalAlignment="Center"/>
-                            <Track x:Name="PART_Track" VerticalAlignment="Center">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Opacity="0" Focusable="False"/>
-                                </Track.DecreaseRepeatButton>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}" Opacity="0" Focusable="False"/>
-                                </Track.IncreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb Width="22" Height="22">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Grid>
-                                                    <Ellipse Width="22" Height="22" Fill="#1A0D11"
-                                                             Stroke="#E11D2E" StrokeThickness="2">
-                                                        <Ellipse.Effect>
-                                                            <DropShadowEffect Color="#E11D2E" BlurRadius="10" ShadowDepth="0" Opacity="0.45"/>
-                                                        </Ellipse.Effect>
-                                                    </Ellipse>
-                                                    <Ellipse Width="8" Height="8" Fill="#FF6B4A"/>
-                                                </Grid>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="GhostIconButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bg" Background="Transparent" CornerRadius="10" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="#22FFFFFF"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <ResourceDictionary><ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="CompressorTheme.xaml"/>
+        </ResourceDictionary.MergedDictionaries></ResourceDictionary>
     </UserControl.Resources>
-
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <Grid.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#121016" Offset="0"/>
-                <GradientStop Color="#08090D" Offset="0.55"/>
-                <GradientStop Color="#17090D" Offset="1"/>
-            </LinearGradientBrush>
-        </Grid.Background>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
-        <!-- Soft atmospheric accents -->
-        <Ellipse Grid.RowSpan="2" Width="420" Height="420" HorizontalAlignment="Right" VerticalAlignment="Top"
-                 Margin="0,-140,-120,0" IsHitTestVisible="False" Opacity="0.35">
-            <Ellipse.Fill>
-                <RadialGradientBrush>
-                    <GradientStop Color="#66E11D2E" Offset="0"/>
-                    <GradientStop Color="#00E11D2E" Offset="1"/>
-                </RadialGradientBrush>
-            </Ellipse.Fill>
-        </Ellipse>
-        <Ellipse Grid.RowSpan="2" Width="320" Height="320" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                 Margin="-120,0,0,-80" IsHitTestVisible="False" Opacity="0.22">
-            <Ellipse.Fill>
-                <RadialGradientBrush>
-                    <GradientStop Color="#5538BDF8" Offset="0"/>
-                    <GradientStop Color="#0038BDF8" Offset="1"/>
-                </RadialGradientBrush>
-            </Ellipse.Fill>
-        </Ellipse>
-
-        <!-- Header -->
-        <Border Grid.Row="0" Padding="22,16,22,12" BorderBrush="#2A1D22" BorderThickness="0,0,0,1">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#221018" Offset="0"/>
-                    <GradientStop Color="#100E13" Offset="0.5"/>
-                    <GradientStop Color="#0C0D12" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <Button x:Name="BackButton" Grid.Column="0" Click="BackButton_Click"
-                        Style="{StaticResource GhostIconButton}" Width="38" Height="38" Padding="0">
-                    <TextBlock Text="&#xE72B;" FontFamily="Segoe MDL2 Assets" FontSize="15"
-                               Foreground="{StaticResource AccentSoft}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Border BorderBrush="#282D38" BorderThickness="0,0,0,1" Padding="20,16">
+            <Grid MaxWidth="1160">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Button x:Name="BackButton" Style="{StaticResource GhostIconButton}" Click="BackButton_Click" Margin="0,0,13,0"
+                        AutomationProperties.Name="Back to tools" ToolTip="Back to tools · your compression session is kept">
+                    <Path Data="M16,3 L7,12 L16,21 M7,12 H25" Stroke="#C0C7D5" StrokeThickness="1.6" Width="16" Height="16" Stretch="Uniform"/>
                 </Button>
-
-                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Smart Video Compressor" FontSize="22" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimary}"/>
-                        <Border Background="#2A1218" BorderBrush="#E11D2E" BorderThickness="1"
-                                CornerRadius="8" Padding="9,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="BETA" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentSoft}"/>
-                        </Border>
-                    </StackPanel>
-                    <TextBlock Text="Pick a preset, fine-tune quality, then compress locally."
-                               FontSize="12" Foreground="{StaticResource TextDim}" Margin="0,4,0,0"/>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Video compressor" FontSize="23" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Text="A lighter video. The detail that matters." FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0"/>
                 </StackPanel>
-
-                <Border x:Name="BackgroundJobBadge" Grid.Column="2" Visibility="Collapsed"
-                        Background="#1A2A18" BorderBrush="#2ED47A" BorderThickness="1"
-                        CornerRadius="10" Padding="12,6" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="8" Height="8" Fill="#2ED47A" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Compression continues in background"
-                                   FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SuccessColor}"/>
-                    </StackPanel>
-                </Border>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="BackgroundJobBadge" Visibility="Collapsed" CornerRadius="6" Background="#1D332C" Padding="10,6" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal"><Ellipse Width="6" Height="6" Fill="#8DE0BA" Margin="0,0,7,0"/><TextBlock Text="Processing" FontSize="11" Foreground="#8DE0BA"/></StackPanel>
+                    </Border>
+                    <Border Background="#1A1F29" BorderBrush="#343D4A" BorderThickness="1" CornerRadius="7" Padding="10,6">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="M8,1 L14,4 V9 C14,13 11,15 8,17 C5,15 2,13 2,9 V4 Z M5,8 L7,10 L11,6" Stroke="#95C4B3" StrokeThickness="1.3" Width="12" Height="14" Stretch="Uniform" Margin="0,0,7,0"/>
+                            <TextBlock Text="ON DEVICE" FontSize="10" FontWeight="SemiBold" Foreground="#B4C6C2"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Grid>
         </Border>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
-            <StackPanel Margin="22,20,18,24">
-
-                <!-- Drop Zone -->
-                <Border x:Name="DropZoneBorder" Height="188" CornerRadius="18"
-                        AllowDrop="True" Drop="DropZone_Drop" DragEnter="DropZone_DragEnter"
-                        DragLeave="DropZone_DragLeave" MouseLeftButtonUp="DropZone_Click"
-                        Cursor="Hand" Margin="0,0,0,18" BorderThickness="1.5" BorderBrush="#4A3038">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#171018" Offset="0"/>
-                            <GradientStop Color="#0C0D12" Offset="0.55"/>
-                            <GradientStop Color="#140C10" Offset="1"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    <Grid IsHitTestVisible="False">
-                        <Rectangle Margin="12" RadiusX="14" RadiusY="14" Stroke="#44E11D2E" StrokeThickness="1.2"
-                                   StrokeDashArray="5 4" Opacity="0.7"/>
+        <ScrollViewer x:Name="WorkspaceScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <StackPanel MaxWidth="1160" Margin="20,18,20,20">
+                <!-- Empty state: the entire drop target also works with Enter and Space. -->
+                <Border x:Name="DropZoneBorder" Height="266" CornerRadius="16" Background="#171720" BorderBrush="#4A3038" BorderThickness="1.5"
+                        AllowDrop="True" Drop="DropZone_Drop" DragEnter="DropZone_DragEnter" DragLeave="DropZone_DragLeave"
+                        MouseLeftButtonUp="DropZone_Click" KeyDown="DropZone_KeyDown" Focusable="True" Cursor="Hand"
+                        FocusVisualStyle="{StaticResource CompressorFocusVisual}" AutomationProperties.Name="Select or drop a video to compress">
+                    <Grid>
+                        <Rectangle Stroke="#554250" StrokeDashArray="5,5" RadiusX="12" RadiusY="12" Margin="9" IsHitTestVisible="False"/>
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Border Width="58" Height="58" CornerRadius="16" Margin="0,0,0,14"
-                                    Background="#241218" BorderBrush="#5A2A34" BorderThickness="1">
-                                <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="24"
-                                           Foreground="{StaticResource AccentSoft}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border Width="64" Height="54" Background="#342232" BorderBrush="#754158" BorderThickness="1" CornerRadius="14" HorizontalAlignment="Center" Margin="0,0,0,14">
+                                <Path Data="{StaticResource VideoIcon}" Width="28" Height="25" Stretch="Uniform" Stroke="#FF98AF" StrokeThickness="1.4" StrokeLineJoin="Round"/>
                             </Border>
-                            <TextBlock Text="Drop a video to compress" FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="or click to browse your files"
-                                       FontSize="12" Foreground="{StaticResource TextDim}"
-                                       HorizontalAlignment="Center" Margin="0,6,0,12"/>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Border Background="#1B222C" CornerRadius="8" Padding="10,4" Margin="0,0,6,0">
-                                    <TextBlock Text="MP4" FontSize="10" FontWeight="Bold" Foreground="{StaticResource InfoColor}"/>
-                                </Border>
-                                <Border Background="#1B222C" CornerRadius="8" Padding="10,4" Margin="0,0,6,0">
-                                    <TextBlock Text="MOV" FontSize="10" FontWeight="Bold" Foreground="#A78BFA"/>
-                                </Border>
-                                <Border Background="#1B222C" CornerRadius="8" Padding="10,4" Margin="0,0,6,0">
-                                    <TextBlock Text="MKV" FontSize="10" FontWeight="Bold" Foreground="{StaticResource WarningColor}"/>
-                                </Border>
-                                <Border Background="#1B222C" CornerRadius="8" Padding="10,4">
-                                    <TextBlock Text="WEBM · AVI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}"/>
-                                </Border>
-                            </StackPanel>
+                            <TextBlock Text="Make room for more." Foreground="{StaticResource TextPrimary}" FontSize="25" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Drop your video here, or choose a file to get started." Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,7,0,16" HorizontalAlignment="Center"/>
+                            <Button Content="Choose video" Click="ChooseVideo_Click" Style="{StaticResource CompressorPrimaryButton}" HorizontalAlignment="Center" MinWidth="140" AutomationProperties.Name="Choose a video file"/>
+                            <TextBlock Text="MP4 · MOV · MKV · WEBM · AVI and more" FontSize="11" Foreground="#99A4B9" HorizontalAlignment="Center" Margin="0,12,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
+                <UniformGrid Columns="3" Margin="0,22,0,0" Visibility="{Binding Visibility, ElementName=DropZoneBorder}">
+                    <StackPanel Margin="8,0"><TextBlock Text="01   Pick your purpose" Foreground="#DFE4EF" FontSize="13" FontWeight="SemiBold"/><TextBlock Text="Choose a preset for sharing or storage." Foreground="{StaticResource TextDim}" FontSize="12" Margin="0,7,0,0" TextWrapping="Wrap"/></StackPanel>
+                    <StackPanel Margin="8,0"><TextBlock Text="02   Make it yours" Foreground="#DFE4EF" FontSize="13" FontWeight="SemiBold"/><TextBlock Text="Adjust detail, resolution and codec." Foreground="{StaticResource TextDim}" FontSize="12" Margin="0,7,0,0" TextWrapping="Wrap"/></StackPanel>
+                    <StackPanel Margin="8,0"><TextBlock Text="03   Save a new copy" Foreground="#DFE4EF" FontSize="13" FontWeight="SemiBold"/><TextBlock Text="Your original video stays untouched." Foreground="{StaticResource TextDim}" FontSize="12" Margin="0,7,0,0" TextWrapping="Wrap"/></StackPanel>
+                </UniformGrid>
 
-                <!-- File Info -->
-                <Border x:Name="FileInfoCard" Visibility="Collapsed" CornerRadius="16" Padding="16"
-                        Margin="0,0,0,18" BorderBrush="#3A2530" BorderThickness="1">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#1C1217" Offset="0"/>
-                            <GradientStop Color="#12131A" Offset="1"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
+                <Border x:Name="FileInfoCard" Visibility="Collapsed" Style="{StaticResource CompressorCard}" Padding="12" Margin="0,0,0,18">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="0" Width="120" Height="72" CornerRadius="12" ClipToBounds="True"
-                                Background="#090A0F" BorderBrush="#4A3038" BorderThickness="1" Margin="0,0,16,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="112"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Border Height="66" Background="#0C0E14" CornerRadius="9" BorderBrush="#363D4B" BorderThickness="1">
                             <Grid>
-                                <Image x:Name="VideoThumbnail" Stretch="UniformToFill"/>
-                                <Border Background="#66000000" VerticalAlignment="Bottom" Padding="6,3">
-                                    <TextBlock Text="SOURCE" FontSize="9" FontWeight="Bold" Foreground="White" Opacity="0.85"/>
-                                </Border>
+                                <Path Data="{StaticResource VideoIcon}" Stroke="#8290AA" StrokeThickness="1.4" Width="25" Height="22" Stretch="Uniform"/>
+                                <Image x:Name="VideoThumbnail" Stretch="UniformToFill"><Image.Clip><RectangleGeometry Rect="0,0,110,64" RadiusX="8" RadiusY="8"/></Image.Clip></Image>
                             </Grid>
                         </Border>
-
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock x:Name="FileNameText" Text="video.mp4" FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
-                            <WrapPanel Margin="0,10,0,0">
-                                <Border Background="#2A1218" CornerRadius="8" Padding="10,4" Margin="0,0,8,0"
-                                        BorderBrush="#5A2A34" BorderThickness="1">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                                   Foreground="{StaticResource AccentSoft}" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="FileSizeText" Text="0 MB" Margin="6,0,0,0"
-                                                   Foreground="{StaticResource AccentSoft}" FontSize="11" FontWeight="Bold"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#14202A" CornerRadius="8" Padding="10,4" Margin="0,0,8,0"
-                                        BorderBrush="#29485C" BorderThickness="1">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                                   Foreground="{StaticResource InfoColor}" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="FileResolutionText" Text="1920×1080" Margin="6,0,0,0"
-                                                   Foreground="{StaticResource InfoColor}" FontSize="11" FontWeight="SemiBold"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#1A2114" CornerRadius="8" Padding="10,4"
-                                        BorderBrush="#2F4A2A" BorderThickness="1">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                                   Foreground="{StaticResource SuccessColor}" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="FileDurationText" Text="00:00" Margin="6,0,0,0"
-                                                   Foreground="{StaticResource SuccessColor}" FontSize="11" FontWeight="SemiBold"/>
-                                    </StackPanel>
-                                </Border>
-                            </WrapPanel>
+                        <StackPanel Grid.Column="1" Margin="16,0,14,0" VerticalAlignment="Center">
+                            <TextBlock Text="SOURCE VIDEO" FontSize="10" FontWeight="SemiBold" Foreground="#919DB2"/>
+                            <TextBlock x:Name="FileNameText" Text="video.mp4" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
+                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="0,5,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                <TextBlock x:Name="FileSizeText" Text="—" Foreground="#D4B0C2" FontSize="12"/>
+                                <TextBlock Text="  ·  " Foreground="#626D82"/>
+                                <TextBlock x:Name="FileResolutionText" Text="—" Foreground="#A0C1E9" FontSize="12"/>
+                                <TextBlock Text="  ·  " Foreground="#626D82"/>
+                                <TextBlock x:Name="FileDurationText" Text="—" Foreground="#A9C9C1" FontSize="12"/>
+                            </StackPanel>
                         </StackPanel>
-
-                        <Button Grid.Column="2" Click="RemoveFile_Click" Style="{StaticResource GhostIconButton}"
-                                Padding="8" VerticalAlignment="Top" ToolTip="Remove video">
-                            <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                       Foreground="{StaticResource DangerColor}"/>
+                        <Button x:Name="RemoveVideoButton" Grid.Column="2" Click="RemoveFile_Click" Style="{StaticResource GhostIconButton}" VerticalAlignment="Center"
+                                AutomationProperties.Name="Remove video" ToolTip="Remove this video">
+                            <Path Data="M3,3 L13,13 M3,13 L13,3" Stroke="#B5BED0" StrokeThickness="1.5" Width="11" Height="11" Stretch="Uniform"/>
                         </Button>
                     </Grid>
                 </Border>
 
-                <!-- Presets -->
-                <StackPanel x:Name="PresetsPanel" Visibility="Collapsed" Margin="0,0,0,8">
-                    <Grid Margin="0,0,0,12">
+                <!-- Results appear above the settings, and scroll into view on completion. -->
+                <Border x:Name="ResultCard" Visibility="Collapsed" Style="{StaticResource CompressorCard}" Background="#15241F" BorderBrush="#416F5A" Margin="0,0,0,18" AutomationProperties.LiveSetting="Polite">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="1 · Choose a preset" FontSize="13" FontWeight="Bold"
-                                       Foreground="{StaticResource TextPrimary}"/>
-                            <TextBlock x:Name="PresetHintText" Text="Social Media — sharp enough for feeds, much smaller size."
-                                       FontSize="12" Foreground="{StaticResource TextDim}" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="ResultTitle" Text="Compression complete" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource SuccessColor}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,9,0,0">
+                                <TextBlock x:Name="ResultBeforeSize" Text="—" Foreground="#B4C0BD" FontSize="14"/>
+                                <TextBlock Text="  →  " Foreground="#7E9D8D" FontSize="14"/>
+                                <TextBlock x:Name="ResultAfterSize" Text="—" Foreground="#F2FFF8" FontWeight="SemiBold" FontSize="14"/>
+                            </StackPanel>
                         </StackPanel>
+                        <Button Grid.Column="1" Content="Open folder" Style="{StaticResource CompressorButton}" Click="OpenOutputFolder_Click" VerticalAlignment="Center" AutomationProperties.Name="Open compressed video folder"/>
+                        <TextBlock x:Name="ResultSavingsText" Grid.Row="1" Text="Saved space" Foreground="{Binding Foreground, ElementName=ResultTitle}" FontSize="12" TextWrapping="Wrap" Margin="0,12,14,0"/>
+                        <Button Grid.Row="1" Grid.Column="1" Content="Another video" Style="{StaticResource CompressorButton}" Background="Transparent" Click="CompressAnother_Click" Margin="0,10,0,0" AutomationProperties.Name="Compress another video"/>
                     </Grid>
-                    <WrapPanel>
-                        <RadioButton x:Name="PresetSocial" Style="{StaticResource PresetRadioStyle}"
-                                     Content="&#xE8BD;" Tag="Social Media" GroupName="Preset" IsChecked="True"
-                                     ToolTip="Best for Instagram, TikTok &amp; YouTube Shorts"
-                                     Checked="Preset_Checked"/>
-                        <RadioButton x:Name="PresetEmail" Style="{StaticResource PresetRadioStyle}"
-                                     Content="&#xE715;" Tag="Email Ready" GroupName="Preset"
-                                     ToolTip="Tiny files that send quickly by email"
-                                     Checked="Preset_Checked"/>
-                        <RadioButton x:Name="PresetBalanced" Style="{StaticResource PresetRadioStyle}"
-                                     Content="&#xE9D9;" Tag="Balanced" GroupName="Preset"
-                                     ToolTip="Good quality with a sensible file size"
-                                     Checked="Preset_Checked"/>
-                        <RadioButton x:Name="PresetHighQ" Style="{StaticResource PresetRadioStyle}"
-                                     Content="&#xE735;" Tag="High Quality" GroupName="Preset"
-                                     ToolTip="Keeps detail — larger output file"
-                                     Checked="Preset_Checked"/>
-                        <RadioButton x:Name="PresetCustom" Style="{StaticResource PresetRadioStyle}"
-                                     Content="&#xE90F;" Tag="Custom" GroupName="Preset"
-                                     ToolTip="Full manual control of CRF, size &amp; codec"
-                                     Checked="Preset_Checked"/>
-                    </WrapPanel>
+                </Border>
+
+                <StackPanel x:Name="PresetsPanel" Visibility="Collapsed" Margin="0,0,0,18">
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Compression preset" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock x:Name="PresetHintText" Grid.Column="1" Text="Choose a starting point." FontSize="12" Foreground="{StaticResource TextDim}" HorizontalAlignment="Right" Margin="16,2,0,0" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <UniformGrid Columns="5">
+                        <RadioButton x:Name="PresetSocial" GroupName="Preset" IsChecked="True" Tag="Social Media" Content="{StaticResource SocialIcon}" Foreground="#E7A8C5" ToolTip="720p · Everyday sharing" Style="{StaticResource PresetRadioStyle}" Checked="Preset_Checked" AutomationProperties.Name="Social media preset"/>
+                        <RadioButton x:Name="PresetEmail" GroupName="Preset" Tag="Email Ready" Content="{StaticResource MailIcon}" Foreground="#9FC9F4" ToolTip="480p · Compact files" Style="{StaticResource PresetRadioStyle}" Checked="Preset_Checked" AutomationProperties.Name="Email ready preset"/>
+                        <RadioButton x:Name="PresetBalanced" GroupName="Preset" Tag="Balanced" Content="{StaticResource BalanceIcon}" Foreground="#9BD8C2" ToolTip="1080p · A balanced mix" Style="{StaticResource PresetRadioStyle}" Checked="Preset_Checked" AutomationProperties.Name="Balanced preset"/>
+                        <RadioButton x:Name="PresetHighQ" GroupName="Preset" Tag="High Quality" Content="{StaticResource QualityIcon}" Foreground="#E5C48F" ToolTip="Original · More detail" Style="{StaticResource PresetRadioStyle}" Checked="Preset_Checked" AutomationProperties.Name="High quality preset"/>
+                        <RadioButton x:Name="PresetCustom" GroupName="Preset" Tag="Custom" Content="{StaticResource CustomIcon}" Foreground="#B9AEF0" ToolTip="Your own settings" Style="{StaticResource PresetRadioStyle}" Margin="0" Checked="Preset_Checked" AutomationProperties.Name="Custom preset"/>
+                    </UniformGrid>
                 </StackPanel>
 
-                <!-- Quality / Resolution / Codec -->
-                <Border x:Name="QualityPanel" Visibility="Collapsed" CornerRadius="16" Padding="20"
-                        Margin="0,8,0,16" BorderBrush="#33242B" BorderThickness="1">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#151018" Offset="0"/>
-                            <GradientStop Color="#101118" Offset="1"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    <StackPanel>
-                        <Grid Margin="0,0,0,6">
-                            <TextBlock Text="2 · Fine-tune quality" FontSize="13" FontWeight="Bold"
-                                       Foreground="{StaticResource TextPrimary}"/>
-                            <Border HorizontalAlignment="Right" Background="#241218" CornerRadius="8"
-                                    Padding="12,4" BorderBrush="#4A2A34" BorderThickness="1">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="CRF" FontSize="11" Foreground="{StaticResource TextDim}" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="CrfValueText" Text="23" FontSize="14" FontWeight="Bold"
-                                               Foreground="{StaticResource AccentSoft}" Margin="8,0,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-
-                        <TextBlock x:Name="QualityLabelText" Text="Balanced quality"
-                                   FontSize="12" Foreground="{StaticResource WarningColor}" Margin="0,0,0,10"/>
-
-                        <Slider x:Name="CrfSlider" Style="{StaticResource LuxurySlider}"
-                                Minimum="18" Maximum="40" Value="23"
-                                IsSnapToTickEnabled="True" TickFrequency="1"
-                                ValueChanged="CrfSlider_ValueChanged"/>
-
-                        <Grid Margin="0,8,0,0">
-                            <TextBlock FontSize="11" Foreground="{StaticResource SuccessColor}">
-                                <Run Text="&#xE8D4;" FontFamily="Segoe MDL2 Assets"/>
-                                <Run Text="  Higher quality"/>
-                            </TextBlock>
-                            <TextBlock HorizontalAlignment="Right" FontSize="11" Foreground="{StaticResource DangerColor}">
-                                <Run Text="Smaller file  "/>
-                                <Run Text="&#xE74F;" FontFamily="Segoe MDL2 Assets"/>
-                            </TextBlock>
-                        </Grid>
-
-                        <TextBlock Text="Output resolution" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextSecondary}" Margin="0,22,0,10"/>
-                        <WrapPanel>
-                            <RadioButton x:Name="ResOriginal" Content="Original" GroupName="Resolution"
-                                         Style="{StaticResource OptionChipStyle}" IsChecked="True"/>
-                            <RadioButton x:Name="Res1080" Content="1080p · Full HD" GroupName="Resolution"
-                                         Style="{StaticResource OptionChipStyle}"/>
-                            <RadioButton x:Name="Res720" Content="720p · HD" GroupName="Resolution"
-                                         Style="{StaticResource OptionChipStyle}"/>
-                            <RadioButton x:Name="Res480" Content="480p · Compact" GroupName="Resolution"
-                                         Style="{StaticResource OptionChipStyle}"/>
-                        </WrapPanel>
-
-                        <TextBlock Text="Video codec" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextSecondary}" Margin="0,14,0,10"/>
-                        <WrapPanel>
-                            <RadioButton x:Name="CodecH264" Content="H.264 · Fast &amp; compatible" GroupName="Codec"
-                                         Style="{StaticResource OptionChipStyle}" IsChecked="True"/>
-                            <RadioButton x:Name="CodecH265" Content="H.265 · Smaller (slower on CPU)" GroupName="Codec"
-                                         Style="{StaticResource OptionChipStyle}"/>
-                        </WrapPanel>
-                        <TextBlock x:Name="EncoderCapabilityText"
-                                   Text="Detecting encoder acceleration..."
-                                   FontSize="11" Foreground="{StaticResource InfoColor}" Margin="0,10,0,0"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Output path -->
-                <Border x:Name="OutputPanel" Visibility="Collapsed" CornerRadius="14" Padding="14,12"
-                        Margin="0,0,0,16" BorderBrush="#33242B" BorderThickness="1" Background="#101118">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Border Width="36" Height="36" CornerRadius="10" Background="#1A222C"
-                                BorderBrush="#2E4558" BorderThickness="1" Margin="0,0,12,0">
-                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                       Foreground="{StaticResource InfoColor}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="3 · Save compressed video to" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextDim}"/>
-                            <TextBlock x:Name="OutputPathText" Text="Same folder as input"
-                                       Foreground="{StaticResource TextPrimary}" FontSize="13"
-                                       TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="1.7*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border x:Name="QualityPanel" Visibility="Collapsed" Style="{StaticResource CompressorCard}">
+                        <StackPanel>
+                            <Grid>
+                                <TextBlock Text="Quality &amp; format" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                                <Border CornerRadius="6" Background="#302330" BorderBrush="#614154" BorderThickness="1" Padding="8,3" HorizontalAlignment="Right" Margin="0,-3,0,0">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="CRF " FontSize="10" Foreground="#CFB6C8" VerticalAlignment="Center"/><TextBlock x:Name="CrfValueText" Text="28" FontSize="12" FontWeight="SemiBold" Foreground="#FFACC0"/></StackPanel>
+                                </Border>
+                            </Grid>
+                            <TextBlock x:Name="QualityLabelText" Text="Smaller file · made for sharing" Foreground="#E9B69E" FontSize="12" Margin="0,9,0,6" TextWrapping="Wrap"/>
+                            <Slider x:Name="CrfSlider" Style="{StaticResource QualitySlider}" Minimum="18" Maximum="40" Value="28" IsSnapToTickEnabled="True" TickFrequency="1"
+                                    ValueChanged="CrfSlider_ValueChanged" AutomationProperties.Name="Compression quality CRF" ToolTip="Lower CRF keeps more detail. Higher CRF makes a smaller file. Adjusting selects Custom."/>
+                            <Grid Margin="0,2,0,16"><TextBlock Text="More detail" FontSize="11" Foreground="#A1CCC2"/><TextBlock Text="Smaller file" FontSize="11" Foreground="#E4A9B8" HorizontalAlignment="Right"/></Grid>
+                            <TextBlock Text="Output resolution" FontSize="12" Foreground="#C1C9D7" Margin="0,0,0,9"/>
+                            <WrapPanel>
+                                <RadioButton x:Name="ResOriginal" Content="Original" GroupName="Resolution" Style="{StaticResource OptionChipStyle}" Checked="OutputChoices_Changed"/>
+                                <RadioButton x:Name="Res1080" Content="1080p" GroupName="Resolution" Style="{StaticResource OptionChipStyle}" Checked="OutputChoices_Changed"/>
+                                <RadioButton x:Name="Res720" Content="720p" GroupName="Resolution" IsChecked="True" Style="{StaticResource OptionChipStyle}" Checked="OutputChoices_Changed"/>
+                                <RadioButton x:Name="Res480" Content="480p" GroupName="Resolution" Style="{StaticResource OptionChipStyle}" Checked="OutputChoices_Changed"/>
+                            </WrapPanel>
+                            <TextBlock Text="Video codec" FontSize="12" Foreground="#C1C9D7" Margin="0,16,0,9"/>
+                            <WrapPanel>
+                                <RadioButton x:Name="CodecH264" Content="H.264 · Compatible" GroupName="Codec" IsChecked="True" Style="{StaticResource OptionChipStyle}" Checked="OutputChoices_Changed" ToolTip="Recommended for broad playback support."/>
+                                <RadioButton x:Name="CodecH265" Content="H.265 · Efficient" GroupName="Codec" Style="{StaticResource OptionChipStyle}" Checked="OutputChoices_Changed" ToolTip="Can produce smaller files; CPU encoding may take longer."/>
+                            </WrapPanel>
                         </StackPanel>
-                        <Button Grid.Column="2" Click="ChangeOutput_Click" Cursor="Hand"
-                                Background="Transparent" BorderThickness="0" Padding="0">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="ob" CornerRadius="10" Background="#1A1218"
-                                            BorderBrush="#4A3038" BorderThickness="1" Padding="14,8">
-                                        <TextBlock Text="Change folder" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextPrimary}"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="ob" Property="Background" Value="#2A181E"/>
-                                            <Setter TargetName="ob" Property="BorderBrush" Value="#E11D2E"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                    </Grid>
-                </Border>
+                    </Border>
 
-                <!-- Compress CTA -->
-                <Button x:Name="CompressButton" Visibility="Collapsed"
-                        Click="CompressButton_Click" Height="56" Cursor="Hand" Margin="0,0,0,16"
-                        BorderThickness="0" Background="Transparent">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="CompBorder" CornerRadius="14" Background="{StaticResource AccentGradient}">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="#E11D2E" BlurRadius="22" ShadowDepth="0" Opacity="0.35"/>
-                                </Border.Effect>
-                                <Grid>
-                                    <Border CornerRadius="14" Opacity="0.18">
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                <GradientStop Color="Transparent" Offset="0"/>
-                                                <GradientStop Color="White" Offset="0.5"/>
-                                                <GradientStop Color="Transparent" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                    </Border>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE8B8;" FontFamily="Segoe MDL2 Assets" FontSize="18"
-                                                   Foreground="White" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Compress Video" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                    </StackPanel>
+                    <Border x:Name="OutputPanel" Grid.Column="2" Visibility="Collapsed" Style="{StaticResource CompressorCard}" VerticalAlignment="Stretch">
+                        <StackPanel>
+                            <Grid><TextBlock Text="Save destination" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/><Border Background="#28303D" Padding="7,2" CornerRadius="5" HorizontalAlignment="Right"><TextBlock Text="MP4" FontSize="10" Foreground="#C4CFE0"/></Border></Grid>
+                            <Border Background="#11151D" BorderBrush="#333C4B" BorderThickness="1" CornerRadius="9" Padding="11" Margin="0,14,0,10">
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="26"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Path Data="{StaticResource FolderIcon}" Stroke="#A1BEE2" StrokeThickness="1.5" Width="17" Height="15" Stretch="Uniform" HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="OutputPathText" Grid.Column="1" Text="Same folder as your video" Foreground="#CCD5E5" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                                 </Grid>
                             </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="CompBorder" Property="Opacity" Value="0.92"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="CompBorder" Property="Opacity" Value="0.4"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
-
-                <!-- Progress -->
-                <Border x:Name="ProgressPanel" Visibility="Collapsed" CornerRadius="16" Padding="20"
-                        Margin="0,0,0,16" BorderBrush="#3A2530" BorderThickness="1" Background="#121018">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,12">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Width="10" Height="10" CornerRadius="5" Background="{StaticResource AccentColor}"
-                                        Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ProgressStatusText" Text="Compressing..." FontSize="14"
-                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-                            </StackPanel>
-                            <TextBlock x:Name="ProgressPercentText" Text="0%" FontSize="16" FontWeight="Bold"
-                                       Foreground="{StaticResource AccentSoft}" HorizontalAlignment="Right"/>
-                        </Grid>
-                        <ProgressBar x:Name="CompressionProgress" Height="8" Background="#1A1216"
-                                     BorderThickness="0" Foreground="{StaticResource AccentColor}" Value="0"/>
-                        <TextBlock x:Name="ProgressDetailText" Text="" FontSize="11"
-                                   Foreground="{StaticResource TextDim}" Margin="0,10,0,0"/>
-                        <Button x:Name="CancelButton" Click="CancelCompress_Click" Cursor="Hand"
-                                HorizontalAlignment="Left" Margin="0,12,0,0" Background="Transparent"
-                                BorderThickness="0" Padding="0">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <TextBlock x:Name="ct" Text="Cancel compression" Foreground="{StaticResource DangerColor}" FontSize="12"/>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="ct" Property="TextDecorations" Value="Underline"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                    </StackPanel>
-                </Border>
-
-                <!-- Result -->
-                <Border x:Name="ResultCard" Visibility="Collapsed" CornerRadius="16" Padding="24"
-                        Margin="0,0,0,8" BorderThickness="1" Background="{StaticResource SuccessWash}"
-                        BorderBrush="#2ED47A">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <Border Width="36" Height="36" CornerRadius="10" Background="#1F3A28" Margin="0,0,12,0">
-                                <TextBlock Text="&#xE930;" FontFamily="Segoe MDL2 Assets" FontSize="16"
-                                           Foreground="{StaticResource SuccessColor}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="ResultTitle" Text="Compression complete"
-                                           FontSize="18" FontWeight="Bold" Foreground="{StaticResource SuccessColor}"/>
-                                <TextBlock Text="Your video is ready on disk."
-                                           FontSize="12" Foreground="{StaticResource TextDim}"/>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <Grid Margin="0,20,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0" Background="#1A1216" CornerRadius="12" Padding="16,14"
-                                    BorderBrush="#4A3038" BorderThickness="1">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock Text="BEFORE" FontSize="10" FontWeight="Bold"
-                                               Foreground="{StaticResource TextDim}" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="ResultBeforeSize" Text="—" FontSize="24" FontWeight="Bold"
-                                               Foreground="{StaticResource DangerColor}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                            <Button Content="Change folder" Click="ChangeOutput_Click" Style="{StaticResource CompressorButton}" HorizontalAlignment="Left" AutomationProperties.Name="Change output folder"/>
+                            <Border BorderBrush="#303744" BorderThickness="0,1,0,0" Margin="0,16,0,0" Padding="0,13,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="ENCODING" Foreground="#8F9CB2" FontSize="10" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="EncoderCapabilityText" Text="Checking encoder support…" Foreground="#AFC4E2" FontSize="12" LineHeight="18" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                    <TextBlock Text="A new copy is saved. Your original stays intact." FontSize="11" Foreground="#939FB1" LineHeight="17" TextWrapping="Wrap" Margin="0,12,0,0"/>
                                 </StackPanel>
                             </Border>
-
-                            <TextBlock Grid.Column="1" Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="18"
-                                       Foreground="{StaticResource TextDim}" VerticalAlignment="Center" Margin="14,0"/>
-
-                            <Border Grid.Column="2" Background="#142016" CornerRadius="12" Padding="16,14"
-                                    BorderBrush="#2F4A2A" BorderThickness="1">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock Text="AFTER" FontSize="10" FontWeight="Bold"
-                                               Foreground="{StaticResource TextDim}" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="ResultAfterSize" Text="—" FontSize="24" FontWeight="Bold"
-                                               Foreground="{StaticResource SuccessColor}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-
-                        <Border Background="#1A2E22" CornerRadius="12" Padding="14,10" Margin="0,16,0,0"
-                                HorizontalAlignment="Center" BorderBrush="#2ED47A" BorderThickness="1">
-                            <TextBlock x:Name="ResultSavingsText" Text="Saved space"
-                                       FontSize="14" FontWeight="Bold" Foreground="{StaticResource SuccessColor}"/>
-                        </Border>
-
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
-                            <Button Click="OpenOutputFolder_Click" Cursor="Hand" Margin="0,0,10,0"
-                                    Background="Transparent" BorderThickness="0">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="ofb" CornerRadius="12" Background="#1A1218"
-                                                BorderBrush="#4A3038" BorderThickness="1" Padding="16,10">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                                           Foreground="{StaticResource AccentSoft}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Open folder" FontSize="13" FontWeight="SemiBold"
-                                                           Foreground="White" Margin="8,0,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ofb" Property="Background" Value="#2A181E"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                            <Button Click="CompressAnother_Click" Cursor="Hand"
-                                    Background="Transparent" BorderThickness="0">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="cab" CornerRadius="12" Background="Transparent"
-                                                BorderBrush="{StaticResource DangerColor}" BorderThickness="1" Padding="16,10">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                                           Foreground="{StaticResource DangerColor}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Compress another" FontSize="13" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource DangerColor}" Margin="8,0,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="cab" Property="Background" Value="#18FF4D5E"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
+                    </Border>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- Fixed action area: compression and cancellation stay reachable while the workspace scrolls. -->
+        <Border x:Name="ActionBar" Grid.Row="2" Background="#151923" BorderBrush="#333A49" BorderThickness="0,1,0,0" Padding="20,14"
+                Visibility="{Binding Visibility, ElementName=CompressButton}">
+            <StackPanel MaxWidth="1160">
+                <Border x:Name="ProgressPanel" Visibility="Collapsed" BorderBrush="#374253" BorderThickness="0,0,0,1" Padding="0,0,0,13" Margin="0,0,0,13" AutomationProperties.LiveSetting="Polite">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="ProgressStatusText" Text="Compressing…" Foreground="#E8EBF4" FontSize="12" TextTrimming="CharacterEllipsis"/><TextBlock x:Name="ProgressPercentText" Grid.Column="1" Text="0%" Foreground="#FF9FB5" FontSize="12" FontWeight="SemiBold" Margin="10,0,0,0"/></Grid>
+                            <ProgressBar x:Name="CompressionProgress" Height="5" Foreground="#EF5273" Background="#2F3748" BorderThickness="0" Margin="0,8,0,0"/>
+                            <TextBlock x:Name="ProgressDetailText" Foreground="#9BA8BE" FontSize="11" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <Button x:Name="CancelButton" Grid.Column="2" Content="Cancel" Click="CancelCompress_Click" Style="{StaticResource CompressorButton}" VerticalAlignment="Center" AutomationProperties.Name="Cancel compression"/>
+                    </Grid>
+                </Border>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,18,0">
+                        <TextBlock x:Name="OutputSummaryText" Text="MP4 · H.264 · 720p" Foreground="#EDF0F7" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="OutputSummaryHint" Text="Social Media · CRF 28" Foreground="#A5B0C5" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <Button x:Name="CompressButton" Grid.Column="1" Visibility="Collapsed" Click="CompressButton_Click" Style="{StaticResource CompressorPrimaryButton}" Height="44" MinWidth="196" AutomationProperties.Name="Compress video">
+                        <StackPanel Orientation="Horizontal"><Path Data="M2,1 L12,7 L2,13 Z" Fill="White" Width="10" Height="12" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0"/><TextBlock Text="Compress video" FontSize="14"/></StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

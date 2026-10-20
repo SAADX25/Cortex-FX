@@ -1,0 +1,182 @@
+[
+  {
+    "file": "NOTICE.txt",
+    "bytes": 1155,
+    "sha256": "2BAF9948E004066592445D04ADFDA0BBA89063BEC9F5906C65300FCE436AFA83"
+  },
+  {
+    "file": "onnxruntime_providers_shared.dll",
+    "bytes": 104960,
+    "sha256": "551D0E1FE4C227D8542314BA718D52F4379E0C7BFE729A37C59833A884E27B4D"
+  },
+  {
+    "file": "ONNXRuntime-LICENSE.txt",
+    "bytes": 1073,
+    "sha256": "2F07C72751AED99790B8A4869CF2311DF85A860B22DED05FA22803587A48922C"
+  },
+  {
+    "file": "ONNXRuntime-ThirdPartyNotices.txt",
+    "bytes": 325054,
+    "sha256": "0E07B95F3A8D6230037707C5C4A2B554D12C4CB67369669AC255635528FFCEE2"
+  },
+  {
+    "file": "onnxruntime.dll",
+    "bytes": 17799168,
+    "sha256": "7F66F939A881BAF4F46A2216496798EDF4A1429878B646D12674AA62F27D8A25"
+  },
+  {
+    "file": "Sherpa-LICENSE.txt",
+    "bytes": 11358,
+    "sha256": "CFC7749B96F63BD31C3C42B5C471BF756814053E847C10F3EB003417BC523D30"
+  },
+  {
+    "file": "sherpa-onnx-offline-source-separation.exe",
+    "bytes": 532480,
+    "sha256": "0396FB4E33604C575AFA512F4BF52E36204C1524E6C0F41D43BF109977B34743"
+  },
+  {
+    "file": "UVR-LICENSE.txt",
+    "bytes": 1072,
+    "sha256": "33337EA3A00D1FBEC48B4569DB8C0DA4B2D1D4B6DE3ACDD01CA8E011B0EC41FF"
+  },
+  {
+    "file": "UVR-MDX-NET-Voc_FT.onnx",
+    "bytes": 66762795,
+    "sha256": "E411182CE2C53541FEFDCC99A8F46F2FE03978EB22038B9497C1D9D95A00FAD4"
+  },
+  {
+    "file": "Gpu\\cublas64_12.dll",
+    "bytes": 113716224,
+    "sha256": "9513540E4EC4C51EE9E7304138C2CC255C29A8C181F9E80C38EFA25738BECD99"
+  },
+  {
+    "file": "Gpu\\cublasLt64_12.dll",
+    "bytes": 674667520,
+    "sha256": "B199D1FF892A81B7FD3D57BA1781549609B41500B36008FEF326038393AD46C7"
+  },
+  {
+    "file": "Gpu\\cudart64_12.dll",
+    "bytes": 573952,
+    "sha256": "C2C9A9C22A9BCBA90E261825968836787B331038047A26770CFFB7A583C28344"
+  },
+  {
+    "file": "Gpu\\cudnn_adv64_9.dll",
+    "bytes": 282445872,
+    "sha256": "F202E8FF36209AC4292FE2EF79D4539487495B3B948F0C978CC63298F43A1850"
+  },
+  {
+    "file": "Gpu\\cudnn_cnn64_9.dll",
+    "bytes": 4618272,
+    "sha256": "3F03DEC3B81F137F049E1D1C06FF469248EEF54FF9424B3B9045FC0F69559D1A"
+  },
+  {
+    "file": "Gpu\\cudnn_engines_precompiled64_9.dll",
+    "bytes": 513926688,
+    "sha256": "EBC2C1F74366B029A4350F7F9A3B109CCD5AA9B4AE02527950793DD29F7B74FB"
+  },
+  {
+    "file": "Gpu\\cudnn_engines_runtime_compiled64_9.dll",
+    "bytes": 20201008,
+    "sha256": "93AB6351CA0F2B6CA842F83D284E56C427525778C14657229801A13CF8121BD8"
+  },
+  {
+    "file": "Gpu\\cudnn_graph64_9.dll",
+    "bytes": 2420256,
+    "sha256": "A933EFEB280A3252297F92D79F7E83003BCBC6F665872D11645D1DBBAB9CB598"
+  },
+  {
+    "file": "Gpu\\cudnn_heuristic64_9.dll",
+    "bytes": 56823328,
+    "sha256": "458175F12771A35DE0EA39C04250D727C2424D42A7FFE0BC987AE81204748FBA"
+  },
+  {
+    "file": "Gpu\\cudnn_ops64_9.dll",
+    "bytes": 126508576,
+    "sha256": "851D8F4191A24B322B0BE738D191A3159455F0DA4DB47A19F5CC7AD6E55EDF61"
+  },
+  {
+    "file": "Gpu\\cudnn64_9.dll",
+    "bytes": 266288,
+    "sha256": "9EDBCDFF73B0AF070EB160B2CE66E59FECA04AA017351D8EEDCC5E8E149967D2"
+  },
+  {
+    "file": "Gpu\\msvcp140_1.dll",
+    "bytes": 35768,
+    "sha256": "206C931BF90FDAD8816DE3B5E2EF80B2BCAA9406C89ECC05FE6FDDFFE251E982"
+  },
+  {
+    "file": "Gpu\\msvcp140_2.dll",
+    "bytes": 274872,
+    "sha256": "D50D7883F20D1DC6191768D3746F52DD9CAC89C346FFAED5BE1F110C2F34A838"
+  },
+  {
+    "file": "Gpu\\msvcp140_atomic_wait.dll",
+    "bytes": 57792,
+    "sha256": "3D0CBFAA1BF3EECF5A3F4491D2960EE803CB994F30292C6ADC4A07C498F60E2B"
+  },
+  {
+    "file": "Gpu\\msvcp140_codecvt_ids.dll",
+    "bytes": 31160,
+    "sha256": "8A65C7596EF2E6938731F5A1058E7E40145B6D97967CC649231A076B9A608D78"
+  },
+  {
+    "file": "Gpu\\msvcp140.dll",
+    "bytes": 643512,
+    "sha256": "7C26614E1D733892C2DEAC7E245CE115504B1D80592DD0A01B08E3E5A55F89CA"
+  },
+  {
+    "file": "Gpu\\NOTICE.txt",
+    "bytes": 1274,
+    "sha256": "DCB31479329F49ABC11A7562633EE51E965A610F56D12CC2E24DDAB6F8CAE5A0"
+  },
+  {
+    "file": "Gpu\\onnxruntime_providers_cuda.dll",
+    "bytes": 496742712,
+    "sha256": "0204055E745B092B0D946558B914B61AA395A9FA41FC6E082904C1441DE3EF4D"
+  },
+  {
+    "file": "Gpu\\onnxruntime_providers_shared.dll",
+    "bytes": 21816,
+    "sha256": "F55A8A6216A63C5678F0CCCA531403FD34E7325E0B43C771E134A3898C3E5120"
+  },
+  {
+    "file": "Gpu\\onnxruntime.dll",
+    "bytes": 16283448,
+    "sha256": "F202B5C9B0025993996D60F5B528CDB92AD12AA9B709B12A8089BB3403DA30BD"
+  },
+  {
+    "file": "Gpu\\sherpa-onnx-offline-source-separation.exe",
+    "bytes": 532480,
+    "sha256": "D5922AE70DFE08F28A3E4FE5138304579355236F4EBAA84FBD7700C6CFC1394C"
+  },
+  {
+    "file": "Gpu\\vcruntime140_1.dll",
+    "bytes": 50112,
+    "sha256": "A7146C08F89FE5B04541AB507CDB59FF7B44534D4BA3C668A426C6450A03434E"
+  },
+  {
+    "file": "Gpu\\vcruntime140_threads.dll",
+    "bytes": 38840,
+    "sha256": "40F39E8CEE5F5A531B4010E18B807E8FE265B908DC58F959ECB7EBC6EA6CB11A"
+  },
+  {
+    "file": "Gpu\\vcruntime140.dll",
+    "bytes": 178616,
+    "sha256": "D1F4225DF2CD877DBF130D5668A021DCE3F94118455FF5EC952061C30AFC9CE7"
+  },
+  {
+    "file": "Gpu\\Licenses\\cuBLAS-LICENSE.txt",
+    "bytes": 63021,
+    "sha256": "E2C71BABFD18A8E69542DD7E9CA018F9CAA438094001A58E6BC4D8C999BF0D07"
+  },
+  {
+    "file": "Gpu\\Licenses\\CUDA-Runtime-LICENSE.txt",
+    "bytes": 63021,
+    "sha256": "E2C71BABFD18A8E69542DD7E9CA018F9CAA438094001A58E6BC4D8C999BF0D07"
+  },
+  {
+    "file": "Gpu\\Licenses\\cuDNN-LICENSE.txt",
+    "bytes": 29574,
+    "sha256": "295A1B7118D3417F5D6A943E5F87B59E2A0631FB277129C3B15DEE6248ADC7CF"
+  }
+]

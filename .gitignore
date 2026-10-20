@@ -1,39 +1,66 @@
-# Build outputs
+# Build, test and release output (including nested projects)
 bin/
 obj/
-Release/
 Publish/
+Release/
+Output/
+TestResults/
+artifacts/
+*.trx
+*.coverage
+*.coveragexml
+*.dmp
+*.etl
 
-# Visual Studio
+# IDE and local tooling state
 .vs/
+.idea/
+.codex/
 *.user
 *.suo
 *.userprefs
 *.sln.docstates
 
-# Build artifacts
+# Native tools, model weights and local package/download caches
 *.exe
 *.dll
 *.pdb
 *.cache
 *.log
-
-# NuGet
-packages/
 *.nupkg
-
-# Resources - binary dependencies (download separately or use Git LFS)
-Resources/*.dll
-Resources/*.exe
+packages/
 Resources/ffmpeg_libs/
+Resources/**/*.onnx
+Resources/**/*.onnx.data
+Resources/**/*.pt
+Resources/**/*.pth
+Resources/**/*.ckpt
+Resources/**/*.safetensors
+Resources/**/*.traineddata
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tar.bz2
+*.download
+*.partial
+.restore-audio-*/
 
-# Inno Setup output
-Output/
+# Credentials and signing material stay outside the source repository
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+*.key
+secrets.json
 
-# OS files
+# OS metadata
 Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Keep Resources folder structure
-!Resources/README.txt
+# Keep source documentation, dependency locks, notices and licenses in Resources.
+# Download the ignored audio binaries with tools/Restore-AudioResources.ps1.
+*.install-*

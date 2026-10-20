@@ -5,7 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
              mc:Ignorable="d" d:DesignHeight="720" d:DesignWidth="960"
-             FontFamily="Segoe UI" Focusable="True"
+             FontFamily="Segoe UI" Focusable="True" UseLayoutRounding="True" SnapsToDevicePixels="True"
+             TextOptions.TextFormattingMode="Display"
              PreviewKeyDown="UserControl_PreviewKeyDown">
     <UserControl.Resources>
         <SolidColorBrush x:Key="TextPrimary" Color="#F2F7FA"/>
@@ -13,7 +14,18 @@
         <SolidColorBrush x:Key="InfoColor" Color="#58C9EF"/>
         <SolidColorBrush x:Key="SuccessColor" Color="#42D6A4"/>
         <SolidColorBrush x:Key="DangerColor" Color="#F47788"/>
+        <Style x:Key="CutterFocusVisual" TargetType="Control">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Control">
+                        <Border Margin="-3" CornerRadius="10" BorderBrush="#7DD3FC"
+                                BorderThickness="2" IsHitTestVisible="False"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="CutterButton" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
             <Setter Property="Background" Value="#172631"/>
             <Setter Property="Foreground" Value="#E8F2F7"/>
             <Setter Property="BorderBrush" Value="#365164"/>
@@ -304,10 +316,13 @@
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                         <Button Style="{StaticResource SegmentButton}" Content="↑"
+                                                                AutomationProperties.Name="Move segment up"
                                                                 Click="SegmentMoveUp_Click" Tag="{Binding}" ToolTip="Move segment up"/>
                                                         <Button Style="{StaticResource SegmentButton}" Content="↓"
+                                                                AutomationProperties.Name="Move segment down"
                                                                 Click="SegmentMoveDown_Click" Tag="{Binding}" ToolTip="Move segment down"/>
                                                         <Button Style="{StaticResource SegmentButton}" Content="×"
+                                                                AutomationProperties.Name="Remove segment"
                                                                 Click="SegmentRemove_Click" Tag="{Binding}" ToolTip="Remove segment"
                                                                 Margin="0" Foreground="{StaticResource DangerColor}"/>
                                                     </StackPanel>

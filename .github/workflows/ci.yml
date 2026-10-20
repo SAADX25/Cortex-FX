@@ -2,6 +2,8 @@ name: CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
   build-and-test:
     runs-on: windows-latest
@@ -10,6 +12,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Check source upload hygiene
+        shell: pwsh
+        run: ./tools/Test-Repository.ps1
       - run: dotnet restore CortexFX.slnx
       - run: dotnet build CortexFX.slnx -c Release --no-restore
       - run: dotnet test CortexFX.slnx -c Release --no-build

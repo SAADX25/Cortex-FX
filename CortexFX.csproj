@@ -17,6 +17,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Resources\AudioSeparation\**\*" Exclude="Resources\AudioSeparation\Gpu\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Resources\AudioSeparation\Gpu\**\*" Condition="'$(IncludeAudioGpu)' != 'false'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="Resources\ffmpeg.exe" Condition="Exists('Resources\ffmpeg.exe')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -60,6 +68,8 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="FFME.Windows" Version="4.4.350" />
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.16.0" />
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NetOfficeFw.Excel" Version="1.9.7" />

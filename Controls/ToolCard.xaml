@@ -1,71 +1,101 @@
 <UserControl x:Class="CortexFX.Controls.ToolCard"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             mc:Ignorable="d" 
-             Height="150" Width="150">
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             x:Name="CardRoot"
+             Height="150" Width="150"
+             Background="Transparent" Focusable="True" IsTabStop="True"
+             FocusVisualStyle="{x:Null}"
+             UseLayoutRounding="True" SnapsToDevicePixels="True"
+             AutomationProperties.Name="{Binding Title, ElementName=CardRoot}"
+             AutomationProperties.HelpText="{Binding Title, ElementName=CardRoot, StringFormat='Open {0}'}"
+             ToolTip="{Binding Title, ElementName=CardRoot, StringFormat='Open {0}'}"
+             ToolTipService.InitialShowDelay="700">
 
     <UserControl.Resources>
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="CornerRadius" Value="11"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#2B2026"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderBrush" Value="#30262E"/>
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#171318" Offset="0.0"/>
-                        <GradientStop Color="#0D0E12" Offset="1.0"/>
+                        <GradientStop Color="#19151B" Offset="0"/>
+                        <GradientStop Color="#101115" Offset="1"/>
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.18" Color="Black"/>
-                </Setter.Value>
-            </Setter>
             <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
+                <DataTrigger Binding="{Binding IsMouseOver, ElementName=CardRoot}" Value="True">
                     <Setter Property="Background">
                         <Setter.Value>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#21171C" Offset="0.0"/>
-                                <GradientStop Color="#151014" Offset="1.0"/>
+                                <GradientStop Color="#211B23" Offset="0"/>
+                                <GradientStop Color="#16151B" Offset="1"/>
                             </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
-                    <Setter Property="BorderBrush" Value="#E11D2E"/>
-                    <Setter Property="Effect">
-                        <Setter.Value>
-                            <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.28" Color="#E11D2E"/>
-                        </Setter.Value>
-                    </Setter>
-                    <Setter Property="RenderTransform">
-                        <Setter.Value>
-                            <TranslateTransform Y="-2"/>
-                        </Setter.Value>
-                    </Setter>
-                </Trigger>
+                    <Setter Property="BorderBrush" Value="#67414D"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource CardStyle}" RenderTransformOrigin="0.5,0.5">
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="15">
-            <!-- Icon Container -->
-            <Border Width="48" Height="48" CornerRadius="12" HorizontalAlignment="Center" Margin="0,0,0,12"
-                    Background="{Binding IconBackground, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
-                </Border.Effect>
-                <Path Data="{Binding IconData, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                      Fill="White" Stretch="Uniform" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-
-            <!-- Title -->
-            <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                       Foreground="#F7FAFC" FontWeight="SemiBold" FontSize="14" TextAlignment="Center" TextWrapping="Wrap"/>
-        </StackPanel>
-    </Border>
+    <!-- The transparent root preserves the hit area while the surface lifts. -->
+    <Grid x:Name="CardVisual" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <TransformGroup>
+                <ScaleTransform x:Name="CardScale" ScaleX="1" ScaleY="1"/>
+                <TranslateTransform x:Name="CardTranslation"/>
+            </TransformGroup>
+        </Grid.RenderTransform>
+        <Border Style="{StaticResource CardStyle}">
+            <!-- Fixed slots keep every icon aligned, including two-line titles. -->
+            <Grid Margin="12,25,12,18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="48"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border x:Name="IconContainer" Width="48" Height="48" CornerRadius="12"
+                        HorizontalAlignment="Center"
+                        Background="{Binding IconBackground, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                    <Path Data="{Binding IconData, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Fill="{Binding IconForeground, RelativeSource={RelativeSource AncestorType=UserControl}}" Stretch="Uniform" Margin="12"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Grid.Row="2" Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           Foreground="#F1F1F4" FontWeight="SemiBold" FontSize="14"
+                           LineHeight="20" LineStackingStrategy="BlockLineHeight"
+                           TextAlignment="Center" TextWrapping="Wrap"
+                           HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+        <Border x:Name="FocusRing" Margin="3" CornerRadius="8"
+                BorderThickness="1" BorderBrush="#F2ADB8">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Opacity" Value="0"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=CardRoot}" Value="True">
+                            <Setter Property="Opacity" Value="1"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+        </Border>
+    </Grid>
+    <UserControl.Style>
+        <Style TargetType="UserControl">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.45"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Style>
 </UserControl>

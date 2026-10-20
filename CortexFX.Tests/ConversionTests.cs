@@ -153,6 +153,11 @@ internal sealed class FakeEngines : IFFmpegService, IMagickService, IOfficeInter
     IPdfRenderService, IOptionalConversionService, IPdfToWordService
 {
     public string? Called { get; private set; }
+    public bool WordInstalled { get; set; } = true;
+    public bool PowerPointInstalled { get; set; } = true;
+    public bool ExcelInstalled { get; set; } = true;
+    public bool OptionalSupported { get; set; }
+    public bool OptionalInstalled { get; set; }
     public bool FailHardware { get; set; }
     public TimeSpan ImageDelay { get; set; }
     private int _concurrentImages;
@@ -189,14 +194,21 @@ internal sealed class FakeEngines : IFFmpegService, IMagickService, IOfficeInter
     public Task ExtractAudioAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null)
     { ct.ThrowIfCancellationRequested(); Called = "ffmpeg-audio"; return Task.CompletedTask; }
     public Task ConvertToGifAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
-    public bool IsOfficeInstalled() => true;
-    public Task ConvertToPdfAsync(string a, string b, int q = 1, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
+    public bool IsOfficeInstalled() => WordInstalled;
+    public bool IsApplicationInstalled(string application) => application switch
+    { "Word" => WordInstalled, "Excel" => ExcelInstalled, "PowerPoint" => PowerPointInstalled, _ => false };
+    public Task ConvertWordDocumentAsync(string a, string b, string target, CancellationToken ct = default, IProgress<double>? p = null)
+    { ct.ThrowIfCancellationRequested(); Called = "word-" + target; return Task.CompletedTask; }
+    public Task ConvertToPdfAsync(string a, string b, int q = 1, CancellationToken ct = default, IProgress<double>? p = null)
+    { ct.ThrowIfCancellationRequested(); Called = "office-pdf"; return Task.CompletedTask; }
     public Task ConvertPdfToWordAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
     public Task ConvertWordToPowerPointAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
     public Task ConvertPdfToPowerPointAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
     public Task RenderPdfToImagesAsync(string a, string b, string f, int dpi = 150, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
-    public bool CanConvert(string a, string b) => false;
-    public Task<ConversionResult> ConvertAsync(string a, string b, string ext, string target, CancellationToken ct = default, IProgress<double>? p = null) => Task.FromResult(ConversionResult.Ok(b));
+    public bool CanConvert(string a, string b) => OptionalSupported;
+    public string? GetUnavailableReason(string a, string b) => OptionalInstalled ? null : "Optional engine is missing.";
+    public Task<ConversionResult> ConvertAsync(string a, string b, string ext, string target, CancellationToken ct = default, IProgress<double>? p = null)
+    { ct.ThrowIfCancellationRequested(); Called = "optional"; return Task.FromResult(ConversionResult.Ok(b)); }
 }
 
 internal sealed class FakeConfig(string dir) : IAppConfiguration

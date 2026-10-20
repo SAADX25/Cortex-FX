@@ -1,0 +1,12 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="RadialTheme.xaml"/>
+        <ResourceDictionary Source="/CortexFX;component/Views/Video/CompressorTheme.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    <Style x:Key="ToolTitle" TargetType="TextBlock"><Setter Property="FontSize" Value="22"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="#F4F5FA"/></Style>
+    <Style x:Key="ToolLabel" TargetType="TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="#B3BED1"/></Style>
+    <Style x:Key="ToolInput" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="FontSize" Value="13"/><Setter Property="MinWidth" Value="72"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="AutomationProperties.HelpText" Value="Enter a numeric value."/>
+    </Style>
+</ResourceDictionary>

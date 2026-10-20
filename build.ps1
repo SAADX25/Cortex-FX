@@ -1,193 +1,112 @@
+#requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$Configuration = "Release",
-    [string]$Runtime = "win-x64",
+    [ValidateSet('Debug','Release')][string]$Configuration = 'Release',
+    [ValidateSet('win-x64')][string]$Runtime = 'win-x64',
     [bool]$SelfContained = $true,
+    [switch]$CpuOnly,
     [switch]$SkipInstaller,
     [switch]$CreatePortableZip,
-    # Keep Publish\CortexFX_vX.Y.Z so you can re-compile setup.iss in Inno IDE.
     [switch]$RemoveStagingFolder
 )
+$ErrorActionPreference = 'Stop'
+$ProjectRoot = [IO.Path]::GetFullPath($PSScriptRoot)
+$ProjectFile = Join-Path $ProjectRoot 'CortexFX.csproj'
+$PublishRoot = Join-Path $ProjectRoot 'Publish'
 
-$ErrorActionPreference = "Stop"
-
-function Write-Step {
-    param([string]$Message)
-    Write-Host "==> $Message" -ForegroundColor Cyan
+function Write-Step([string]$Message) { Write-Host "==> $Message" -ForegroundColor Cyan }
+function Assert-Child([string]$Path, [string]$Root) {
+    $prefix = [IO.Path]::GetFullPath($Root).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $full = [IO.Path]::GetFullPath($Path)
+    if (!$full.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Path is outside its intended output directory: $full" }
 }
-
-function Assert-InProject {
-    param(
-        [string]$Path,
-        [string]$ProjectRoot
-    )
-
-    $fullPath = [System.IO.Path]::GetFullPath($Path)
-    $fullRoot = [System.IO.Path]::GetFullPath($ProjectRoot)
-    if (!$fullPath.StartsWith($fullRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to operate outside project root: $fullPath"
-    }
+function Assert-Exists([string]$Path) {
+    if (!(Test-Path -LiteralPath $Path)) { throw "Required resource missing: $Path" }
 }
-
-function Assert-Exists {
-    param(
-        [string]$Path,
-        [string]$Description
-    )
-
-    if (!(Test-Path -LiteralPath $Path)) {
-        throw "$Description not found: $Path"
-    }
+function Invoke-Dotnet([string[]]$CommandArguments) {
+    & dotnet @CommandArguments
+    if ($LASTEXITCODE -ne 0) { throw "dotnet $($CommandArguments[0]) failed with exit code $LASTEXITCODE." }
 }
-
-function Remove-StagingFolder {
-    param(
-        [string]$Path,
-        [switch]$Remove
-    )
-
-    if (!$Remove) {
-        Write-Host "Staging folder kept for Inno re-compile: $Path" -ForegroundColor Yellow
+function Remove-OwnedStaging {
+    if (!$RemoveStagingFolder) { Write-Host "App folder kept: $PublishDir"; return }
+    if (!(Test-Path -LiteralPath $InstallerPath) -and !(Test-Path -LiteralPath $ZipPath)) {
+        Write-Warning 'No installer or portable ZIP exists; the app folder has been kept.'
         return
     }
-
-    if (Test-Path -LiteralPath $Path) {
-        Write-Step "Removing temporary staging folder"
-        Remove-Item -LiteralPath $Path -Recurse -Force
-    }
+    Assert-Child $PublishDir $ReleaseRoot
+    Assert-Child $ReleaseRoot $PublishRoot
+    if (([IO.Path]::GetFileName($PublishDir) -ne 'app') -or !$StagingCreatedByBuild) { throw 'Unsafe staging cleanup path.' }
+    Remove-Item -LiteralPath $PublishDir -Recurse -Force
 }
 
-$ProjectRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
-$ProjectFile = Join-Path $ProjectRoot "CortexFX.csproj"
-$InstallerScript = Join-Path $ProjectRoot "setup.iss"
-$PublishRoot = Join-Path $ProjectRoot "Publish"
+Assert-Exists $ProjectFile
+[xml]$projectXml = Get-Content -LiteralPath $ProjectFile
+$Version = @($projectXml.Project.PropertyGroup.Version | Where-Object { $_ })[0]
+if ($Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw 'CortexFX.csproj must contain a numeric release version.' }
+$profile = if ($CpuOnly) { '-cpu' } else { '' }
+$ReleaseRoot = Join-Path $PublishRoot "CortexFX_v$Version$profile"
+if (Test-Path -LiteralPath $ReleaseRoot) {
+    $ReleaseRoot += '_' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6)
+}
+$PublishDir = Join-Path $ReleaseRoot 'app'
+$InstallerPath = Join-Path $ReleaseRoot "CortexFX_Setup_v$Version.exe"
+$ZipPath = Join-Path $ReleaseRoot "CortexFX_Portable_v$Version-$Runtime$profile.zip"
+Assert-Child $ReleaseRoot $PublishRoot
+Assert-Child $PublishDir $ReleaseRoot
+$StagingCreatedByBuild = $false
 
-if (!(Test-Path -LiteralPath $ProjectFile)) {
-    throw "Project file not found: $ProjectFile"
+$coreResources = @('ffmpeg.exe','magick.exe','pdftocairo.exe','ffmpeg_libs\avcodec-58.dll',
+    'ffmpeg_libs\avformat-58.dll','ffmpeg_libs\avutil-56.dll','ffmpeg_libs\swresample-3.dll','ffmpeg_libs\swscale-5.dll')
+foreach ($relative in $coreResources) { Assert-Exists (Join-Path $ProjectRoot ('Resources\' + $relative)) }
+Assert-Exists (Join-Path $ProjectRoot 'Assets\logo.ico')
+$audioLockPath = Join-Path $ProjectRoot 'tools\audio-resources.lock.json'
+Assert-Exists $audioLockPath
+$audioLock = Get-Content -LiteralPath $audioLockPath -Raw | ConvertFrom-Json
+$audioResources = Join-Path $ProjectRoot $audioLock.resourceDirectory
+foreach ($package in $audioLock.packages) {
+    if ($package.gpu -and $CpuOnly) { continue }
+    foreach ($file in $package.files) { Assert-Exists (Join-Path $audioResources $file.target) }
+}
+foreach ($license in $audioLock.licenses) { Assert-Exists (Join-Path $audioResources $license) }
+if (!$CpuOnly) {
+    foreach ($file in $audioLock.microsoftRuntime) { Assert-Exists (Join-Path $audioResources $file.target) }
+    foreach ($license in $audioLock.gpuLicenses) { Assert-Exists (Join-Path $audioResources $license) }
 }
 
-[xml]$ProjectXml = Get-Content -LiteralPath $ProjectFile
-$Version = $ProjectXml.Project.PropertyGroup.Version | Select-Object -First 1
-if ([string]::IsNullOrWhiteSpace($Version)) {
-    $Version = "1.7.0"
+Write-Step "Building Cortex FX $Version ($Runtime$profile)"
+# Each invocation owns a new directory. Existing publish folders and artifacts are preserved.
+$null = New-Item -ItemType Directory -Force -Path $ReleaseRoot
+$null = New-Item -ItemType Directory -Path $PublishDir
+$StagingCreatedByBuild = $true
+$gpuProperty = '-p:IncludeAudioGpu=' + (!$CpuOnly).ToString().ToLowerInvariant()
+Invoke-Dotnet -CommandArguments @('restore',$ProjectFile,'-r',$Runtime)
+Invoke-Dotnet -CommandArguments @('build',$ProjectFile,'-c',$Configuration,'--no-restore',$gpuProperty)
+Invoke-Dotnet -CommandArguments @('publish',$ProjectFile,'-c',$Configuration,'-r',$Runtime,'--self-contained',
+    $SelfContained.ToString().ToLowerInvariant(),'-o',$PublishDir,'-p:PublishSingleFile=false','-p:PublishReadyToRun=true',$gpuProperty)
+
+Assert-Exists (Join-Path $PublishDir 'CortexFX.exe')
+foreach ($relative in $coreResources) { Assert-Exists (Join-Path $PublishDir ('Resources\' + $relative)) }
+foreach ($package in $audioLock.packages) {
+    if ($package.gpu -and $CpuOnly) { continue }
+    foreach ($file in $package.files) { Assert-Exists (Join-Path $PublishDir ($audioLock.resourceDirectory + '/' + $file.target)) }
 }
-
-$PublishDir = Join-Path $PublishRoot "CortexFX_v$Version"
-$InstallerPath = Join-Path $PublishRoot "CortexFX_Setup_v$Version.exe"
-$ZipPath = Join-Path $PublishRoot "CortexFX_Portable_v$Version-$Runtime.zip"
-Assert-InProject -Path $PublishRoot -ProjectRoot $ProjectRoot
-Assert-InProject -Path $PublishDir -ProjectRoot $ProjectRoot
-Assert-InProject -Path $InstallerPath -ProjectRoot $ProjectRoot
-Assert-InProject -Path $ZipPath -ProjectRoot $ProjectRoot
-
-Write-Step "Cortex FX build started"
-Write-Host "Project: $ProjectFile"
-Write-Host "Configuration: $Configuration"
-Write-Host "Runtime: $Runtime"
-Write-Host "Version: $Version"
-
-Write-Step "Cleaning publish output"
-if (Test-Path -LiteralPath $PublishRoot) {
-    Remove-Item -LiteralPath $PublishRoot -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path $PublishRoot | Out-Null
-New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
-
-Write-Step "Restoring packages"
-dotnet restore $ProjectFile
-
-Write-Step "Building"
-dotnet build $ProjectFile -c $Configuration --no-restore
-
-Write-Step "Publishing"
-dotnet publish $ProjectFile `
-    -c $Configuration `
-    -r $Runtime `
-    --self-contained $SelfContained `
-    -o $PublishDir `
-    -p:PublishSingleFile=false `
-    -p:ReadyToRun=true
-
-Write-Host "Publish output: $PublishDir" -ForegroundColor Green
-
-$RequiredPublishFiles = @(
-    (Join-Path $PublishDir "CortexFX.exe"),
-    (Join-Path $PublishDir "Resources"),
-    (Join-Path $PublishDir "Resources\ffmpeg.exe"),
-    (Join-Path $PublishDir "Resources\magick.exe"),
-    (Join-Path $PublishDir "Resources\pdftocairo.exe"),
-    (Join-Path $PublishDir "Resources\ffmpeg_libs\avcodec-58.dll"),
-    (Join-Path $PublishDir "Resources\ffmpeg_libs\avformat-58.dll"),
-    (Join-Path $PublishDir "Resources\ffmpeg_libs\avutil-56.dll"),
-    (Join-Path $PublishDir "Resources\ffmpeg_libs\swresample-3.dll"),
-    (Join-Path $PublishDir "Resources\ffmpeg_libs\swscale-5.dll")
-)
-
-Write-Step "Validating publish output"
-foreach ($RequiredFile in $RequiredPublishFiles) {
-    Assert-Exists -Path $RequiredFile -Description "Required publish file"
-}
-
-# Pack URI Resources\logo fix sanity: icon must be embedded at build time (Assets\logo.ico)
-Assert-Exists -Path (Join-Path $ProjectRoot "Assets\logo.ico") -Description "App icon"
+if ($CpuOnly -and (Test-Path -LiteralPath (Join-Path $PublishDir 'Resources\AudioSeparation\Gpu'))) { throw 'CPU-only publish unexpectedly contains the GPU add-on.' }
 
 if ($CreatePortableZip) {
-    if (Test-Path -LiteralPath $ZipPath) {
-        Remove-Item -LiteralPath $ZipPath -Force -ErrorAction SilentlyContinue
-    }
-
-    Write-Step "Creating portable ZIP"
-    try {
-        # Brief pause helps release locks from antivirus / Explorer on freshly copied DLLs
-        Start-Sleep -Seconds 2
-        Compress-Archive -Path (Join-Path $PublishDir "*") -DestinationPath $ZipPath -Force
-        Write-Host "Portable ZIP: $ZipPath" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "Portable ZIP failed (installer will still be built): $($_.Exception.Message)" -ForegroundColor Yellow
-    }
+    Write-Step 'Creating portable ZIP'
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory($PublishDir,$ZipPath,[IO.Compression.CompressionLevel]::Optimal,$false)
+    Write-Host "Portable ZIP: $ZipPath" -ForegroundColor Green
 }
-
-if ($SkipInstaller) {
-    Write-Host "Installer step skipped." -ForegroundColor Yellow
-    Remove-StagingFolder -Path $PublishDir -Remove:$RemoveStagingFolder
-    exit 0
-}
-
-$InnoCandidates = @(
-    (Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"),
-    (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe")
-) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
-
-if ($InnoCandidates.Count -eq 0) {
-    Write-Host "Inno Setup 6 was not found. Publish succeeded; installer was not created." -ForegroundColor Yellow
-    Write-Host "Staging left at: $PublishDir" -ForegroundColor Yellow
-    exit 0
-}
-
-if (!(Test-Path -LiteralPath $InstallerScript)) {
-    Write-Host "setup.iss was not found. Publish succeeded; installer was not created." -ForegroundColor Yellow
-    exit 0
-}
-
-Write-Step "Building installer"
-$InnoCompiler = @($InnoCandidates)[0]
-& $InnoCompiler "/DMyAppVersion=$Version" "/DMyBuildPath=$PublishDir" "/DMyOutputDir=$PublishRoot" $InstallerScript
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Installer compilation failed with exit code $LASTEXITCODE."
-}
-
-Assert-Exists -Path $InstallerPath -Description "Installer"
-Remove-StagingFolder -Path $PublishDir -Remove:$RemoveStagingFolder
-
-Write-Host ""
-Write-Host "Done." -ForegroundColor Green
-Write-Host "  Installer: $InstallerPath"
-if (Test-Path -LiteralPath $ZipPath) {
-    Write-Host "  Portable:  $ZipPath"
-}
-if (Test-Path -LiteralPath $PublishDir) {
-    Write-Host "  Staging:   $PublishDir  (re-open setup.iss in Inno if you need to tweak)"
-}
-Write-Host ""
+if ($SkipInstaller) { Write-Host 'Installer step skipped.'; Remove-OwnedStaging; return }
+$innoLocations = @(${env:ProgramFiles(x86)},$env:ProgramFiles) | Where-Object { $_ }
+$inno = @($innoLocations | ForEach-Object { Join-Path $_ 'Inno Setup 6\ISCC.exe' } | Where-Object { Test-Path -LiteralPath $_ })
+if (!$inno.Count) { Write-Warning "Inno Setup 6 was not found. App folder kept: $PublishDir"; return }
+$installerScript = Join-Path $ProjectRoot 'setup.iss'
+Assert-Exists $installerScript
+Write-Step 'Building installer'
+& $inno[0] "/DMyAppVersion=$Version" "/DMyBuildPath=$PublishDir" "/DMyOutputDir=$ReleaseRoot" $installerScript
+if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed with exit code $LASTEXITCODE." }
+Assert-Exists $InstallerPath
+Remove-OwnedStaging
+Write-Host "Installer: $InstallerPath" -ForegroundColor Green

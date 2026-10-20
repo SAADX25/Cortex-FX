@@ -45,11 +45,14 @@ public sealed class OfficeInteropService : IOfficeInteropService
     // IOfficeInteropService
 
     /// <inheritdoc />
-    public bool IsOfficeInstalled()
+    public bool IsOfficeInstalled() => IsApplicationInstalled("Word");
+
+    public bool IsApplicationInstalled(string application)
     {
+        if (application is not ("Word" or "Excel" or "PowerPoint")) return false;
         try
         {
-            Type? officeType = Type.GetTypeFromProgID("Word.Application");
+            Type? officeType = Type.GetTypeFromProgID(application + ".Application");
             return officeType != null;
         }
         catch
@@ -68,6 +71,9 @@ public sealed class OfficeInteropService : IOfficeInteropService
         {
             case ".docx":
             case ".doc":
+            case ".odt":
+            case ".rtf":
+            case ".txt":
                 await RunOnStaAsync(() => ConvertWordToPdf(inputFile, outputFile, qualityLevel, ct, progress), _wordLock, ct);
                 break;
             case ".xlsx":
@@ -185,6 +191,53 @@ public sealed class OfficeInteropService : IOfficeInteropService
         {
             try { if (File.Exists(tempDocx)) File.Delete(tempDocx); } catch { }
         }
+    }
+
+    public Task ConvertWordDocumentAsync(string inputFile, string outputFile, string targetFormat,
+        CancellationToken ct = default, IProgress<double>? progress = null)
+    {
+        var format = targetFormat.TrimStart('.').ToLowerInvariant() switch
+        {
+            "docx" => WdSaveFormat.wdFormatXMLDocument,
+            "odt" => WdSaveFormat.wdFormatOpenDocumentText,
+            "rtf" => WdSaveFormat.wdFormatRTF,
+            "txt" => WdSaveFormat.wdFormatUnicodeText,
+            _ => throw new NotSupportedException($"Word cannot export the selected format: {targetFormat}.")
+        };
+        return RunOnStaAsync(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            Word.Application? app = null;
+            Word.Document? doc = null;
+            try
+            {
+                Log($"Starting Word→{targetFormat.ToUpperInvariant()}: {inputFile}");
+                var existingWordPids = CapturePids("WINWORD");
+                app = new Word.Application { Visible = false };
+                app.DisplayAlerts = WdAlertLevel.wdAlertsNone;
+                TrackOfficePid(app, existingWordPids);
+                progress?.Report(10);
+                doc = app.Documents.Open(Path.GetFullPath(inputFile), false, true, false);
+                ct.ThrowIfCancellationRequested();
+                progress?.Report(50);
+                if (format == WdSaveFormat.wdFormatUnicodeText)
+                {
+                    // Word's UnicodeText and EncodedText share value 7. Without an explicit
+                    // encoding Word may use the system code page and replace Arabic with '?'.
+                    doc.SaveAs2(Path.GetFullPath(outputFile), format,
+                        Type.Missing, Type.Missing, false, Type.Missing, Type.Missing,
+                        Type.Missing, Type.Missing, Type.Missing, Type.Missing,
+                        NetOffice.OfficeApi.Enums.MsoEncoding.msoEncodingUTF8);
+                }
+                else doc.SaveAs2(Path.GetFullPath(outputFile), format);
+                ct.ThrowIfCancellationRequested();
+                if (!File.Exists(outputFile) || new FileInfo(outputFile).Length == 0)
+                    throw new IOException("Word did not create the converted document.");
+                progress?.Report(100);
+                Log($"Word→{targetFormat.ToUpperInvariant()} successful.");
+            }
+            finally { CleanupWord(app, doc); }
+        }, _wordLock, ct);
     }
 
     // Core conversion methods (run on STA thread)

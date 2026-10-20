@@ -1,0 +1,21 @@
+* text=auto
+*.cs text eol=lf
+*.xaml text eol=lf
+*.csproj text eol=lf
+*.slnx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.iss text eol=crlf
+*.ico binary
+*.png binary
+*.jpg binary
+*.onnx binary
+*.dll binary
+*.exe binary
+# Preserve upstream license/notice bytes; their hashes describe the distributed files.
+Resources/AudioSeparation/*.txt -text
+Resources/AudioSeparation/Gpu/NOTICE.txt -text
+Resources/AudioSeparation/Gpu/Licenses/* -text

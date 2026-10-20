@@ -100,6 +100,19 @@ public sealed class TrayIconService : IDisposable
         _window.Focus();
     }
 
+    public void AddFeatureItem(MenuItem item)
+    {
+        if (_tray?.ContextMenu is not ContextMenu menu || _disposed) return;
+        menu.Items.Insert(Math.Max(1, menu.Items.Count - 2), item);
+    }
+
+    public void Notify(string title, string message, bool error = false)
+    {
+        if (!_disposed && _tray?.Visibility == Visibility.Visible)
+            _tray.ShowBalloonTip(title, message.Length > 700 ? message[..700] : message,
+                error ? BalloonIcon.Warning : BalloonIcon.Info);
+    }
+
     private void ExitApp()
     {
         _forceExit = true;

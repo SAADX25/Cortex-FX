@@ -46,6 +46,22 @@ public sealed class OptionalConversionService : IOptionalConversionService
         return false;
     }
 
+    public string? GetUnavailableReason(string inputExtension, string targetFormat)
+    {
+        string ext = "." + inputExtension.TrimStart('.').ToLowerInvariant();
+        string target = targetFormat.TrimStart('.').ToLowerInvariant();
+        if (MediaTypes.DocumentExtensions.Contains(ext) && MediaTypes.LibreOfficeOutputFormats.Contains(target))
+            return FindLibreOffice() is not null ? null :
+                "LibreOffice is required for this conversion. Install LibreOffice to enable this format.";
+        if (MediaTypes.ArchiveExtensions.Contains(ext) && MediaTypes.ArchiveOutputFormats.Contains(target))
+            return FindSevenZip() is not null ? null :
+                "7-Zip is required for archive conversion. Install 7-Zip to enable this format.";
+        if ((MediaTypes.EbookExtensions.Contains(ext) || ext == ".pdf") && MediaTypes.EbookOutputFormats.Contains(target))
+            return FindCalibre() is not null ? null :
+                $"{target.ToUpperInvariant()} requires Calibre. Install Calibre to enable e-book conversion.";
+        return "This conversion is not supported by an optional engine.";
+    }
+
     public async Task<ConversionResult> ConvertAsync(
         string inputFile,
         string outputPath,
@@ -210,6 +226,20 @@ public sealed class OptionalConversionService : IOptionalConversionService
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
             {
                 return path;
+            }
+        }
+
+        // Custom/portable installations can expose their executables through PATH.
+        var names = paths.Select(Path.GetFileName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        foreach (string entry in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        {
+            string directory = entry.Trim().Trim('"');
+            if (!Path.IsPathFullyQualified(directory)) continue;
+            foreach (string? name in names)
+            {
+                if (name is null) continue;
+                string candidate = Path.Combine(directory, name);
+                if (File.Exists(candidate)) return candidate;
             }
         }
 

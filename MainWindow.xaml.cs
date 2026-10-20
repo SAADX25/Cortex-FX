@@ -59,6 +59,7 @@ public partial class MainWindow : Window
     private string? _lastOutputFolder;
     private const int MaxBatchFiles = 100;
     private TrayIconService? _trayIcon;
+    private IInputElement? _settingsReturnFocus;
 
     // FFME
     private string _ffmpegBinPath = string.Empty;
@@ -118,6 +119,7 @@ public partial class MainWindow : Window
 
             _trayIcon = new TrayIconService(this);
             _trayIcon.Attach();
+            InitializeRadialWheel();
         }
         catch (Exception ex)
         {
@@ -319,6 +321,11 @@ public partial class MainWindow : Window
 
         if (view.RenderTransform is TranslateTransform transform)
         {
+            if (transform.IsFrozen)
+            {
+                transform = transform.Clone();
+                view.RenderTransform = transform;
+            }
             transform.BeginAnimation(TranslateTransform.YProperty, null);
             transform.Y = 0;
         }
@@ -333,19 +340,33 @@ public partial class MainWindow : Window
             transform = new TranslateTransform();
             view.RenderTransform = transform;
         }
+        else if (transform.IsFrozen)
+        {
+            transform = transform.Clone();
+            view.RenderTransform = transform;
+        }
+
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            view.BeginAnimation(UIElement.OpacityProperty, null);
+            transform.BeginAnimation(TranslateTransform.YProperty, null);
+            view.Opacity = 1;
+            transform.Y = 0;
+            return;
+        }
 
         view.Opacity = 0;
-        transform.Y = 10;
+        transform.Y = 6;
 
-        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var duration = TimeSpan.FromMilliseconds(170);
+        var easing = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(180);
 
         view.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration)
         {
             EasingFunction = easing
         });
 
-        transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, duration)
+        transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(6, 0, duration)
         {
             EasingFunction = easing
         });
@@ -412,7 +433,7 @@ public partial class MainWindow : Window
             {
                 if (VideoCompressorEditor != null) ShowMainContent(VideoCompressorEditor);
                 CurrentToolTitle.Text = "Video Compressor";
-                BackBtn.Visibility = Visibility.Visible;
+                BackBtn.Visibility = Visibility.Collapsed; // The compressor has its own session-aware Back button.
             }
             else if (tool == "VideoCutter")
             {
@@ -874,12 +895,23 @@ public partial class MainWindow : Window
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
+        _settingsReturnFocus = Keyboard.FocusedElement;
         SettingsOverlay.Visibility = Visibility.Visible;
+        Keyboard.Focus(ContextMenuCheckBox);
     }
 
     private void CloseSettings_Click(object sender, RoutedEventArgs e)
     {
         SettingsOverlay.Visibility = Visibility.Collapsed;
+        if (_settingsReturnFocus != null) Keyboard.Focus(_settingsReturnFocus);
+        _settingsReturnFocus = null;
+    }
+
+    private void SettingsOverlay_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape) return;
+        CloseSettings_Click(sender, e);
+        e.Handled = true;
     }
 
     private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)

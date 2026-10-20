@@ -1,0 +1,71 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="RadialToolTheme.xaml"/></ResourceDictionary.MergedDictionaries>
+    <Style x:Key="CropLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#B9C9DC"/><Setter Property="FontSize" Value="11"/>
+    </Style>
+    <Style x:Key="CropButton" TargetType="Button">
+        <Setter Property="Foreground" Value="#E7EFF9"/><Setter Property="Background" Value="#12FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#26FFFFFF"/><Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="15,10"/><Setter Property="MinHeight" Value="42"/>
+        <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource CompressorFocusVisual}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+            <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="11" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonSurface" Property="BorderBrush" Value="#91FFFFFF"/></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonSurface" Property="Opacity" Value="0.72"/></Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonSurface" Property="BorderBrush" Value="#FFD1DF"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonSurface" Property="Opacity" Value="0.38"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="CropPrimaryButton" TargetType="Button" BasedOn="{StaticResource CropButton}">
+        <Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#FF829D"/>
+        <Setter Property="Background"><Setter.Value><LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#D93562" Offset="0"/><GradientStop Color="#ED5C78" Offset="1"/>
+        </LinearGradientBrush></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="CropRatio" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="#BDD0E4"/><Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Margin" Value="2"/><Setter Property="MinHeight" Value="38"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource CompressorFocusVisual}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+            <Border x:Name="Segment" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="8" Padding="5,9">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.FontSize="11"
+                                  TextElement.Foreground="{TemplateBinding Foreground}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="Segment" Property="Background" Value="#28FFFFFF"/>
+                    <Setter TargetName="Segment" Property="BorderBrush" Value="#48FFFFFF"/>
+                    <Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="SemiBold"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Segment" Property="BorderBrush" Value="#70FFFFFF"/></Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Segment" Property="BorderBrush" Value="#FFACBF"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Segment" Property="Opacity" Value="0.4"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="CropDimensionInput" TargetType="TextBox">
+        <Setter Property="Foreground" Value="#F4F8FF"/><Setter Property="Background" Value="#14070D17"/>
+        <Setter Property="BorderBrush" Value="#28FFFFFF"/><Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CaretBrush" Value="#F7F9FF"/><Setter Property="SelectionBrush" Value="#AC426987"/>
+        <Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="12,10"/><Setter Property="MinHeight" Value="42"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Center"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
+            <Border x:Name="InputSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
+                <ScrollViewer x:Name="PART_ContentHost"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="InputSurface" Property="BorderBrush" Value="#6AFFFFFF"/></Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="InputSurface" Property="BorderBrush" Value="#FFAAC0"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="InputSurface" Property="Opacity" Value="0.4"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+</ResourceDictionary>

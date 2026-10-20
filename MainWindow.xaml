@@ -10,18 +10,20 @@
         xmlns:audio="clr-namespace:CortexFX.Views.Audio"
         xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
         mc:Ignorable="d"
-        Title="Cortex FX" Height="650" Width="850"
+        Title="Cortex FX" Height="650" Width="950"
         MinWidth="950" MinHeight="650" ResizeMode="CanResize"
-        Background="Transparent" AllowsTransparency="True" WindowStyle="None"
+        Background="#08090D" AllowsTransparency="False" WindowStyle="None"
         Foreground="#E0E0E0"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
         Icon="Assets/logo.ico"
         Loaded="MainWindow_Loaded"
         >
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="35" ResizeBorderThickness="5" CornerRadius="10" GlassFrameThickness="0"/>
+        <WindowChrome CaptionHeight="40" ResizeBorderThickness="5" CornerRadius="10" GlassFrameThickness="0"/>
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
@@ -108,17 +110,34 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource RefinedFocusVisualStyle}"/>
             <Setter Property="Effect" Value="{StaticResource ElevationShadow}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                        <Grid>
+                            <Border x:Name="ActionSurface" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
                         </Border>
+                        <Border x:Name="ActionHighlight" Background="White" Opacity="0" CornerRadius="8" IsHitTestVisible="False"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ActionHighlight" Property="Opacity" Value="0.07"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ActionSurface" Property="Opacity" Value="0.78"/>
+                                <Setter TargetName="ActionHighlight" Property="Opacity" Value="0.02"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ActionSurface" Property="Opacity" Value="0.55"/>
+                                <Setter TargetName="ActionHighlight" Property="Opacity" Value="0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -144,6 +163,7 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource RefinedFocusVisualStyle}"/>
             <Setter Property="Effect" Value="{StaticResource ElevationShadow}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -197,6 +217,7 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource RefinedFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -207,7 +228,7 @@
                                 </Border.Effect>
                             </Border>
                             <Border x:Name="PillBorder" Background="{TemplateBinding Background}" 
-                                    CornerRadius="20" BorderBrush="White" BorderThickness="0">
+                                    CornerRadius="20" BorderBrush="Transparent" BorderThickness="2">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                             </Border>
                         </Grid>
@@ -218,6 +239,7 @@
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="PillBorder" Property="BorderThickness" Value="2"/>
+                                <Setter TargetName="PillBorder" Property="BorderBrush" Value="White"/>
                                 <Setter TargetName="Glow" Property="Opacity" Value="0.55"/>
                                 <Setter TargetName="PillBorder" Property="Opacity" Value="1.0"/>
                             </Trigger>
@@ -323,10 +345,11 @@
             <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource RefinedFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
-                        <Grid>
+                        <Grid x:Name="ComboRoot">
                             <ToggleButton Name="ToggleButton" 
                                           Template="{StaticResource ComboBoxToggleButton}" 
                                           Grid.Column="2" 
@@ -344,12 +367,11 @@
                                               HorizontalAlignment="Left" />
                             <TextBox x:Name="PART_EditableTextBox"
                                      Style="{x:Null}" 
-                                     Template="{x:Null}" 
                                      HorizontalAlignment="Left" 
                                      VerticalAlignment="Center" 
                                      Margin="3,3,23,3"
                                      Focusable="True" 
-                                     Background="Transparent"
+                                     Background="Transparent" Foreground="{TemplateBinding Foreground}" CaretBrush="{StaticResource AccentColor}"
                                      Visibility="Hidden"
                                      IsReadOnly="{TemplateBinding IsReadOnly}"/>
                             <Popup Name="Popup"
@@ -365,13 +387,25 @@
                                     <Border x:Name="DropDownBorder"
                                             Background="{StaticResource PanelBackgroundSubtle}"
                                             BorderThickness="1"
-                                            BorderBrush="{StaticResource PanelBorderStrong}"/>
+                                            BorderBrush="{StaticResource PanelBorderStrong}" CornerRadius="7"/>
                                     <ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True">
                                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
                                     </ScrollViewer>
                                 </Grid>
                             </Popup>
+                            <Border x:Name="ComboFocusOutline" CornerRadius="6" BorderBrush="{StaticResource AccentColor}"
+                                    BorderThickness="1" Opacity="0" IsHitTestVisible="False"/>
                         </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ComboFocusOutline" Property="Opacity" Value="0.45"/></Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ComboFocusOutline" Property="Opacity" Value="1"/></Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True"><Setter TargetName="ComboFocusOutline" Property="Opacity" Value="1"/></Trigger>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ComboRoot" Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -380,7 +414,7 @@
                     <Style TargetType="ComboBoxItem">
                         <Setter Property="Foreground" Value="White"/>
                         <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="Padding" Value="5"/>
+                        <Setter Property="Padding" Value="9,6"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ComboBoxItem">
@@ -391,6 +425,9 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{StaticResource NavButtonHover}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsHighlighted" Value="True">
                                             <Setter TargetName="Border" Property="Background" Value="{StaticResource NavButtonHover}"/>
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
@@ -425,7 +462,10 @@
                             <ScrollViewer x:Name="PART_ContentHost"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="InputBorder" Property="BorderBrush" Value="{StaticResource PanelBorderStrong}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
                                 <Setter TargetName="InputBorder" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
@@ -440,6 +480,7 @@
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource RefinedFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
@@ -453,7 +494,7 @@
                                     VerticalAlignment="Center">
                                 <Path x:Name="CheckMark"
                                       Data="M3,8 L6.2,11.2 L13,4.2"
-                                      Stroke="#150506"
+                                      Stroke="White"
                                       StrokeThickness="2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
@@ -579,7 +620,7 @@
                                         <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor, Converter={StaticResource StringToBrushConverter}}" FontSize="11" HorizontalAlignment="Right"/>
                                     </Grid>
                                 </Grid>
-                                <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" Grid.Column="2" Click="RemoveFile_Click" Tag="{Binding FullPath}" ToolTip="Remove file"
+                                <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" Grid.Column="2" Click="RemoveFile_Click" Tag="{Binding FullPath}" ToolTip="Remove file" AutomationProperties.Name="Remove selected file"
                                         Background="Transparent" Foreground="{StaticResource DangerColor}" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" Padding="4,0" Cursor="Hand"
                                         FontSize="13" FontWeight="Bold" Width="28" Height="28"
                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -596,7 +637,16 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <ContentPresenter />
+                                    <Grid>
+                                        <ContentPresenter HorizontalAlignment="Stretch"/>
+                                        <Border x:Name="FileRowOutline" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1"
+                                                CornerRadius="9" Margin="0,0,0,8" Opacity="0" IsHitTestVisible="False"/>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="FileRowOutline" Property="Opacity" Value="0.65"/></Trigger>
+                                        <Trigger Property="IsSelected" Value="True"><Setter TargetName="FileRowOutline" Property="Opacity" Value="1"/></Trigger>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="FileRowOutline" Property="BorderBrush" Value="{StaticResource TextSecondary}"/><Setter TargetName="FileRowOutline" Property="Opacity" Value="1"/></Trigger>
+                                    </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Setter.Value>
                         </Setter>
@@ -605,13 +655,49 @@
             </Setter>
         </Style>
 
+        <!-- Caption controls deliberately stay quiet until hovered or keyboard focused. -->
+        <Style x:Key="RefinedCaptionButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="BorderBrush" Value="#16FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Effect" Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource RefinedFocusVisualStyle}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Margin="2" Background="Transparent">
+                            <Border x:Name="CaptionHighlight" Background="{TemplateBinding BorderBrush}" CornerRadius="5" Opacity="0"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                <Setter TargetName="CaptionHighlight" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="CaptionHighlight" Property="Opacity" Value="0.5"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="RefinedCloseCaptionButtonStyle" TargetType="Button" BasedOn="{StaticResource RefinedCaptionButtonStyle}">
+            <Setter Property="BorderBrush" Value="#B8C42B3B"/>
+        </Style>
+
     </Window.Resources>
 
     <Grid>
         <Border Background="{StaticResource WindowBackgroundGradient}" CornerRadius="10" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1">
             <Grid Margin="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="35"/> <!-- Custom Title Bar -->
+                    <RowDefinition Height="40"/> <!-- Custom Title Bar -->
                     <RowDefinition Height="Auto"/> <!-- Category Selector -->
                     <RowDefinition Height="*"/>    <!-- Main Content (Scrollable) -->
                     <RowDefinition Height="Auto"/> <!-- Footer (Fixed) -->
@@ -619,38 +705,23 @@
 
                 <!-- Custom Title Bar (Row 0) -->
                 <Grid Grid.Row="0" Background="#08090D">
-                    <!-- Title & Icon -->
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
-                        <Image Source="Assets/logo.ico" Width="20" Height="20" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="Cortex FX" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <Image Source="Assets/logo.ico" Width="21" Height="21" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock Text="Cortex FX" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
                     </StackPanel>
-
-                    <!-- Center Version Indicator -->
-                    <TextBlock x:Name="VersionText" Text="v1.7.0"
-                               Foreground="{StaticResource AccentColor}" FontWeight="Bold" FontSize="14"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <TextBlock x:Name="VersionText" Text="v1.7.0" Foreground="{StaticResource AccentColor}"
+                               FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsHitTestVisible="False">
-                        <TextBlock.Effect>
-                            <DropShadowEffect Color="#FF3348" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
-                        </TextBlock.Effect>
+                        <TextBlock.Effect><DropShadowEffect Color="#FF3348" BlurRadius="8" ShadowDepth="0" Opacity="0.18"/></TextBlock.Effect>
                     </TextBlock>
                     <TextBlock x:Name="CurrentToolTitle" Visibility="Collapsed"/>
-
-                    <!-- Window Controls -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="&#xE713;" FontFamily="Segoe MDL2 Assets" Background="Transparent" Foreground="{StaticResource TextSecondary}" FontSize="14" Click="SettingsButton_Click" Padding="10,0" Width="40" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" WindowChrome.IsHitTestVisibleInChrome="True"/>
-                        <Button Content="&#xE921;" FontFamily="Segoe MDL2 Assets" Click="MinimizeButton_Click" Background="Transparent" Foreground="{StaticResource TextSecondary}" FontSize="12" Padding="10,0" Width="40" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" WindowChrome.IsHitTestVisibleInChrome="True"/>
-                        <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Click="CloseButton_Click" Background="Transparent" Foreground="{StaticResource TextSecondary}" FontSize="12" Padding="10,0" Width="40" BorderThickness="0" BorderBrush="Transparent" Effect="{x:Null}" WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#E81123"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0">
+                        <Button Content="&#xE713;" FontSize="14" Style="{StaticResource RefinedCaptionButtonStyle}" Click="SettingsButton_Click"
+                                ToolTip="Settings" AutomationProperties.Name="Settings" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button Content="&#xE921;" Style="{StaticResource RefinedCaptionButtonStyle}" Click="MinimizeButton_Click"
+                                ToolTip="Minimize" AutomationProperties.Name="Minimize window" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button Content="&#xE8BB;" Style="{StaticResource RefinedCloseCaptionButtonStyle}" Click="CloseButton_Click"
+                                ToolTip="Hide to tray" AutomationProperties.Name="Hide Cortex FX to tray" WindowChrome.IsHitTestVisibleInChrome="True"/>
                     </StackPanel>
                 </Grid>
 
@@ -748,13 +819,13 @@
                 <!-- Scrollable Content (Row 2) -->
                 <Grid Grid.Row="2" Margin="12,0,12,12">
                     <!-- Dashboard View -->
-                    <ScrollViewer x:Name="DashboardView" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock Text="Popular Tools" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,10,0,15"/>
-                            <WrapPanel HorizontalAlignment="Center">
+                    <ScrollViewer x:Name="DashboardView" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,0,0">
+                        <StackPanel Width="820" HorizontalAlignment="Center" Margin="0,12,0,0">
+                            <TextBlock Text="Popular Tools" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="7,0,7,12"/>
+                            <UniformGrid x:Name="PopularToolsPanel" Columns="5" Rows="2" HorizontalAlignment="Center">
                                 <!-- PDF to Word -->
                                 <ctrl:ToolCard Title="PDF to Word" 
-                                               IconBackground="#2B579A" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_DOCX">
+                                               IconBackground="#2B579A" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_DOCX" ToolTip="Convert a PDF into an editable Word document.">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,11V13H13V15H16V17H13V19H11V11H16Z"/>
                                     </ctrl:ToolCard.IconData>
@@ -762,7 +833,7 @@
 
                                 <!-- Word to PDF -->
                                 <ctrl:ToolCard Title="Word to PDF" 
-                                               IconBackground="#2B579A" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="DOCX_PDF">
+                                               IconBackground="#2B579A" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="DOCX_PDF" ToolTip="Export a Word document as PDF.">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M15,16H13V19H11V16H9V14H11V11H13V14H15V16Z"/>
                                     </ctrl:ToolCard.IconData>
@@ -770,7 +841,7 @@
 
                                 <!-- PDF to PowerPoint -->
                                 <ctrl:ToolCard Title="PDF to PowerPoint" 
-                                               IconBackground="#D24726" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_PPTX">
+                                               IconBackground="#D24726" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_PPTX" ToolTip="Turn PDF pages into a PowerPoint presentation.">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,13H13V19H11V13H8V11H16V13Z"/>
                                     </ctrl:ToolCard.IconData>
@@ -778,7 +849,7 @@
 
                                 <!-- PowerPoint to PDF -->
                                 <ctrl:ToolCard Title="PowerPoint to PDF" 
-                                               IconBackground="#D24726" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PPTX_PDF">
+                                               IconBackground="#D24726" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PPTX_PDF" ToolTip="Export PowerPoint slides as PDF.">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,15H13V19H11V15H9V13H11V10H13V13H16V15Z"/>
                                     </ctrl:ToolCard.IconData>
@@ -786,7 +857,7 @@
 
                                 <!-- Excel to PDF -->
                                 <ctrl:ToolCard Title="Excel to PDF" 
-                                               IconBackground="#217346" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="XLSX_PDF">
+                                               IconBackground="#217346" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="XLSX_PDF" ToolTip="Export an Excel workbook as PDF.">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16,17H8V15H16V17M16,13H8V11H16V13M16,9H8V7H16V9Z"/>
                                     </ctrl:ToolCard.IconData>
@@ -794,7 +865,7 @@
 
                                 <!-- PDF to Image -->
                                 <ctrl:ToolCard Title="PDF to Image" 
-                                               IconBackground="#FBC02D" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_JPG">
+                                               IconBackground="#FBC02D" IconForeground="#3B2C08" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_JPG" ToolTip="Export PDF pages as images.">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M11,15L13,18L16,14L20,19H4L8,13L11,15Z"/>
                                     </ctrl:ToolCard.IconData>
@@ -802,7 +873,7 @@
 
                                 <!-- Video Compressor -->
                                 <ctrl:ToolCard Title="Video Compressor"
-                                               Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="VIDEO_COMPRESSOR">
+                                               Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="VIDEO_COMPRESSOR" ToolTip="Reduce video file size with quality and encoder controls.">
                                     <ctrl:ToolCard.IconBackground>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                             <GradientStop Color="#0F766E" Offset="0"/>
@@ -816,7 +887,7 @@
 
                                 <!-- Video Cutter -->
                                 <ctrl:ToolCard Title="Video Cutter"
-                                               Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="VIDEO_CUTTER">
+                                               Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="VIDEO_CUTTER" ToolTip="Trim video and export selected segments.">
                                     <ctrl:ToolCard.IconBackground>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                             <GradientStop Color="#0E7490" Offset="0"/>
@@ -830,7 +901,7 @@
 
                                 <!-- Audio Cutter -->
                                 <ctrl:ToolCard Title="Audio Cutter"
-                                               Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="AUDIO_CUTTER">
+                                               Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="AUDIO_CUTTER" ToolTip="Select and trim audio with waveform preview.">
                                     <ctrl:ToolCard.IconBackground>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                             <GradientStop Color="#0369A1" Offset="0"/>
@@ -844,12 +915,12 @@
 
                                 <!-- More Tools (+) -->
                                 <ctrl:ToolCard Title="More Tools" 
-                                               IconBackground="#27272A" Margin="0,0,15,15" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="MORE_TOOLS">
+                                               IconBackground="#27272A" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="MORE_TOOLS" ToolTip="Explore all supported file conversions.">
                                     <ctrl:ToolCard.IconData>
                                         <PathGeometry Figures="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                                     </ctrl:ToolCard.IconData>
                                 </ctrl:ToolCard>
-                            </WrapPanel>
+                            </UniformGrid>
                         </StackPanel>
                     </ScrollViewer>
 
@@ -949,7 +1020,7 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="OutputPathBox" Grid.Column="0" Height="34" VerticalContentAlignment="Center"
+                                            <TextBox x:Name="OutputPathBox" AutomationProperties.Name="Output folder" Grid.Column="0" Height="34" VerticalContentAlignment="Center"
                                                      Background="{StaticResource InputBackground}" Foreground="{StaticResource TextPrimary}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1"
                                                      Padding="10,0" Margin="0,0,10,0" TextChanged="OutputPathBox_TextChanged"
                                                      ToolTip="Choose where converted files should be saved."/>
@@ -977,10 +1048,10 @@
                                         </StackPanel>
 
                                         <TextBlock Text="Output Format" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
-                                        <ComboBox x:Name="FormatComboBox" Height="34" SelectedIndex="0" SelectionChanged="FormatComboBox_SelectionChanged" Margin="0,0,0,14"/>
+                                        <ComboBox x:Name="FormatComboBox" AutomationProperties.Name="Output format" Height="34" SelectedIndex="0" SelectionChanged="FormatComboBox_SelectionChanged" Margin="0,0,0,14"/>
 
                                         <TextBlock Text="Quality" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
-                                        <Slider x:Name="QualitySlider" Minimum="0" Maximum="100" Value="75"
+                                        <Slider x:Name="QualitySlider" AutomationProperties.Name="Output quality" Minimum="0" Maximum="100" Value="75"
                                                 AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" TickFrequency="5"/>
                                         <Grid Margin="0,4,0,0">
                                             <TextBlock Text="Small" FontSize="10" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Left"/>
@@ -1007,13 +1078,13 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
                                                 <TextBlock Text="Width" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
-                                                <TextBox x:Name="ResizeWidthBox" Height="32" VerticalContentAlignment="Center" Background="{StaticResource InputBackground}" Foreground="White"
+                                                <TextBox x:Name="ResizeWidthBox" AutomationProperties.Name="Resize width in pixels" Height="32" VerticalContentAlignment="Center" Background="{StaticResource InputBackground}" Foreground="White"
                                                          BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="10,0" PreviewTextInput="NumberValidationTextBox"/>
                                             </StackPanel>
                                             <TextBlock Grid.Column="1" Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="10,0,10,8"/>
                                             <StackPanel Grid.Column="2">
                                                 <TextBlock Text="Height" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
-                                                <TextBox x:Name="ResizeHeightBox" Height="32" VerticalContentAlignment="Center" Background="{StaticResource InputBackground}" Foreground="White"
+                                                <TextBox x:Name="ResizeHeightBox" AutomationProperties.Name="Resize height in pixels" Height="32" VerticalContentAlignment="Center" Background="{StaticResource InputBackground}" Foreground="White"
                                                          BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="10,0" PreviewTextInput="NumberValidationTextBox"/>
                                             </StackPanel>
                                         </Grid>
@@ -1323,27 +1394,192 @@
         </Grid>
 
         <!-- Settings Overlay -->
-        <Grid x:Name="SettingsOverlay" Background="#CC000000" Visibility="Collapsed">
-            <Border Background="{StaticResource PanelBackgroundSubtle}" CornerRadius="10" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="30" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1" Width="400">
-                <StackPanel>
-                    <TextBlock Text="Settings" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,20"/>
-                    
-                    <CheckBox x:Name="ContextMenuCheckBox" Content="Add 'Convert with Cortex FX' to Context Menu" 
-                              Foreground="{StaticResource TextPrimary}" FontSize="14" Margin="0,0,0,20"
-                              Checked="ContextMenuCheckBox_Checked" Unchecked="ContextMenuCheckBox_Unchecked"/>
+        <Grid x:Name="SettingsOverlay" Background="#DC050609" Visibility="Collapsed"
+              KeyboardNavigation.TabNavigation="Cycle" PreviewKeyDown="SettingsOverlay_PreviewKeyDown">
+            <Grid.Resources>
+                <ResourceDictionary>
+                    <ResourceDictionary.MergedDictionaries>
+                        <ResourceDictionary Source="Views/Settings/SettingsTheme.xaml"/>
+                    </ResourceDictionary.MergedDictionaries>
+                </ResourceDictionary>
+            </Grid.Resources>
+            <Border x:Name="SettingsDialog" Width="790" Height="568" Margin="24"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="#111319" CornerRadius="18" BorderBrush="#39313B" BorderThickness="1"
+                    AutomationProperties.Name="Cortex FX settings">
+                <Border.Effect><DropShadowEffect BlurRadius="42" ShadowDepth="12" Opacity="0.55" Color="Black"/></Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                    <Button Content="Resource Status" Click="ShowResourceStatus_Click" Height="35" Margin="0,0,0,10"/>
-                    <Button Content="Open Log Folder" Click="OpenLogFolder_Click" Height="35" Margin="0,0,0,20"/>
+                    <!-- Header -->
+                    <Grid Margin="24,22,24,22">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="46" Height="46" CornerRadius="14" Background="#2A1A25" BorderBrush="#5A2B3C" BorderThickness="1" Margin="0,0,14,0">
+                            <TextBlock Text="&#xE713;" Style="{StaticResource SettingsIcon}" FontSize="23" Foreground="#FF8799"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Settings" FontSize="25" FontWeight="SemiBold" Foreground="#F4F5F9"/>
+                            <TextBlock Text="Make Cortex FX work your way." FontSize="12" Foreground="#A9AFBD" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <Button x:Name="SettingsDismissButton" Grid.Column="2" Content="&#xE8BB;" Style="{StaticResource SettingsIconButton}"
+                                Click="CloseSettings_Click" VerticalAlignment="Top" ToolTip="Close settings (Esc)"
+                                AutomationProperties.Name="Close settings"/>
+                    </Grid>
 
-                    <TextBlock Text="App updates" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
-                    <Button x:Name="CheckForUpdatesButton" Content="Check for updates" Click="CheckForUpdates_Click"
-                            Height="38" Margin="0,0,0,8" Background="{StaticResource AccentColor}"
-                            Foreground="White" BorderBrush="{StaticResource ActionButtonBorder}"/>
-                    <TextBlock x:Name="UpdateStatusText" Text="Downloads the latest installer from GitHub Releases."
-                               Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+                    <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  Padding="24,0,24,20" Focusable="False">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="1.08*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="252"/><RowDefinition Height="14"/><RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                    <Button Content="Close" Click="CloseSettings_Click" Width="100" HorizontalAlignment="Right"/>
-                </StackPanel>
+                            <!-- A native vector illustration keeps the wheel card sharp at any DPI. -->
+                            <Border CornerRadius="13" BorderBrush="#59303E" BorderThickness="1" Padding="20">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+                                        <GradientStop Color="#1A1720" Offset="0"/>
+                                        <GradientStop Color="#321A29" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Grid>
+                                    <Viewbox Width="116" Height="116" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,-8,0" IsHitTestVisible="False">
+                                        <Canvas Width="128" Height="128">
+                                            <Ellipse Width="124" Height="124" Canvas.Left="2" Canvas.Top="2" Stroke="#51303E" StrokeThickness="1"/>
+                                            <Ellipse Width="88" Height="88" Canvas.Left="20" Canvas.Top="20" Stroke="#65313F" StrokeThickness="24"/>
+                                            <Path Data="M 72,10 A 55,55 0 0 1 116,46 L 91,55 A 29,29 0 0 0 68,35 Z" Fill="#E33A53"/>
+                                            <Path Data="M64,8 L64,36 M104,24 L84,44 M120,64 L92,64 M104,104 L84,84 M64,120 L64,92 M24,104 L44,84 M8,64 L36,64 M24,24 L44,44"
+                                                  Stroke="#271B26" StrokeThickness="4"/>
+                                            <Ellipse Width="50" Height="50" Canvas.Left="39" Canvas.Top="39" Fill="#19171F" Stroke="#844353" StrokeThickness="1"/>
+                                            <Path Canvas.Left="54" Canvas.Top="54" Data="M2,5 H17 M13,1 L17,5 L13,9 M18,15 H3 M7,11 L3,15 L7,19"
+                                                  Stroke="#FF91A2" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                        </Canvas>
+                                    </Viewbox>
+                                    <StackPanel>
+                                        <TextBlock Text="QUICK ACTIONS" FontSize="10" FontWeight="Bold" Foreground="#FC91A2"/>
+                                        <TextBlock Text="Radial wheel" FontSize="23" FontWeight="SemiBold" Foreground="#FFF6F8" Margin="0,12,0,7"/>
+                                        <TextBlock Text="Shortcuts, output quality,&#x0a;and tools at your fingertips."
+                                                   FontSize="12" LineHeight="18" Foreground="#C0B1BC"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                            <Border Style="{StaticResource SettingsKeycap}"><TextBlock Text="Shift" FontSize="11" Foreground="#E2C2CE"/></Border>
+                                            <Border Style="{StaticResource SettingsKeycap}"><TextBlock Text="Alt" FontSize="11" Foreground="#E2C2CE"/></Border>
+                                            <Border Style="{StaticResource SettingsKeycap}"><TextBlock Text="Ctrl" FontSize="11" Foreground="#E2C2CE"/></Border>
+                                            <TextBlock Text="+ drag" FontSize="11" Foreground="#C0B1BC" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button x:Name="ConfigureWheelButton" Style="{StaticResource SettingsPrimaryButton}"
+                                            Click="RadialWheelSettings_Click" VerticalAlignment="Bottom" HorizontalContentAlignment="Stretch"
+                                            AutomationProperties.Name="Configure radial wheel">
+                                        <Grid>
+                                            <TextBlock Text="Configure wheel"/>
+                                            <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <Grid Grid.Column="2">
+                                <Grid.RowDefinitions><RowDefinition Height="132"/><RowDefinition Height="12"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                <Border x:Name="ExplorerSettingsCard" Background="#191C24" CornerRadius="13" BorderBrush="#30343F" BorderThickness="1" Padding="16">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="29" Height="29" CornerRadius="8" Background="#1F3045" Margin="0,0,10,0">
+                                                <Path Data="M2,2 H9 V9 H2 Z M12,2 H19 V9 H12 Z M2,12 H9 V19 H2 Z M12,12 H19 V19 H12 Z"
+                                                      Fill="#87B9F5" Width="15" Height="15" Stretch="Uniform"/>
+                                            </Border>
+                                            <TextBlock Text="Windows integration" FontSize="13" FontWeight="SemiBold" Foreground="#EDF0F7" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <CheckBox x:Name="ContextMenuCheckBox" Grid.Row="1" Style="{StaticResource SettingsToggle}" Margin="0,13,0,0"
+                                                  Checked="ContextMenuCheckBox_Checked" Unchecked="ContextMenuCheckBox_Unchecked"
+                                                  AutomationProperties.Name="Add Convert with Cortex FX to the Windows context menu"
+                                                  ToolTip="Add or remove Convert with Cortex FX in the Windows context menu.">
+                                            <StackPanel>
+                                                <TextBlock Text="Explorer context menu" FontSize="12" FontWeight="SemiBold" Foreground="#E4E7F0"/>
+                                                <TextBlock Text="Right-click files to convert." FontSize="12" Foreground="#A6AEBD" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </CheckBox>
+                                    </Grid>
+                                </Border>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Button x:Name="SettingsResourcesButton" Style="{StaticResource SettingsToolCard}" Click="ShowResourceStatus_Click"
+                                            AutomationProperties.Name="Resource status" ToolTip="Check the tools required for conversion.">
+                                        <Grid>
+                                            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                            <Border Width="28" Height="28" CornerRadius="8" Background="#22372F" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                                <TextBlock Text="&#xE9D9;" Style="{StaticResource SettingsIcon}" FontSize="15" Foreground="#89D8B0"/>
+                                            </Border>
+                                            <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="9" Foreground="#7F899A" HorizontalAlignment="Right" Margin="0,9,0,0"/>
+                                            <TextBlock Grid.Row="1" Text="Resources" FontSize="12" Foreground="#EDF0F7" Margin="0,6,0,0"/>
+                                            <TextBlock Grid.Row="2" Text="Engine status" FontSize="11" FontWeight="Normal" Foreground="#A6AEBD" Margin="0,3,0,0"/>
+                                        </Grid>
+                                    </Button>
+                                    <Button x:Name="SettingsLogsButton" Grid.Column="2" Style="{StaticResource SettingsToolCard}" Click="OpenLogFolder_Click"
+                                            AutomationProperties.Name="Open log folder" ToolTip="Open the Cortex FX diagnostic logs folder.">
+                                        <Grid>
+                                            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                            <Border Width="28" Height="28" CornerRadius="8" Background="#3A3024" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                                <Path Data="M2,5 H10 L13,8 H23 V21 H2 Z M2,10 H23" Width="17" Height="15" Stretch="Uniform"
+                                                      Stroke="#E8BF7E" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                                            </Border>
+                                            <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="9" Foreground="#7F899A" HorizontalAlignment="Right" Margin="0,9,0,0"/>
+                                            <TextBlock Grid.Row="1" Text="Log folder" FontSize="12" Foreground="#EDF0F7" Margin="0,6,0,0"/>
+                                            <TextBlock Grid.Row="2" Text="View diagnostics" FontSize="11" FontWeight="Normal" Foreground="#A6AEBD" Margin="0,3,0,0"/>
+                                        </Grid>
+                                    </Button>
+                                </Grid>
+                            </Grid>
+
+                            <!-- The existing updater writes to UpdateStatusText, including progress and errors. -->
+                            <Border x:Name="SettingsUpdateCard" Grid.Row="2" Grid.ColumnSpan="3" Background="#191C24" CornerRadius="13" BorderBrush="#30343F" BorderThickness="1" Padding="18">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="42"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <Border Width="32" Height="32" CornerRadius="10" Background="#2C263D" VerticalAlignment="Top">
+                                        <TextBlock Text="&#xE895;" Style="{StaticResource SettingsIcon}" FontSize="17" Foreground="#BDA5F0"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="9,0,18,0" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="App updates" FontSize="13" FontWeight="SemiBold" Foreground="#EDF0F7"/>
+                                            <Border Background="#252A35" BorderBrush="#3C4452" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="9,-1,0,0">
+                                                <TextBlock Text="{Binding Text, ElementName=VersionText}" FontSize="10" Foreground="#C8CEDA"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock x:Name="UpdateStatusText" Text="Get the latest installer from GitHub Releases."
+                                                   Foreground="#A6AEBD" FontSize="12" LineHeight="18" TextWrapping="Wrap" Margin="0,7,0,0"
+                                                   AutomationProperties.LiveSetting="Polite"/>
+                                    </StackPanel>
+                                    <Button x:Name="CheckForUpdatesButton" Grid.Column="2" Style="{StaticResource SettingsButton}"
+                                            Click="CheckForUpdates_Click" VerticalAlignment="Center" AutomationProperties.Name="Check for updates">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Text="Check for updates"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+
+                    <Border Grid.Row="2" BorderBrush="#292C35" BorderThickness="0,1,0,0" Padding="24,13">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="#86919F" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="File processing stays on your device" FontSize="11" Foreground="#99A3B3" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button x:Name="SettingsDoneButton" Content="Done" Click="CloseSettings_Click" Style="{StaticResource SettingsButton}" Width="90" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

@@ -1,179 +1,355 @@
-<?xml version="1.0" encoding="utf-8"?>
-<UserControl x:Class="CortexFX.Views.Audio.AudioCutterView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <UserControl.Resources>
-        <Style x:Key="TimeCard" TargetType="Border">
-            <Setter Property="Background" Value="#101A24"/>
-            <Setter Property="BorderBrush" Value="#294050"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="13,8"/>
-        </Style>
-    </UserControl.Resources>
-    <Grid Background="#090E15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Margin="20,14,20,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-                <TextBlock Text="AUDIO CUTTER" Foreground="#79CBEF" FontSize="11" FontWeight="Bold"/>
-                <TextBlock x:Name="AudioEditorFileNameText" Text="-" Foreground="#F0F7FB"
-                           FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,4,20,0"/>
-            </StackPanel>
-            <Border Grid.Column="1" Background="#10212D" BorderBrush="#315368"
-                    BorderThickness="1" CornerRadius="10" Padding="14,8" VerticalAlignment="Center">
-                <StackPanel>
-                    <TextBlock Text="PLAYHEAD" Foreground="#90A8B7" FontSize="10" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="CurrentTimeDisplay" Text="00:00.000"
-                               Foreground="{DynamicResource AudioAccentColor}"
-                               FontFamily="Consolas" FontSize="15" FontWeight="Bold" Margin="0,2,0,0"/>
-                </StackPanel>
+<UserControl x:Class="CortexFX.Views.Audio.AudioCutterView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" FontFamily="Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display" Focusable="True" PreviewKeyDown="Editor_PreviewKeyDown">
+  <UserControl.Resources>
+    <Style x:Key="AudioFocusVisual" TargetType="Control">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Control">
+            <Border Margin="-3" CornerRadius="9" BorderBrush="#8DDFFF" BorderThickness="2" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="StudioButton" TargetType="Button">
+      <Setter Property="Background" Value="#152231" />
+      <Setter Property="Foreground" Value="#DAE7F1" />
+      <Setter Property="BorderBrush" Value="#304355" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Effect" Value="{x:Null}" />
+      <Setter Property="FocusVisualStyle" Value="{StaticResource AudioFocusVisual}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="9" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
             </Border>
-        </Grid>
-        <!-- Visualization flexes; the command deck is anchored below it. -->
-        <Grid Grid.Row="1" Margin="20,0,20,10">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="96"/>
-            </Grid.RowDefinitions>
-            <Border Grid.Row="0" Background="{DynamicResource AudioWaveformBackground}"
-                    BorderBrush="#2B5267" BorderThickness="1" CornerRadius="13"
-                    ClipToBounds="True" Margin="0,0,0,10">
-                <Grid>
-                    <TextBlock Text="DRAG ACROSS THE WAVEFORM TO SELECT A RANGE"
-                               Foreground="#8EB9CD" FontSize="10" FontWeight="SemiBold"
-                               Margin="14,10,0,0" VerticalAlignment="Top" IsHitTestVisible="False"/>
-                    <Grid x:Name="WaveformContainer" Margin="0,30,0,0"
-                          MouseLeftButtonDown="Waveform_MouseLeftButtonDown"
-                          MouseMove="Waveform_MouseMove"
-                          MouseLeftButtonUp="Waveform_MouseLeftButtonUp"
-                          SizeChanged="WaveformContainer_SizeChanged" Cursor="Cross"
-                          Background="Transparent">
-                        <Rectangle x:Name="SelectionBand" Fill="#2638BDF8" HorizontalAlignment="Left" Width="0"/>
-                        <Canvas x:Name="WaveformCanvas" IsHitTestVisible="False" ClipToBounds="True"/>
-                        <Rectangle x:Name="DimLeft" Fill="#99050A10" HorizontalAlignment="Left" Width="0"/>
-                        <Rectangle x:Name="DimRight" Fill="#99050A10" HorizontalAlignment="Left" Width="0"/>
-                        <Rectangle x:Name="StartMarker" Width="3" Fill="{DynamicResource AudioMarkerStart}" HorizontalAlignment="Left"/>
-                        <Rectangle x:Name="EndMarker" Width="3" Fill="{DynamicResource AudioMarkerEnd}" HorizontalAlignment="Left"/>
-                        <Line x:Name="PlaybackCursor" X1="0" Y1="0" X2="0" Y2="200"
-                              Stroke="#FF8468" StrokeThickness="2"/>
-                    </Grid>
-                </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Surface" Property="BorderBrush" Value="#89C4E2" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Surface" Property="Opacity" Value="0.75" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Surface" Property="Opacity" Value="0.38" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="ScopeOption" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#B6C4D4" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="8,7" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="FocusVisualStyle" Value="{StaticResource AudioFocusVisual}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="ScopeBorder" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" CornerRadius="7">
+              <ContentPresenter HorizontalAlignment="Center" />
             </Border>
-            <Border Grid.Row="1" Background="#0D1821" BorderBrush="#294050"
-                    BorderThickness="1" CornerRadius="11" ClipToBounds="True">
-                <Grid>
-                    <TextBlock Text="LIVE SPECTRUM" FontSize="10" FontWeight="Bold"
-                               Foreground="#7DCBEF" Margin="12,8,0,0" VerticalAlignment="Top"
-                               IsHitTestVisible="False"/>
-                    <TextBlock x:Name="SpectrumStatusText" Text="Play selection to preview"
-                               FontSize="12" Foreground="#7F9CAD" HorizontalAlignment="Center"
-                               VerticalAlignment="Center" IsHitTestVisible="False"/>
-                    <Grid x:Name="SpectrumHost" Margin="12,27,12,8"
-                          SizeChanged="SpectrumCanvas_SizeChanged">
-                        <Canvas x:Name="SpectrumCanvas" IsHitTestVisible="False"/>
-                    </Grid>
-                </Grid>
-            </Border>
-        </Grid>
-        <Border Grid.Row="2" Background="#101820" BorderBrush="#304453"
-                BorderThickness="0,1,0,0" Padding="20,10,20,12">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <UniformGrid Grid.Row="0" Columns="3" Margin="0,0,0,12">
-                    <Border Style="{StaticResource TimeCard}" Margin="0,0,6,0">
-                        <StackPanel>
-                            <TextBlock Text="START" Foreground="#91A8B7" FontSize="10" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="StartTimeDisplay" Text="00:00.000"
-                                       Foreground="{DynamicResource AudioMarkerStart}"
-                                       FontFamily="Consolas" FontSize="15" FontWeight="Bold" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource TimeCard}" Margin="3,0">
-                        <StackPanel>
-                            <TextBlock Text="END" Foreground="#91A8B7" FontSize="10" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="EndTimeDisplay" Text="00:00.000"
-                                       Foreground="{DynamicResource AudioMarkerEnd}"
-                                       FontFamily="Consolas" FontSize="15" FontWeight="Bold" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource TimeCard}" Margin="6,0,0,0">
-                        <StackPanel>
-                            <TextBlock Text="SELECTION LENGTH" Foreground="#91A8B7" FontSize="10" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="DurationTimeDisplay" Text="00:00.000"
-                                       Foreground="#E5F4FA" FontFamily="Consolas"
-                                       FontSize="15" FontWeight="Bold" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </Border>
-                </UniformGrid>
-                <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="2.1*"/>
-                        <ColumnDefinition Width="1.3*"/>
-                    </Grid.ColumnDefinitions>
-                    <Button x:Name="SetStartBtn" Grid.Column="0" Content="Set Start" Click="SetStart_Click"
-                            Style="{DynamicResource AudioToolButtonStyle}" Height="42" Margin="0,0,7,0"
-                            Background="#10242C" Foreground="{DynamicResource AudioMarkerStart}"
-                            BorderBrush="#277C8A" Effect="{x:Null}"/>
-                    <Button x:Name="SetEndBtn" Grid.Column="1" Content="Set End" Click="SetEnd_Click"
-                            Style="{DynamicResource AudioToolButtonStyle}" Height="42" Margin="0,0,7,0"
-                            Background="#132131" Foreground="{DynamicResource AudioMarkerEnd}"
-                            BorderBrush="#3C699D" Effect="{x:Null}"/>
-                    <Button x:Name="PlaySelectionBtn" Grid.Column="2" Click="PlaySelection_Click"
-                            Style="{DynamicResource AudioToolButtonStyle}" Height="42" Margin="0,0,7,0"
-                            Background="#174C67" Foreground="White" BorderBrush="#3B98C1" Effect="{x:Null}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="PlaybackButtonIcon" Text="&#xE768;" FontFamily="Segoe MDL2 Assets"
-                                       FontSize="15" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                            <TextBlock x:Name="PlaybackButtonLabel" Text="Play" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Border Grid.Column="3" Background="#202C36" BorderBrush="#526675"
-                            BorderThickness="1" CornerRadius="9" Margin="0,0,7,0" Height="42">
-                        <Grid Margin="5,0,8,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="72"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="48"/>
-                            </Grid.ColumnDefinitions>
-                            <Button x:Name="PreviewSoundBtn" Grid.Column="0" Click="PreviewSound_Click"
-                                    Style="{DynamicResource AudioToolButtonStyle}" Background="Transparent"
-                                    Foreground="#DCEAF1" BorderThickness="0" Effect="{x:Null}"
-                                    ToolTip="Mute preview sound" Padding="4,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock x:Name="PreviewSoundIcon" Text="&#xE767;" FontFamily="Segoe MDL2 Assets"
-                                               FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <TextBlock x:Name="PreviewSoundLabel" Text="Sound" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                            <Slider x:Name="AudioGainSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="100"
-                                    TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"
-                                    ValueChanged="AudioGainSlider_ValueChanged"
-                                    ToolTip="Preview volume only — saved audio keeps its original level"/>
-                            <TextBlock x:Name="AudioGainText" Grid.Column="2" Text="100%"
-                                       Foreground="#DCEAF1" FontFamily="Consolas" FontSize="12"
-                                       FontWeight="SemiBold" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
-                    </Border>
-                    <Button x:Name="SaveSelectionBtn" Grid.Column="4" Content="Save Cut" Click="SaveSelection_Click"
-                            Style="{DynamicResource AudioToolButtonStyle}" Height="42"
-                            Background="#146B83" Foreground="White" BorderBrush="#4CB5CC" Effect="{x:Null}"/>
-                </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Foreground" Value="#F3EFFF" />
+                <Setter TargetName="ScopeBorder" Property="Background" Value="#37324F" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ScopeBorder" Property="Opacity" Value="0.8" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="ScopeBorder" Property="Opacity" Value="0.4" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="StudioVolumeSlider" TargetType="Slider">
+      <Setter Property="IsMoveToPointEnabled" Value="True" />
+      <Setter Property="FocusVisualStyle" Value="{StaticResource AudioFocusVisual}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid Height="22" VerticalAlignment="Center">
+              <Border Background="#293C4F" Height="4" CornerRadius="2" VerticalAlignment="Center" />
+              <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Orientation="Horizontal">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="#68CCDF" Height="4" CornerRadius="2" />
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Width="12" Height="12">
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Ellipse Fill="#D6F4FF" Stroke="#91D5E9" StrokeThickness="1" />
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent" Height="14" />
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.IncreaseRepeatButton>
+              </Track>
             </Grid>
-        </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="TimeValue" TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="Consolas" />
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#D9ECF7" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+    <Style x:Key="Caption" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#8FABC0" />
+    </Style>
+  </UserControl.Resources>
+  <Grid Background="#0A101A" Margin="0">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <Grid Margin="22,16,22,14">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <Border Width="42" Height="42" CornerRadius="12" Background="#153146" VerticalAlignment="Center">
+        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#72D6F4" FontSize="21" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <StackPanel Grid.Column="1" Margin="12,0,20,0">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="Audio studio" Foreground="#F2F7FC" FontSize="21" FontWeight="SemiBold" />
+          <Border Background="#19342F" CornerRadius="5" Padding="6,2" Margin="10,4,0,0" VerticalAlignment="Top">
+            <TextBlock Text="LOCAL" FontSize="9" Foreground="#8FE0BE" FontWeight="Bold" />
+          </Border>
+        </StackPanel>
+        <TextBlock x:Name="AudioEditorFileNameText" Text="Choose an audio file" Foreground="#94A8BB" FontSize="12" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+      </StackPanel>
+      <StackPanel Grid.Column="2" VerticalAlignment="Center">
+        <TextBlock Text="PLAYHEAD" Style="{StaticResource Caption}" HorizontalAlignment="Right" />
+        <TextBlock x:Name="CurrentTimeDisplay" Text="00:00.000" FontFamily="Consolas" FontSize="20" Foreground="#80DDF4" FontWeight="SemiBold" Margin="0,2,0,0" />
+      </StackPanel>
     </Grid>
+    <Grid Grid.Row="1" Margin="22,0,22,14">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="16" />
+        <ColumnDefinition Width="270" />
+      </Grid.ColumnDefinitions>
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="70" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid Margin="0,0,0,10">
+          <TextBlock Text="WAVEFORM" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <CheckBox x:Name="LoopSelectionToggle" Content="Loop" Foreground="#A6BBCD" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Repeat the selected range" />
+            <Button Content="Select all" Style="{StaticResource StudioButton}" Padding="10,4" MinHeight="28" Click="SelectAll_Click" ToolTip="Select the entire file (Ctrl+A)" />
+          </StackPanel>
+        </Grid>
+        <Border Grid.Row="1" Background="#0C1825" BorderBrush="#294356" BorderThickness="1" CornerRadius="12" ClipToBounds="True">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="*" />
+              <RowDefinition Height="25" />
+            </Grid.RowDefinitions>
+            <Grid x:Name="WaveformContainer" Margin="10,12,10,8" Focusable="True" MinHeight="110" Background="Transparent" Cursor="Cross" MouseLeftButtonDown="Waveform_MouseLeftButtonDown" MouseMove="Waveform_MouseMove" MouseLeftButtonUp="Waveform_MouseLeftButtonUp" SizeChanged="WaveformContainer_SizeChanged">
+              <Rectangle Fill="#284057" Height="1" VerticalAlignment="Center" IsHitTestVisible="False" />
+              <Rectangle x:Name="SelectionBand" Fill="#253FC8F5" HorizontalAlignment="Left" Width="0" IsHitTestVisible="False" />
+              <Canvas x:Name="WaveformCanvas" IsHitTestVisible="False" ClipToBounds="True" />
+              <Rectangle x:Name="DimLeft" Fill="#AA09111B" HorizontalAlignment="Left" Width="0" IsHitTestVisible="False" />
+              <Rectangle x:Name="DimRight" Fill="#AA09111B" HorizontalAlignment="Left" Width="0" IsHitTestVisible="False" />
+              <Rectangle x:Name="StartMarker" Fill="#65DBE3" Width="3" HorizontalAlignment="Left" IsHitTestVisible="False" />
+              <Rectangle x:Name="EndMarker" Fill="#A89AF9" Width="3" HorizontalAlignment="Left" IsHitTestVisible="False" />
+              <Line x:Name="PlaybackCursor" X1="0" X2="0" Y1="0" Y2="180" Stroke="#FAAC7A" StrokeThickness="2" IsHitTestVisible="False" />
+            </Grid>
+            <Grid Grid.Row="1" Margin="12,0,12,5" IsHitTestVisible="False">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="Timeline0" Text="0:00" Style="{StaticResource Caption}" />
+              <TextBlock Grid.Column="1" x:Name="Timeline1" Text="—" Style="{StaticResource Caption}" TextAlignment="Left" />
+              <TextBlock Grid.Column="2" x:Name="Timeline2" Text="—" Style="{StaticResource Caption}" TextAlignment="Left" />
+              <TextBlock Grid.Column="3" x:Name="Timeline3" Text="—" Style="{StaticResource Caption}" TextAlignment="Left" />
+              <TextBlock Grid.Column="3" x:Name="Timeline4" Text="—" Style="{StaticResource Caption}" TextAlignment="Right" />
+            </Grid>
+          </Grid>
+        </Border>
+        <Border Grid.Row="2" Background="#0C1520" BorderBrush="#223647" BorderThickness="1" CornerRadius="10" Margin="0,8,0,0" ClipToBounds="True">
+          <Grid>
+            <TextBlock Text="LIVE SPECTRUM" Style="{StaticResource Caption}" FontSize="9" Margin="10,6,0,0" VerticalAlignment="Top" />
+            <TextBlock x:Name="SpectrumStatusText" Text="Play to see the frequency spectrum" FontSize="11" Foreground="#8098AD" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+            <Grid x:Name="SpectrumHost" Margin="10,21,10,6" SizeChanged="SpectrumCanvas_SizeChanged">
+              <Canvas x:Name="SpectrumCanvas" IsHitTestVisible="False" />
+            </Grid>
+          </Grid>
+        </Border>
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock Text="IN POINT" Style="{StaticResource Caption}" />
+            <TextBlock x:Name="StartTimeDisplay" Text="00:00.000" Style="{StaticResource TimeValue}" Foreground="#65DBE3" />
+          </StackPanel>
+          <StackPanel Grid.Column="1">
+            <TextBlock Text="OUT POINT" Style="{StaticResource Caption}" />
+            <TextBlock x:Name="EndTimeDisplay" Text="00:00.000" Style="{StaticResource TimeValue}" Foreground="#B8A9FF" />
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="SELECTED" Style="{StaticResource Caption}" />
+            <TextBlock x:Name="DurationTimeDisplay" Text="00:00.000" Style="{StaticResource TimeValue}" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+      <Border Grid.Column="2" CornerRadius="14" BorderBrush="#3B3755" BorderThickness="1">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+            <GradientStop Color="#202036" />
+            <GradientStop Color="#111927" Offset="1" />
+          </LinearGradientBrush>
+        </Border.Background>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="16">
+          <StackPanel>
+            <Grid>
+              <TextBlock Text="Vocals &amp; music" Foreground="#F1EDFF" FontSize="18" FontWeight="SemiBold" />
+              <Border Background="#37304E" CornerRadius="5" Padding="7,3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Text="LOCAL AI" FontSize="8" FontWeight="Bold" Foreground="#CDBDFF" />
+              </Border>
+            </Grid>
+            <TextBlock x:Name="SeparationIntroText" Text="Isolate the voice. Keep the music. Choose your processor and export format." Foreground="#ABACC5" FontSize="11" TextWrapping="Wrap" LineHeight="16" Margin="0,5,0,10" />
+            <Border Background="#0F1422" BorderBrush="#333148" BorderThickness="1" CornerRadius="9" Padding="3" Margin="0,8,0,0">
+              <UniformGrid Columns="2">
+                <RadioButton x:Name="SeparateWholeFile" GroupName="Scope" Checked="AudioScope_Changed" Content="Full track" IsChecked="True" Style="{StaticResource ScopeOption}" />
+                <RadioButton x:Name="SeparateSelection" GroupName="Scope" Checked="AudioScope_Changed" Content="Selection" Style="{StaticResource ScopeOption}" />
+              </UniformGrid>
+            </Border>
+            <Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Margin="0,10,0,0">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="PROCESSOR" Style="{StaticResource Caption}" FontSize="9" Margin="1,0,0,4" />
+              <TextBlock Grid.Column="2" Text="OUTPUT" Style="{StaticResource Caption}" FontSize="9" Margin="1,0,0,4" />
+              <Border Grid.Row="1" Background="#0F1422" BorderBrush="#333148" BorderThickness="1" CornerRadius="8" Padding="2">
+                <UniformGrid Columns="2">
+                  <RadioButton x:Name="ProcessingCpu" Content="CPU" GroupName="Processor" Checked="AudioOptions_Changed" IsChecked="True" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" ToolTip="Process locally using the CPU" />
+                  <RadioButton x:Name="ProcessingGpu" Content="GPU" GroupName="Processor" Checked="AudioOptions_Changed" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" IsEnabled="False" ToolTipService.ShowOnDisabled="True" ToolTip="Checking NVIDIA GPU…" />
+                </UniformGrid>
+              </Border>
+              <Border Grid.Row="1" Grid.Column="2" Background="#0F1422" BorderBrush="#333148" BorderThickness="1" CornerRadius="8" Padding="2">
+                <UniformGrid Columns="2">
+                  <RadioButton x:Name="OutputMp3" Content="MP3" GroupName="Output" Checked="AudioOptions_Changed" IsChecked="True" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" ToolTip="192 kbps stereo MP3 — smaller files" />
+                  <RadioButton x:Name="OutputWav" Content="WAV" GroupName="Output" Checked="AudioOptions_Changed" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" ToolTip="Uncompressed stereo WAV — larger files" />
+                </UniformGrid>
+              </Border>
+            </Grid>
+            <TextBlock x:Name="SeparationScopeText" Text="Full track · 00:00" Foreground="#AAB6CC" FontSize="10" Margin="1,8,0,10" TextWrapping="Wrap" LineHeight="15" />
+            <Button x:Name="SeparateAudioBtn" Content="Separate audio" Click="SeparateAudio_Click" Style="{StaticResource StudioButton}" Background="#7660CB" BorderBrush="#AD98FF" Foreground="White" MinHeight="38" />
+            <TextBlock x:Name="SeparationStatusText" Text="Checking local engine…" Foreground="#AEB9CE" FontSize="11" Margin="1,8,0,0" TextWrapping="Wrap" LineHeight="16" AutomationProperties.LiveSetting="Polite" />
+            <Grid x:Name="SeparationProgressPanel" Visibility="Collapsed" Margin="0,10,0,0">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <ProgressBar x:Name="SeparationProgress" Height="4" Foreground="#B29BFF" Background="#303047" BorderThickness="0" />
+              <Button x:Name="CancelSeparationBtn" Grid.Row="1" Content="Cancel separation" Style="{StaticResource StudioButton}" Click="CancelSeparation_Click" Background="Transparent" BorderThickness="0" Margin="0,5,0,0" MinHeight="28" />
+            </Grid>
+            <StackPanel x:Name="SeparationResultsPanel" Visibility="Collapsed" Margin="0,10,0,0">
+              <TextBlock x:Name="SeparationResultSummary" Text="Last export" Foreground="#8FE0BE" FontSize="10" TextTrimming="CharacterEllipsis" />
+              <UniformGrid Columns="2" Margin="0,6,0,0">
+                <Button x:Name="OpenVocalsBtn" Content="Vocals" Style="{StaticResource StudioButton}" Click="OpenVocals_Click" Margin="0,0,4,0" ToolTip="Open the vocals in the audio editor" MinHeight="32" Padding="10,6" />
+                <Button x:Name="OpenMusicBtn" Content="Music" Style="{StaticResource StudioButton}" Click="OpenMusic_Click" Margin="4,0,0,0" ToolTip="Open the instrumental in the audio editor" MinHeight="32" Padding="10,6" />
+              </UniformGrid>
+              <Button Content="Open output folder" Style="{StaticResource StudioButton}" Click="OpenStemsFolder_Click" Background="Transparent" BorderThickness="0" MinHeight="26" Margin="0,2,0,0" Padding="8,4" />
+            </StackPanel>
+            <TextBlock x:Name="SeparationPrivacyText" Text="On your device. No uploads.&#xA;GPU acceleration uses NVIDIA CUDA." Foreground="#808CA5" FontSize="10" TextWrapping="Wrap" LineHeight="15" Margin="1,12,0,0" ToolTip="UVR model by the Ultimate Vocal Remover team. Inference with sherpa-onnx and ONNX Runtime. Credits in Resources/AudioSeparation/NOTICE.txt." />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+    <Border Grid.Row="2" Background="#0E1824" BorderBrush="#273848" BorderThickness="0,1,0,0" Padding="22,12,22,12">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Button x:Name="PlaySelectionBtn" Style="{StaticResource StudioButton}" Click="PlaySelection_Click" Background="#246F88" BorderBrush="#52B1CA" Foreground="White" MinWidth="100" Height="40" ToolTip="Play selection (Space)">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="PlaybackButtonIcon" Text="" FontFamily="Segoe MDL2 Assets" Margin="0,0,8,0" VerticalAlignment="Center" />
+              <TextBlock x:Name="PlaybackButtonLabel" Text="Play" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="SetStartBtn" Grid.Column="1" Content="Set in" Click="SetStart_Click" Style="{StaticResource StudioButton}" Foreground="#77DFE7" Margin="8,0,0,0" MinWidth="78" ToolTip="Set in point at the playhead (I)" />
+          <Button x:Name="SetEndBtn" Grid.Column="2" Content="Set out" Click="SetEnd_Click" Style="{StaticResource StudioButton}" Foreground="#BEAEFF" Margin="8,0,0,0" MinWidth="78" ToolTip="Set out point at the playhead (O)" />
+          <Grid Grid.Column="3" Margin="16,0,18,0" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="40" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="PreviewSoundBtn" Style="{StaticResource StudioButton}" Click="PreviewSound_Click" Padding="4,4" MinHeight="28" Background="Transparent" BorderThickness="0" ToolTip="Mute preview">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="PreviewSoundIcon" Text="" FontFamily="Segoe MDL2 Assets" FontSize="17" />
+                <TextBlock x:Name="PreviewSoundLabel" Text="Sound" Visibility="Collapsed" />
+              </StackPanel>
+            </Button>
+            <Slider x:Name="AudioGainSlider" Style="{StaticResource StudioVolumeSlider}" Grid.Column="1" Minimum="0" Maximum="100" Value="100" Margin="9,0,8,0" VerticalAlignment="Center" ValueChanged="AudioGainSlider_ValueChanged" AutomationProperties.Name="Preview volume" ToolTip="Preview volume; exported audio keeps its original level" />
+            <TextBlock x:Name="AudioGainText" Grid.Column="2" Text="100%" FontSize="11" Foreground="#AEBED0" VerticalAlignment="Center" HorizontalAlignment="Right" />
+          </Grid>
+          <Button x:Name="SaveSelectionBtn" Grid.Column="4" Content="Export cut" Style="{StaticResource StudioButton}" Click="SaveSelection_Click" Background="#DCEAF3" Foreground="#102332" BorderBrush="#DCEAF3" MinWidth="128" ToolTip="Save the selected range as a new audio file" />
+        </Grid>
+        <Grid Grid.Row="1" Margin="0,9,0,0">
+          <TextBlock Text="Drag to select · Drag either edge to refine" Foreground="#8199AF" FontSize="10" />
+          <TextBlock Text="Space  Play / Stop     I / O  Mark in / out" Foreground="#8199AF" FontSize="10" HorizontalAlignment="Right" />
+        </Grid>
+      </Grid>
+    </Border>
+  </Grid>
 </UserControl>

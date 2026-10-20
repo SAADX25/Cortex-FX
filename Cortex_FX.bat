@@ -1,10 +1,12 @@
 @echo off
 setlocal
-set "PROJECT_DIR=e:\Code-Setup\Cortex-FX"
-echo Starting Cortex FX from: %PROJECT_DIR%
-dotnet run --project "%PROJECT_DIR%\CortexFX.csproj"
-if %errorlevel% neq 0 (
-    echo.
-    echo An error occurred.
+pushd "%~dp0" || exit /b 1
+echo Starting Cortex FX from: %CD%
+dotnet run --project "%~dp0CortexFX.csproj"
+set "CORTEX_RESULT=%ERRORLEVEL%"
+popd
+if not "%CORTEX_RESULT%"=="0" (
+    echo Cortex FX could not start. Check the .NET SDK and local Resources.
     pause
 )
+exit /b %CORTEX_RESULT%

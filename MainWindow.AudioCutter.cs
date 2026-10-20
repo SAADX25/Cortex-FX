@@ -68,7 +68,7 @@ public partial class MainWindow
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
             BackBtn.Visibility = Visibility.Visible;
             ShowMainContent(AudioEditorGrid);
-            CurrentToolTitle.Text = "Audio Cutter";
+            CurrentToolTitle.Text = "Audio Studio";
             AudioEditorFileNameText.Text = System.IO.Path.GetFileName(filePath);
 
             // Initialize Audio + live spectrum analyzer in the playback chain
@@ -103,6 +103,8 @@ public partial class MainWindow
             _audioSelectionDragStartTime = TimeSpan.Zero;
             _audioSelectionDragStartX = 0;
 
+            InitializeAudioStudio();
+
             // Wait for layout update to draw waveform correctly
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
             {
@@ -136,6 +138,12 @@ public partial class MainWindow
     {
         if (_waveOut == null || _waveOut.PlaybackState != PlaybackState.Playing)
         {
+            if (_waveOut != null && _audioReader != null && AudioEditorGrid.LoopSelectionToggle.IsChecked == true && _selectionEnd > _selectionStart)
+            {
+                _audioReader.CurrentTime = _selectionStart;
+                _waveOut.Play();
+                return;
+            }
             StopAudioPlayback(resetToSelectionStart: false);
             return;
         }
@@ -508,6 +516,11 @@ public partial class MainWindow
         {
             if (_selectionEnd > TimeSpan.Zero && _audioReader.CurrentTime >= _selectionEnd)
             {
+                if (AudioEditorGrid.LoopSelectionToggle.IsChecked == true && _selectionEnd > _selectionStart)
+                {
+                    _audioReader.CurrentTime = _selectionStart;
+                    return;
+                }
                 _waveOut.Pause();
                 _audioReader.CurrentTime = _selectionEnd;
                 _playbackTimer?.Stop();
@@ -521,7 +534,13 @@ public partial class MainWindow
     {
         if (_audioReader == null) return;
 
+        WaveformContainer.Focus();
         Point p = e.GetPosition(WaveformContainer);
+        double total = _audioReader.TotalTime.TotalSeconds;
+        double width = WaveformContainer.ActualWidth;
+        double inX = total > 0 ? _selectionStart.TotalSeconds / total * width : 0;
+        double outX = total > 0 ? _selectionEnd.TotalSeconds / total * width : width;
+        _audioSelectionEdge = Math.Abs(p.X - inX) <= 8 ? -1 : Math.Abs(p.X - outX) <= 8 ? 1 : 0;
         _audioSelectionDragStartX = p.X;
         _audioSelectionDragStartTime = GetAudioTimeFromWaveformPoint(p);
         _isDraggingAudioSelection = false;
@@ -549,8 +568,13 @@ public partial class MainWindow
 
         if (_isDraggingAudioSelection)
         {
-            _selectionStart = MinTime(_audioSelectionDragStartTime, currentTime);
-            _selectionEnd = MaxTime(_audioSelectionDragStartTime, currentTime);
+            if (_audioSelectionEdge < 0) _selectionStart = MinTime(currentTime, _selectionEnd);
+            else if (_audioSelectionEdge > 0) _selectionEnd = MaxTime(currentTime, _selectionStart);
+            else
+            {
+                _selectionStart = MinTime(_audioSelectionDragStartTime, currentTime);
+                _selectionEnd = MaxTime(_audioSelectionDragStartTime, currentTime);
+            }
             NormalizeSelection();
             UpdateSelectionVisuals();
             UpdateTimeDisplay();
@@ -574,8 +598,13 @@ public partial class MainWindow
 
         if (_isDraggingAudioSelection)
         {
-            _selectionStart = MinTime(_audioSelectionDragStartTime, currentTime);
-            _selectionEnd = MaxTime(_audioSelectionDragStartTime, currentTime);
+            if (_audioSelectionEdge < 0) _selectionStart = MinTime(currentTime, _selectionEnd);
+            else if (_audioSelectionEdge > 0) _selectionEnd = MaxTime(currentTime, _selectionStart);
+            else
+            {
+                _selectionStart = MinTime(_audioSelectionDragStartTime, currentTime);
+                _selectionEnd = MaxTime(_audioSelectionDragStartTime, currentTime);
+            }
             NormalizeSelection();
             UpdateSelectionVisuals();
             UpdateTimeDisplay();
@@ -667,6 +696,7 @@ public partial class MainWindow
             ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7DD3FC"))
             : Brushes.Gray;
         UpdateCurrentTimeDisplay();
+        UpdateAudioStudioDetails();
     }
 
     internal void SetStart_Click(object sender, RoutedEventArgs e)
@@ -720,7 +750,7 @@ public partial class MainWindow
         SelectionBand.Width = Math.Max(0, endX - startX);
 
         StartMarker.Margin = new Thickness(startX, 0, 0, 0);
-        EndMarker.Margin = new Thickness(endX, 0, 0, 0);
+        EndMarker.Margin = new Thickness(Math.Max(0, endX - EndMarker.Width), 0, 0, 0);
     }
 
     private static bool FormatSupportsEmbeddedCover(string extension) =>
@@ -980,7 +1010,7 @@ public partial class MainWindow
                 await _processManager.RunAsync(_config.FFmpegPath, args);
 
                 _lastOutputFolder = System.IO.Path.GetDirectoryName(outputFile);
-                SaveSelectionBtn.Content = "Save Cut";
+                SaveSelectionBtn.Content = "Export cut";
 
                 var success = new ModernSuccessDialog(
                     "Export complete",
@@ -1003,13 +1033,14 @@ public partial class MainWindow
             {
                 _isSavingAudioSelection = false;
                 SaveSelectionBtn.IsEnabled = true;
-                SaveSelectionBtn.Content = "Save Cut";
+                SaveSelectionBtn.Content = "Export cut";
             }
         }
     }
 
     private void CloseAudioEditor(bool returnToPrevious)
     {
+        CancelAudioSeparation();
         CancelWaveformRender();
 
         if (_waveOut != null)

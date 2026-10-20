@@ -1,0 +1,20 @@
+Optional local NVIDIA GPU engine for Cortex FX
+
+sherpa-onnx v1.13.8 / ONNX Runtime 1.28.2, CUDA 12.x build.
+Engine archive: https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-v1.13.8-cuda-12.x-cudnn-9.x-onnxruntime1.28.2-win-x64-cuda.tar.bz2
+The model is shared with the CPU engine in the parent folder.
+
+NVIDIA CUDA Runtime 12.8.90, cuBLAS 12.8.4.1, cuDNN 9.10.2.21 (CUDA 12).
+Official NVIDIA redistribution archives, verified against NVIDIA SHA256 metadata.
+cuDNN 9.10.2 is pinned to retain support for Pascal GPUs such as GTX 1050 Ti.
+https://docs.nvidia.com/deeplearning/cudnn/backend/v9.10.2/reference/support-matrix.html
+See Licenses/ for NVIDIA redistribution terms. Components are unmodified.
+
+Microsoft Visual C++ runtime files are app-local copies of the project's existing
+Microsoft runtime redistributables. No driver, CUDA Toolkit, Python or system PATH
+changes are performed. An NVIDIA GPU and compatible installed driver are required.
+
+This entire Gpu folder is optional for CPU-only distributions. CPU operation uses
+the separate engine in the parent folder and does not load these GPU libraries.
+An explicit GPU request is rejected on CUDA initialization failure or CPU fallback;
+the app does not label a CPU job as GPU-accelerated.
