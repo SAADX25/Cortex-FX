@@ -216,8 +216,9 @@ public partial class ConversionViewModel : ObservableObject
                 }
                 else
                 {
-                    file.Status = "Error";
-                    file.StatusColor = "#FF4D5E";
+                    bool empty = result.ErrorMessage == CortexFX.Core.Services.Documents.EmptyDocumentException.UserMessage;
+                    file.Status = empty ? "الملف فارغ" : "Error";
+                    file.StatusColor = empty ? "#D6A54D" : "#FF4D5E";
                     errorCount++;
                 }
 

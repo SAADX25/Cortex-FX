@@ -143,7 +143,7 @@
       </Border>
       <StackPanel Grid.Column="1" Margin="12,0,20,0">
         <StackPanel Orientation="Horizontal">
-          <TextBlock Text="Audio studio" Foreground="#F2F7FC" FontSize="21" FontWeight="SemiBold" />
+          <TextBlock x:Name="AudioToolHeading" Text="Audio Cutter" Foreground="#F2F7FC" FontSize="21" FontWeight="SemiBold" />
           <Border Background="#19342F" CornerRadius="5" Padding="6,2" Margin="10,4,0,0" VerticalAlignment="Top">
             <TextBlock Text="LOCAL" FontSize="9" Foreground="#8FE0BE" FontWeight="Bold" />
           </Border>
@@ -158,8 +158,6 @@
     <Grid Grid.Row="1" Margin="22,0,22,14">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="16" />
-        <ColumnDefinition Width="270" />
       </Grid.ColumnDefinitions>
       <Grid>
         <Grid.RowDefinitions>
@@ -235,76 +233,6 @@
           </StackPanel>
         </Grid>
       </Grid>
-      <Border Grid.Column="2" CornerRadius="14" BorderBrush="#3B3755" BorderThickness="1">
-        <Border.Background>
-          <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
-            <GradientStop Color="#202036" />
-            <GradientStop Color="#111927" Offset="1" />
-          </LinearGradientBrush>
-        </Border.Background>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="16">
-          <StackPanel>
-            <Grid>
-              <TextBlock Text="Vocals &amp; music" Foreground="#F1EDFF" FontSize="18" FontWeight="SemiBold" />
-              <Border Background="#37304E" CornerRadius="5" Padding="7,3" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <TextBlock Text="LOCAL AI" FontSize="8" FontWeight="Bold" Foreground="#CDBDFF" />
-              </Border>
-            </Grid>
-            <TextBlock x:Name="SeparationIntroText" Text="Isolate the voice. Keep the music. Choose your processor and export format." Foreground="#ABACC5" FontSize="11" TextWrapping="Wrap" LineHeight="16" Margin="0,5,0,10" />
-            <Border Background="#0F1422" BorderBrush="#333148" BorderThickness="1" CornerRadius="9" Padding="3" Margin="0,8,0,0">
-              <UniformGrid Columns="2">
-                <RadioButton x:Name="SeparateWholeFile" GroupName="Scope" Checked="AudioScope_Changed" Content="Full track" IsChecked="True" Style="{StaticResource ScopeOption}" />
-                <RadioButton x:Name="SeparateSelection" GroupName="Scope" Checked="AudioScope_Changed" Content="Selection" Style="{StaticResource ScopeOption}" />
-              </UniformGrid>
-            </Border>
-            <Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Margin="0,10,0,0">
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-              </Grid.RowDefinitions>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="PROCESSOR" Style="{StaticResource Caption}" FontSize="9" Margin="1,0,0,4" />
-              <TextBlock Grid.Column="2" Text="OUTPUT" Style="{StaticResource Caption}" FontSize="9" Margin="1,0,0,4" />
-              <Border Grid.Row="1" Background="#0F1422" BorderBrush="#333148" BorderThickness="1" CornerRadius="8" Padding="2">
-                <UniformGrid Columns="2">
-                  <RadioButton x:Name="ProcessingCpu" Content="CPU" GroupName="Processor" Checked="AudioOptions_Changed" IsChecked="True" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" ToolTip="Process locally using the CPU" />
-                  <RadioButton x:Name="ProcessingGpu" Content="GPU" GroupName="Processor" Checked="AudioOptions_Changed" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" IsEnabled="False" ToolTipService.ShowOnDisabled="True" ToolTip="Checking NVIDIA GPU…" />
-                </UniformGrid>
-              </Border>
-              <Border Grid.Row="1" Grid.Column="2" Background="#0F1422" BorderBrush="#333148" BorderThickness="1" CornerRadius="8" Padding="2">
-                <UniformGrid Columns="2">
-                  <RadioButton x:Name="OutputMp3" Content="MP3" GroupName="Output" Checked="AudioOptions_Changed" IsChecked="True" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" ToolTip="192 kbps stereo MP3 — smaller files" />
-                  <RadioButton x:Name="OutputWav" Content="WAV" GroupName="Output" Checked="AudioOptions_Changed" Style="{StaticResource ScopeOption}" Padding="4,6" FontSize="11" ToolTip="Uncompressed stereo WAV — larger files" />
-                </UniformGrid>
-              </Border>
-            </Grid>
-            <TextBlock x:Name="SeparationScopeText" Text="Full track · 00:00" Foreground="#AAB6CC" FontSize="10" Margin="1,8,0,10" TextWrapping="Wrap" LineHeight="15" />
-            <Button x:Name="SeparateAudioBtn" Content="Separate audio" Click="SeparateAudio_Click" Style="{StaticResource StudioButton}" Background="#7660CB" BorderBrush="#AD98FF" Foreground="White" MinHeight="38" />
-            <TextBlock x:Name="SeparationStatusText" Text="Checking local engine…" Foreground="#AEB9CE" FontSize="11" Margin="1,8,0,0" TextWrapping="Wrap" LineHeight="16" AutomationProperties.LiveSetting="Polite" />
-            <Grid x:Name="SeparationProgressPanel" Visibility="Collapsed" Margin="0,10,0,0">
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-              </Grid.RowDefinitions>
-              <ProgressBar x:Name="SeparationProgress" Height="4" Foreground="#B29BFF" Background="#303047" BorderThickness="0" />
-              <Button x:Name="CancelSeparationBtn" Grid.Row="1" Content="Cancel separation" Style="{StaticResource StudioButton}" Click="CancelSeparation_Click" Background="Transparent" BorderThickness="0" Margin="0,5,0,0" MinHeight="28" />
-            </Grid>
-            <StackPanel x:Name="SeparationResultsPanel" Visibility="Collapsed" Margin="0,10,0,0">
-              <TextBlock x:Name="SeparationResultSummary" Text="Last export" Foreground="#8FE0BE" FontSize="10" TextTrimming="CharacterEllipsis" />
-              <UniformGrid Columns="2" Margin="0,6,0,0">
-                <Button x:Name="OpenVocalsBtn" Content="Vocals" Style="{StaticResource StudioButton}" Click="OpenVocals_Click" Margin="0,0,4,0" ToolTip="Open the vocals in the audio editor" MinHeight="32" Padding="10,6" />
-                <Button x:Name="OpenMusicBtn" Content="Music" Style="{StaticResource StudioButton}" Click="OpenMusic_Click" Margin="4,0,0,0" ToolTip="Open the instrumental in the audio editor" MinHeight="32" Padding="10,6" />
-              </UniformGrid>
-              <Button Content="Open output folder" Style="{StaticResource StudioButton}" Click="OpenStemsFolder_Click" Background="Transparent" BorderThickness="0" MinHeight="26" Margin="0,2,0,0" Padding="8,4" />
-            </StackPanel>
-            <TextBlock x:Name="SeparationPrivacyText" Text="On your device. No uploads.&#xA;GPU acceleration uses NVIDIA CUDA." Foreground="#808CA5" FontSize="10" TextWrapping="Wrap" LineHeight="15" Margin="1,12,0,0" ToolTip="UVR model by the Ultimate Vocal Remover team. Inference with sherpa-onnx and ONNX Runtime. Credits in Resources/AudioSeparation/NOTICE.txt." />
-          </StackPanel>
-        </ScrollViewer>
-      </Border>
     </Grid>
     <Border Grid.Row="2" Background="#0E1824" BorderBrush="#273848" BorderThickness="0,1,0,0" Padding="22,12,22,12">
       <Grid>

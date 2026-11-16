@@ -20,6 +20,7 @@
         TextOptions.TextFormattingMode="Display"
         Icon="Assets/logo.ico"
         Loaded="MainWindow_Loaded"
+        StateChanged="MainWindow_StateChanged"
         >
 
     <WindowChrome.WindowChrome>
@@ -694,7 +695,7 @@
     </Window.Resources>
 
     <Grid>
-        <Border Background="{StaticResource WindowBackgroundGradient}" CornerRadius="10" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1">
+        <Border x:Name="MainWindowBorder" Background="{StaticResource WindowBackgroundGradient}" CornerRadius="10" BorderBrush="{StaticResource PanelBorderStrong}" BorderThickness="1">
             <Grid Margin="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"/> <!-- Custom Title Bar -->
@@ -709,7 +710,7 @@
                         <Image Source="Assets/logo.ico" Width="21" Height="21" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="Cortex FX" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v1.7.0" Foreground="{StaticResource AccentColor}"
+                    <TextBlock x:Name="VersionText" Text="v1.8.5" Foreground="{StaticResource AccentColor}"
                                FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsHitTestVisible="False">
                         <TextBlock.Effect><DropShadowEffect Color="#FF3348" BlurRadius="8" ShadowDepth="0" Opacity="0.18"/></TextBlock.Effect>
@@ -720,6 +721,8 @@
                                 ToolTip="Settings" AutomationProperties.Name="Settings" WindowChrome.IsHitTestVisibleInChrome="True"/>
                         <Button Content="&#xE921;" Style="{StaticResource RefinedCaptionButtonStyle}" Click="MinimizeButton_Click"
                                 ToolTip="Minimize" AutomationProperties.Name="Minimize window" WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button x:Name="MaximizeButton" Content="&#xE922;" Style="{StaticResource RefinedCaptionButtonStyle}" Click="MaximizeButton_Click"
+                                ToolTip="Maximize" AutomationProperties.Name="Maximize window" WindowChrome.IsHitTestVisibleInChrome="True"/>
                         <Button Content="&#xE8BB;" Style="{StaticResource RefinedCloseCaptionButtonStyle}" Click="CloseButton_Click"
                                 ToolTip="Hide to tray" AutomationProperties.Name="Hide Cortex FX to tray" WindowChrome.IsHitTestVisibleInChrome="True"/>
                     </StackPanel>
@@ -822,7 +825,7 @@
                     <ScrollViewer x:Name="DashboardView" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,0,0">
                         <StackPanel Width="820" HorizontalAlignment="Center" Margin="0,12,0,0">
                             <TextBlock Text="Popular Tools" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="7,0,7,12"/>
-                            <UniformGrid x:Name="PopularToolsPanel" Columns="5" Rows="2" HorizontalAlignment="Center">
+                            <UniformGrid x:Name="PopularToolsPanel" Columns="5" HorizontalAlignment="Center">
                                 <!-- PDF to Word -->
                                 <ctrl:ToolCard Title="PDF to Word" 
                                                IconBackground="#2B579A" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="PDF_DOCX" ToolTip="Convert a PDF into an editable Word document.">
@@ -887,7 +890,7 @@
 
                                 <!-- Video Cutter -->
                                 <ctrl:ToolCard Title="Video Cutter"
-                                               Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="VIDEO_CUTTER" ToolTip="Trim video and export selected segments.">
+                                               Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="VIDEO_CUTTER" ToolTip="Cut, split and assemble video clips in a montage studio.">
                                     <ctrl:ToolCard.IconBackground>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                             <GradientStop Color="#0E7490" Offset="0"/>
@@ -913,6 +916,12 @@
                                     </ctrl:ToolCard.IconData>
                                 </ctrl:ToolCard>
 
+                                <ctrl:ToolCard Title="AI Audio Separator" IconBackground="#7660CB"
+                                               Margin="7,7,7,9" MouseLeftButtonUp="AudioSeparatorCard_Click" ToolTip="Separate vocals and music. Optional local AI download.">
+                                    <ctrl:ToolCard.IconData>
+                                        <PathGeometry Figures="M4,8H6V16H4Z M9,3H11V21H9Z M14,6H16V18H14Z M19,10H21V14H19Z"/>
+                                    </ctrl:ToolCard.IconData>
+                                </ctrl:ToolCard>
                                 <!-- More Tools (+) -->
                                 <ctrl:ToolCard Title="More Tools" 
                                                IconBackground="#27272A" Margin="7,7,7,9" MouseLeftButtonUp="ToolCard_MouseLeftButtonUp" Tag="MORE_TOOLS" ToolTip="Explore all supported file conversions.">
@@ -1210,6 +1219,7 @@
 
                     <!-- Audio Editor View -->
                     <audio:AudioCutterView x:Name="AudioEditorGrid" Visibility="Collapsed" Margin="-12,0,-12,-12"/>
+                    <audio:AudioSeparatorView x:Name="AudioSeparatorEditor" Visibility="Collapsed" Margin="-12,0,-12,-12"/>
 
                     <!-- Video Compressor View -->
                     <views:VideoCompressorView x:Name="VideoCompressorEditor" Visibility="Collapsed"/>
@@ -1465,8 +1475,8 @@
                                     </Viewbox>
                                     <StackPanel>
                                         <TextBlock Text="QUICK ACTIONS" FontSize="10" FontWeight="Bold" Foreground="#FC91A2"/>
-                                        <TextBlock Text="Radial wheel" FontSize="23" FontWeight="SemiBold" Foreground="#FFF6F8" Margin="0,12,0,7"/>
-                                        <TextBlock Text="Shortcuts, output quality,&#x0a;and tools at your fingertips."
+                                        <TextBlock Text="File shortcuts" FontSize="23" FontWeight="SemiBold" Foreground="#FFF6F8" Margin="0,12,0,7"/>
+                                        <TextBlock Text="Drag a file to convert,&#x0a;compress or edit it."
                                                    FontSize="12" LineHeight="18" Foreground="#C0B1BC"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                                             <Border Style="{StaticResource SettingsKeycap}"><TextBlock Text="Shift" FontSize="11" Foreground="#E2C2CE"/></Border>
@@ -1477,9 +1487,9 @@
                                     </StackPanel>
                                     <Button x:Name="ConfigureWheelButton" Style="{StaticResource SettingsPrimaryButton}"
                                             Click="RadialWheelSettings_Click" VerticalAlignment="Bottom" HorizontalContentAlignment="Stretch"
-                                            AutomationProperties.Name="Configure radial wheel">
+                                            AutomationProperties.Name="Set up file shortcuts">
                                         <Grid>
-                                            <TextBlock Text="Configure wheel"/>
+                                            <TextBlock Text="Set up shortcuts"/>
                                             <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                         </Grid>
                                     </Button>
@@ -1513,15 +1523,15 @@
                                 <Grid Grid.Row="2">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <Button x:Name="SettingsResourcesButton" Style="{StaticResource SettingsToolCard}" Click="ShowResourceStatus_Click"
-                                            AutomationProperties.Name="Resource status" ToolTip="Check the tools required for conversion.">
+                                            AutomationProperties.Name="Tool status" ToolTip="See which features are ready and which need setup.">
                                         <Grid>
                                             <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                             <Border Width="28" Height="28" CornerRadius="8" Background="#22372F" HorizontalAlignment="Left" VerticalAlignment="Top">
                                                 <TextBlock Text="&#xE9D9;" Style="{StaticResource SettingsIcon}" FontSize="15" Foreground="#89D8B0"/>
                                             </Border>
                                             <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="9" Foreground="#7F899A" HorizontalAlignment="Right" Margin="0,9,0,0"/>
-                                            <TextBlock Grid.Row="1" Text="Resources" FontSize="12" Foreground="#EDF0F7" Margin="0,6,0,0"/>
-                                            <TextBlock Grid.Row="2" Text="Engine status" FontSize="11" FontWeight="Normal" Foreground="#A6AEBD" Margin="0,3,0,0"/>
+                                            <TextBlock Grid.Row="1" Text="Tool status" FontSize="12" Foreground="#EDF0F7" Margin="0,6,0,0"/>
+                                            <TextBlock Grid.Row="2" Text="Check availability" FontSize="11" FontWeight="Normal" Foreground="#A6AEBD" Margin="0,3,0,0"/>
                                         </Grid>
                                     </Button>
                                     <Button x:Name="SettingsLogsButton" Grid.Column="2" Style="{StaticResource SettingsToolCard}" Click="OpenLogFolder_Click"

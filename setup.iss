@@ -1,5 +1,5 @@
 ; =============================================================================
-; Cortex FX — Inno Setup script (v1.7.0+)
+; Cortex FX — Inno Setup script (v1.8.5+)
 ;
 ; Do NOT compile this alone unless Publish\CortexFX_v{version}\app\ already exists.
 ; Preferred:  powershell -ExecutionPolicy Bypass -File .\build.ps1
@@ -12,7 +12,7 @@
 #define MyScriptDir AddBackslash(SourcePath)
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.7.0"
+  #define MyAppVersion "1.8.5"
 #endif
 
 #ifndef MyBuildPath
@@ -25,7 +25,7 @@
 
 ; Fail early with a clear message instead of "No files found matching ..."
 #if !FileExists(AddBackslash(MyBuildPath) + MyAppExeName)
-  #error Publish output not found. Expected CortexFX.exe under Publish\CortexFX_v{#MyAppVersion}\. Run from the project root: powershell -ExecutionPolicy Bypass -File .\build.ps1
+  #error Publish output not found. Expected CortexFX.exe under Publish\CortexFX_v{#MyAppVersion}\app\. Run from the project root: powershell -ExecutionPolicy Bypass -File .\build.ps1
 #endif
 
 #if !FileExists(MyScriptDir + "Assets\logo.ico")

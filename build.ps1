@@ -5,6 +5,7 @@ param(
     [ValidateSet('win-x64')][string]$Runtime = 'win-x64',
     [bool]$SelfContained = $true,
     [switch]$CpuOnly,
+    [switch]$BundleAudioAi,
     [switch]$SkipInstaller,
     [switch]$CreatePortableZip,
     [switch]$RemoveStagingFolder
@@ -43,7 +44,8 @@ Assert-Exists $ProjectFile
 [xml]$projectXml = Get-Content -LiteralPath $ProjectFile
 $Version = @($projectXml.Project.PropertyGroup.Version | Where-Object { $_ })[0]
 if ($Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw 'CortexFX.csproj must contain a numeric release version.' }
-$profile = if ($CpuOnly) { '-cpu' } else { '' }
+$includeAi = $BundleAudioAi -or $CpuOnly
+$profile = if ($CpuOnly) { '-cpu' } elseif ($BundleAudioAi) { '-ai' } else { '' }
 $ReleaseRoot = Join-Path $PublishRoot "CortexFX_v$Version$profile"
 if (Test-Path -LiteralPath $ReleaseRoot) {
     $ReleaseRoot += '_' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6)
@@ -64,11 +66,12 @@ Assert-Exists $audioLockPath
 $audioLock = Get-Content -LiteralPath $audioLockPath -Raw | ConvertFrom-Json
 $audioResources = Join-Path $ProjectRoot $audioLock.resourceDirectory
 foreach ($package in $audioLock.packages) {
+    if (!$includeAi) { continue }
     if ($package.gpu -and $CpuOnly) { continue }
     foreach ($file in $package.files) { Assert-Exists (Join-Path $audioResources $file.target) }
 }
 foreach ($license in $audioLock.licenses) { Assert-Exists (Join-Path $audioResources $license) }
-if (!$CpuOnly) {
+if (!$CpuOnly -and $includeAi) {
     foreach ($file in $audioLock.microsoftRuntime) { Assert-Exists (Join-Path $audioResources $file.target) }
     foreach ($license in $audioLock.gpuLicenses) { Assert-Exists (Join-Path $audioResources $license) }
 }
@@ -78,19 +81,21 @@ Write-Step "Building Cortex FX $Version ($Runtime$profile)"
 $null = New-Item -ItemType Directory -Force -Path $ReleaseRoot
 $null = New-Item -ItemType Directory -Path $PublishDir
 $StagingCreatedByBuild = $true
-$gpuProperty = '-p:IncludeAudioGpu=' + (!$CpuOnly).ToString().ToLowerInvariant()
+$gpuProperty = '-p:IncludeAudioGpu=' + ($includeAi -and !$CpuOnly).ToString().ToLowerInvariant()
+$aiProperty = '-p:IncludeAudioAi=' + $includeAi.ToString().ToLowerInvariant()
 Invoke-Dotnet -CommandArguments @('restore',$ProjectFile,'-r',$Runtime)
-Invoke-Dotnet -CommandArguments @('build',$ProjectFile,'-c',$Configuration,'--no-restore',$gpuProperty)
+# dotnet publish builds the RID-specific app; avoid a second full copy of native/GPU resources.
 Invoke-Dotnet -CommandArguments @('publish',$ProjectFile,'-c',$Configuration,'-r',$Runtime,'--self-contained',
-    $SelfContained.ToString().ToLowerInvariant(),'-o',$PublishDir,'-p:PublishSingleFile=false','-p:PublishReadyToRun=true',$gpuProperty)
+    $SelfContained.ToString().ToLowerInvariant(),'-o',$PublishDir,'-p:PublishSingleFile=false','-p:PublishReadyToRun=true',$gpuProperty,$aiProperty)
 
 Assert-Exists (Join-Path $PublishDir 'CortexFX.exe')
 foreach ($relative in $coreResources) { Assert-Exists (Join-Path $PublishDir ('Resources\' + $relative)) }
 foreach ($package in $audioLock.packages) {
+    if (!$includeAi) { continue }
     if ($package.gpu -and $CpuOnly) { continue }
     foreach ($file in $package.files) { Assert-Exists (Join-Path $PublishDir ($audioLock.resourceDirectory + '/' + $file.target)) }
 }
-if ($CpuOnly -and (Test-Path -LiteralPath (Join-Path $PublishDir 'Resources\AudioSeparation\Gpu'))) { throw 'CPU-only publish unexpectedly contains the GPU add-on.' }
+if ((!$includeAi -or $CpuOnly) -and (Test-Path -LiteralPath (Join-Path $PublishDir 'Resources\AudioSeparation\Gpu\onnxruntime_providers_cuda.dll'))) { throw 'Lightweight publish unexpectedly contains the GPU engine.' }
 
 if ($CreatePortableZip) {
     Write-Step 'Creating portable ZIP'

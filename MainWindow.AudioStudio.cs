@@ -17,22 +17,171 @@ public partial class MainWindow
     private AudioSeparationResult? _lastStemResult;
     private Task<AudioGpuDevice>? _audioGpuDetectionTask;
     private AudioGpuDevice? _audioGpuDevice;
-    private AudioSeparationFormat SelectedSeparationFormat => AudioEditorGrid.OutputWav.IsChecked == true ? AudioSeparationFormat.Wav : AudioSeparationFormat.Mp3;
-    private AudioSeparationProcessor SelectedSeparationProcessor => AudioEditorGrid.ProcessingGpu.IsChecked == true ? AudioSeparationProcessor.Gpu : AudioSeparationProcessor.Cpu;
+    private bool _audioSeparationMode;
+    private NAudio.Wave.WaveOutEvent? _stemPreviewPlayer;
+    private NAudio.Wave.AudioFileReader? _stemPreviewReader;
+    private string? _playingStemPath;
+    private CancellationTokenSource? _audioAiDownloadCts;
+    private string DownloadedAudioAiDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CortexFX", "AudioSeparation");
+    private string AudioAiDirectory => Directory.Exists(DownloadedAudioAiDirectory)
+        ? DownloadedAudioAiDirectory : Path.Combine(_config.ResourcesDirectory, "AudioSeparation");
+    private AudioSeparationFormat SelectedSeparationFormat => AudioSeparatorEditor.OutputWav.IsChecked == true ? AudioSeparationFormat.Wav : AudioSeparationFormat.Mp3;
+    private AudioSeparationProcessor SelectedSeparationProcessor => AudioSeparatorEditor.ProcessingGpu.IsChecked == true ? AudioSeparationProcessor.Gpu : AudioSeparationProcessor.Cpu;
     private int _audioSelectionEdge; // -1: in, 1: out, 0: new range
     private AudioStemSeparationService CreateSeparationService() => new(_processManager, _config.FFmpegPath,
-        Path.Combine(_config.ResourcesDirectory, "AudioSeparation"));
+        AudioAiDirectory);
+
+    private void AudioSeparatorCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        _audioSeparationMode = true;
+        SwitchToMode(AppMode.AudioTrimmer);
+        ShowMainContent(AudioSeparatorEditor);
+        CurrentToolTitle.Text = "AI Audio Separator";
+        BackBtn.Visibility = Visibility.Visible;
+        if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+        UpdateAudioStudioDetails();
+        SetSeparationBusy(false);
+        _ = DetectAudioGpuAsync();
+        e.Handled = true;
+    }
+
+    internal void ChooseSeparationAudio(string? path = null)
+    {
+        if (_audioSeparationCts != null || _audioAiDownloadCts != null) return;
+        if (path == null)
+        {
+            var picker = new OpenFileDialog { Title = "Choose a song to separate",
+                Filter = "Audio files|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.wma;*.opus;*.aiff;*.aif" };
+            if (picker.ShowDialog(this) != true) return;
+            path = picker.FileName;
+        }
+        if (!File.Exists(path) || !new[] { ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".wma", ".opus", ".aiff", ".aif" }
+            .Contains(Path.GetExtension(path).ToLowerInvariant()))
+        {
+            AudioSeparatorEditor.SeparationStatusText.Text = "Choose a supported audio file.";
+            return;
+        }
+        _lastStemResult = null;
+        StopStemPreview();
+        AudioSeparatorEditor.SetWaveform([]);
+        _audioSeparationMode = true;
+        LoadAudioEditor(path);
+    }
+
+    internal void PreviewSeparationAudio()
+    {
+        if (_audioReader == null) return;
+        StopStemPreview();
+        _selectionStart = TimeSpan.Zero;
+        _selectionEnd = _audioReader.TotalTime;
+        PlaySelection_Click(this, new RoutedEventArgs());
+    }
+
+    private void SeekSeparationAudio(TimeSpan position)
+    {
+        if (_audioReader == null || _audioSeparationCts != null || _audioAiDownloadCts != null) return;
+        StopStemPreview();
+        _selectionStart = TimeSpan.Zero;
+        _selectionEnd = _audioReader.TotalTime;
+        try
+        {
+            bool wasPlaying = _waveOut?.PlaybackState == NAudio.Wave.PlaybackState.Playing;
+            _waveOut?.Stop(); // Flush queued samples from the previous position before seeking.
+            _audioReader.CurrentTime = ClampAudioTime(position);
+            _spectrumAnalyzer?.ResetLevels();
+            if (wasPlaying) _waveOut?.Play();
+            UpdatePlaybackCursor();
+        }
+        catch (Exception ex)
+        {
+            ConsoleLogger.Error("AudioSeek", ex.ToString());
+            AudioSeparatorEditor.SeparationStatusText.Text = "Could not seek in this audio file. Try opening it again.";
+        }
+    }
+
+    private void SetSeparationPreviewVolume(double percent)
+    {
+        _isPreviewMuted = false;
+        AudioGainSlider.Value = Math.Clamp(percent, 0, 100);
+        UpdatePreviewSoundButton();
+    }
+
+    internal void SeparatorPrimary_Click(object sender, RoutedEventArgs e)
+    {
+        if (NeedsSeparationEngine) DownloadAudioAi(SelectedSeparationProcessor == AudioSeparationProcessor.Gpu);
+        else SeparateAudio_Click(sender, e);
+    }
+
+    private bool NeedsSeparationEngine => !CreateSeparationService().IsAvailable ||
+        (SelectedSeparationProcessor == AudioSeparationProcessor.Gpu && !CreateSeparationService().IsGpuEngineAvailable);
+
+    private async Task RenderSeparationWaveformAsync(string path)
+    {
+        CancelWaveformRender();
+        var cts = new CancellationTokenSource();
+        _waveformRenderCts = cts;
+        try
+        {
+            var peaks = await Task.Run(() => BuildWaveformPeaks(path, 100, cts.Token), cts.Token);
+            if (_currentAudioFile == path && !cts.IsCancellationRequested) AudioSeparatorEditor.SetWaveform(peaks);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { ConsoleLogger.Error("SeparationWaveform", ex.ToString()); }
+        finally
+        {
+            if (ReferenceEquals(_waveformRenderCts, cts)) _waveformRenderCts = null;
+            cts.Dispose();
+        }
+    }
+
+    internal void CancelAudioAiDownload() => _audioAiDownloadCts?.Cancel();
+
+    internal async void DownloadAudioAi(bool gpu)
+    {
+        if (_audioAiDownloadCts != null || _audioSeparationCts != null) return;
+        using var cts = new CancellationTokenSource();
+        _audioAiDownloadCts = cts;
+        SetSeparationBusy(false);
+        AudioSeparatorEditor.CancelAiDownloadBtn.Visibility = Visibility.Visible;
+        AudioSeparatorEditor.AiDownloadProgressPanel.Visibility = Visibility.Visible;
+        AudioSeparatorEditor.UpdateDownloadProgress(new("Preparing AI download…"));
+        AudioSeparatorEditor.SeparationStatusText.Text = "";
+        var progress = new Progress<AudioAiDownloadProgress>(update =>
+        {
+            if (ReferenceEquals(_audioAiDownloadCts, cts)) AudioSeparatorEditor.UpdateDownloadProgress(update);
+        });
+        try
+        {
+            await new AudioAiInstaller(_processManager, _config.ResourcesDirectory).InstallAsync(
+                DownloadedAudioAiDirectory, gpu, progress, cts.Token);
+            AudioSeparatorEditor.SeparationStatusText.Text = "AI installed. Ready to separate audio locally.";
+        }
+        catch (OperationCanceledException) { AudioSeparatorEditor.SeparationStatusText.Text = "Download cancelled. You can retry anytime."; }
+        catch (Exception ex)
+        {
+            ConsoleLogger.Error("AudioAiDownload", ex.ToString());
+            AudioSeparatorEditor.SeparationStatusText.Text = "AI download failed. Check your connection and free disk space, then retry.";
+        }
+        finally
+        {
+            _audioAiDownloadCts = null;
+            AudioSeparatorEditor.CancelAiDownloadBtn.Visibility = Visibility.Collapsed;
+            AudioSeparatorEditor.AiDownloadProgressPanel.Visibility = Visibility.Collapsed;
+            SetSeparationBusy(false);
+            _ = DetectAudioGpuAsync();
+        }
+    }
 
     private void InitializeAudioStudio()
     {
         CancelAudioSeparation();
         AudioEditorGrid.LoopSelectionToggle.IsChecked = false;
-        AudioEditorGrid.SeparateAudioBtn.IsEnabled = CreateSeparationService().IsAvailable;
-        AudioEditorGrid.SeparationStatusText.Text = CreateSeparationService().IsAvailable
+        AudioSeparatorEditor.SeparateAudioBtn.IsEnabled = CreateSeparationService().IsAvailable;
+        AudioSeparatorEditor.SeparationStatusText.Text = CreateSeparationService().IsAvailable
             ? "Ready · CPU · MP3"
-            : "Local AI files are missing. Use the Audio Studio build with its Resources folder.";
-        AudioEditorGrid.SeparationProgressPanel.Visibility = Visibility.Collapsed;
-        AudioEditorGrid.SeparationResultsPanel.Visibility = _lastStemResult == null ? Visibility.Collapsed : Visibility.Visible;
+            : "";
+        AudioSeparatorEditor.SeparationProgressPanel.Visibility = Visibility.Collapsed;
+        AudioSeparatorEditor.SeparationResultsPanel.Visibility = _lastStemResult == null ? Visibility.Collapsed : Visibility.Visible;
         UpdateAudioStudioDetails();
         SetSeparationBusy(false);
         AudioOptions_Changed(this, new RoutedEventArgs());
@@ -41,7 +190,14 @@ public partial class MainWindow
 
     private void UpdateAudioStudioDetails()
     {
-        if (_audioReader == null) return;
+        if (_audioReader == null)
+        {
+            AudioSeparatorEditor.SourceFileName.Text = "Choose your song";
+            AudioSeparatorEditor.SourceDetails.Text = "Drop an audio file here";
+            AudioSeparatorEditor.SourcePosition.Text = "00:00.000";
+            AudioSeparatorEditor.SetWaveform([]);
+            return;
+        }
         var labels = new[] { AudioEditorGrid.Timeline0, AudioEditorGrid.Timeline1, AudioEditorGrid.Timeline2,
             AudioEditorGrid.Timeline3, AudioEditorGrid.Timeline4 };
         for (int i = 0; i < labels.Length; i++)
@@ -49,10 +205,12 @@ public partial class MainWindow
             var time = TimeSpan.FromTicks(_audioReader.TotalTime.Ticks * i / 4);
             labels[i].Text = time.TotalHours >= 1 ? time.ToString(@"h\:mm\:ss") : time.ToString(@"m\:ss\.f");
         }
-        var duration = AudioEditorGrid.SeparateWholeFile.IsChecked == true ? _audioReader.TotalTime : _selectionEnd - _selectionStart;
+        AudioSeparatorEditor.SourceFileName.Text = Path.GetFileName(_currentAudioFile);
+        AudioSeparatorEditor.SourceDetails.Text = FormatAudioTime(_audioReader.TotalTime) + " · " + Path.GetExtension(_currentAudioFile)?.TrimStart('.').ToUpperInvariant() + " · Full song";
+        var duration = _audioReader.TotalTime;
         string format = SelectedSeparationFormat == AudioSeparationFormat.Mp3 ? "MP3 192 kbps" : "WAV uncompressed";
         string estimated = FormatStemSize(AudioStemSeparationService.EstimateStemBytes(duration, SelectedSeparationFormat));
-        AudioEditorGrid.SeparationScopeText.Text = (AudioEditorGrid.SeparateWholeFile.IsChecked == true ? "Full track" : "Selected range") + " · " + FormatAudioTime(duration) + "\n" + format + " · ~" + estimated + " per stem";
+        AudioSeparatorEditor.SeparationScopeText.Text = format + " · ~" + estimated + " per stem";
     }
 
     private static string FormatStemSize(long bytes) => bytes >= 1048576
@@ -63,17 +221,19 @@ public partial class MainWindow
     {
         _audioGpuDetectionTask ??= Task.Run(AudioGpuDeviceDetector.Detect);
         _audioGpuDevice = await _audioGpuDetectionTask;
-        AudioEditorGrid.ProcessingGpu.ToolTip = !CreateSeparationService().IsGpuEngineAvailable
-            ? "GPU engine files are missing. Use the GPU build or choose CPU."
+        AudioSeparatorEditor.ProcessingGpu.ToolTip = !_audioGpuDevice.Available ? _audioGpuDevice.Reason : !CreateSeparationService().IsGpuEngineAvailable
+            ? "Optional GPU acceleration needs additional files. The setup button will install them."
             : _audioGpuDevice.Available ? _audioGpuDevice.Name + " · NVIDIA CUDA" : _audioGpuDevice.Reason;
         SetSeparationBusy(_audioSeparationCts != null);
     }
 
     internal void AudioOptions_Changed(object sender, RoutedEventArgs e)
     {
+        if (AudioSeparatorEditor == null) return;
         UpdateAudioStudioDetails();
-        if (_audioSeparationCts == null && _audioReader != null && CreateSeparationService().IsAvailable)
-            AudioEditorGrid.SeparationStatusText.Text = "Ready · " + SelectedSeparationProcessor.ToString().ToUpperInvariant() + " · " + SelectedSeparationFormat.ToString().ToUpperInvariant();
+        SetSeparationBusy(_audioSeparationCts != null);
+        if (_audioSeparationCts == null && _audioAiDownloadCts == null && _audioReader != null && CreateSeparationService().IsAvailable)
+            AudioSeparatorEditor.SeparationStatusText.Text = "Ready · " + SelectedSeparationProcessor.ToString().ToUpperInvariant() + " · " + SelectedSeparationFormat.ToString().ToUpperInvariant();
     }
 
     private void UpdateStemResultDetails()
@@ -81,11 +241,9 @@ public partial class MainWindow
         if (_lastStemResult == null) return;
         string sizes = File.Exists(_lastStemResult.VocalsPath) && File.Exists(_lastStemResult.MusicPath)
             ? FormatStemSize(new FileInfo(_lastStemResult.VocalsPath).Length) + " + " + FormatStemSize(new FileInfo(_lastStemResult.MusicPath).Length) : "files moved";
-        AudioEditorGrid.SeparationResultSummary.Text = _lastStemResult.OutputFormat.ToString().ToUpperInvariant() + " · " + sizes;
-        AudioEditorGrid.SeparationResultSummary.ToolTip = _lastStemResult.Folder;
+        AudioSeparatorEditor.SeparationResultSummary.Text = _lastStemResult.OutputFormat.ToString().ToUpperInvariant() + " · " + sizes;
+        AudioSeparatorEditor.SeparationResultSummary.ToolTip = _lastStemResult.Folder;
     }
-
-    internal void AudioScope_Changed(object sender, RoutedEventArgs e) => UpdateAudioStudioDetails();
 
     internal void SelectAllAudio_Click(object sender, RoutedEventArgs e)
     {
@@ -113,14 +271,13 @@ public partial class MainWindow
 
     internal async void SeparateAudio_Click(object sender, RoutedEventArgs e)
     {
-        if (_audioSeparationCts != null || _currentAudioFile == null || _audioReader == null) return;
+        if (_audioSeparationCts != null || _audioAiDownloadCts != null || _currentAudioFile == null || _audioReader == null) return;
         NormalizeSelection();
-        bool fullTrack = AudioEditorGrid.SeparateWholeFile.IsChecked == true;
-        TimeSpan start = fullTrack ? TimeSpan.Zero : _selectionStart;
-        TimeSpan duration = fullTrack ? _audioReader.TotalTime : _selectionEnd - _selectionStart;
+        TimeSpan start = TimeSpan.Zero;
+        TimeSpan duration = _audioReader.TotalTime;
         if (duration <= TimeSpan.Zero)
         {
-            AudioEditorGrid.SeparationStatusText.Text = "Select an audio range first.";
+            AudioSeparatorEditor.SeparationStatusText.Text = "Select an audio range first.";
             return;
         }
         var picker = new OpenFolderDialog
@@ -130,6 +287,7 @@ public partial class MainWindow
         };
         if (picker.ShowDialog(this) != true) return;
         StopAudioPlayback(resetToSelectionStart: false);
+        StopStemPreview();
         var request = new AudioSeparationRequest(_currentAudioFile, picker.FolderName, start, duration)
         { Processor = SelectedSeparationProcessor, OutputFormat = SelectedSeparationFormat };
         await RunAudioSeparationAsync(request);
@@ -140,11 +298,13 @@ public partial class MainWindow
         var cts = new CancellationTokenSource();
         _audioSeparationCts = cts;
         SetSeparationBusy(true);
+        AudioSeparatorEditor.SeparationProgress.Value = 0;
+        AudioSeparatorEditor.SeparationStatusText.Text = "Preparing audio on your device…";
         var progress = new Progress<AudioSeparationProgress>(p =>
         {
             if (!ReferenceEquals(_audioSeparationCts, cts)) return;
-            AudioEditorGrid.SeparationProgress.Value = p.Percent;
-            AudioEditorGrid.SeparationStatusText.Text = p.Message;
+            AudioSeparatorEditor.SeparationProgress.Value = p.Percent;
+            AudioSeparatorEditor.SeparationStatusText.Text = p.Message;
         });
         try
         {
@@ -152,19 +312,19 @@ public partial class MainWindow
             if (!ReferenceEquals(_audioSeparationCts, cts)) return;
             _lastStemResult = result;
             _lastOutputFolder = result.Folder;
-            AudioEditorGrid.SeparationResultsPanel.Visibility = Visibility.Visible;
-            AudioEditorGrid.SeparationStatusText.Text = "Saved · " + result.ProcessorUsed.ToString().ToUpperInvariant() + " · " + result.OutputFormat.ToString().ToUpperInvariant();
+            AudioSeparatorEditor.SeparationResultsPanel.Visibility = Visibility.Visible;
+            AudioSeparatorEditor.SeparationStatusText.Text = "Saved · " + result.ProcessorUsed.ToString().ToUpperInvariant() + " · " + result.OutputFormat.ToString().ToUpperInvariant();
         }
         catch (OperationCanceledException)
         {
             if (ReferenceEquals(_audioSeparationCts, cts))
-                AudioEditorGrid.SeparationStatusText.Text = "Cancelled. No incomplete stems were saved.";
+                AudioSeparatorEditor.SeparationStatusText.Text = "Cancelled. No incomplete stems were saved.";
         }
         catch (Exception ex)
         {
             ConsoleLogger.Error("AudioSeparation", ex.ToString());
             if (ReferenceEquals(_audioSeparationCts, cts))
-                AudioEditorGrid.SeparationStatusText.Text = ex is AudioGpuUnavailableException ? ex.Message : ex is UnauthorizedAccessException
+                AudioSeparatorEditor.SeparationStatusText.Text = ex is AudioGpuUnavailableException ? ex.Message : ex is UnauthorizedAccessException
                     ? "Cannot write to that folder. Choose another location."
                     : "Separation could not finish. Check free disk space and the local AI files, then try again.";
         }
@@ -181,38 +341,44 @@ public partial class MainWindow
 
     private void SetSeparationBusy(bool busy)
     {
-        bool showResults = !busy && _lastStemResult != null;
-        AudioEditorGrid.SeparationIntroText.Visibility = busy || showResults ? Visibility.Collapsed : Visibility.Visible;
-        AudioEditorGrid.SeparationPrivacyText.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
-        AudioEditorGrid.SeparateAudioBtn.IsEnabled = !busy && CreateSeparationService().IsAvailable;
-        AudioEditorGrid.SeparateAudioBtn.Content = busy ? "Separating…" : "Separate audio";
-        AudioEditorGrid.SeparateWholeFile.IsEnabled = !busy;
-        AudioEditorGrid.SeparateSelection.IsEnabled = !busy;
-        AudioEditorGrid.ProcessingCpu.IsEnabled = !busy;
-        AudioEditorGrid.ProcessingGpu.IsEnabled = !busy && _audioGpuDevice?.Available == true && CreateSeparationService().IsGpuEngineAvailable;
-        AudioEditorGrid.OutputMp3.IsEnabled = !busy;
-        AudioEditorGrid.OutputWav.IsEnabled = !busy;
+        bool downloading = _audioAiDownloadCts != null;
+        bool available = CreateSeparationService().IsAvailable;
+        bool needsEngine = NeedsSeparationEngine;
+        AudioSeparatorEditor.EngineSetupPanel.Visibility = needsEngine ? Visibility.Visible : Visibility.Collapsed;
+        AudioSeparatorEditor.EngineSetupDescription.Text = SelectedSeparationProcessor == AudioSeparationProcessor.Gpu
+            ? "GPU download · ~2.15 GB installed"
+            : "One-time download · ~82 MB installed";
+        AudioSeparatorEditor.ChooseAudioBtn.IsEnabled = !busy && !downloading;
+        AudioSeparatorEditor.PreviewSourceBtn.IsEnabled = !busy && !downloading && _audioReader != null;
+        AudioSeparatorEditor.SourceSeekSlider.IsEnabled = !busy && !downloading && _audioReader != null;
+        bool showResults = !busy && !downloading && _lastStemResult != null;
+        AudioSeparatorEditor.SeparateAudioBtn.IsEnabled = !busy && !downloading && (needsEngine || _audioReader != null);
+        AudioSeparatorEditor.SeparateAudioBtn.Content = downloading ? "Downloading AI engine…" : busy ? "Separating your song…" : needsEngine
+            ? available ? "Enable GPU acceleration" : "Download AI engine" : "Separate vocals & music";
+        AudioSeparatorEditor.ProcessingCpu.IsEnabled = !busy && !downloading;
+        AudioSeparatorEditor.ProcessingGpu.IsEnabled = !busy && !downloading && _audioGpuDevice?.Available == true;
+        AudioSeparatorEditor.OutputMp3.IsEnabled = !busy && !downloading;
+        AudioSeparatorEditor.OutputWav.IsEnabled = !busy && !downloading;
         UpdateStemResultDetails();
-        AudioEditorGrid.OpenVocalsBtn.IsEnabled = !busy;
-        AudioEditorGrid.OpenMusicBtn.IsEnabled = !busy;
-        AudioEditorGrid.SeparationProgressPanel.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        AudioSeparatorEditor.OpenVocalsBtn.IsEnabled = showResults;
+        AudioSeparatorEditor.OpenMusicBtn.IsEnabled = showResults;
+        AudioSeparatorEditor.SeparationProgressPanel.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         if (busy)
         {
-            AudioEditorGrid.SeparationProgress.Value = 0;
-            AudioEditorGrid.SeparationStatusText.Text = "Preparing audio on your device…";
-            AudioEditorGrid.SeparationResultsPanel.Visibility = Visibility.Collapsed;
+            AudioSeparatorEditor.SeparationResultsPanel.Visibility = Visibility.Collapsed;
         }
-        else if (_lastStemResult != null) AudioEditorGrid.SeparationResultsPanel.Visibility = Visibility.Visible;
+        else if (_lastStemResult != null) AudioSeparatorEditor.SeparationResultsPanel.Visibility = Visibility.Visible;
     }
 
     internal void CancelSeparation_Click(object sender, RoutedEventArgs e)
     {
         _audioSeparationCts?.Cancel();
-        AudioEditorGrid.SeparationStatusText.Text = "Cancelling…";
+        AudioSeparatorEditor.SeparationStatusText.Text = "Cancelling…";
     }
 
     private void CancelAudioSeparation()
     {
+        CancelAudioAiDownload();
         var cts = _audioSeparationCts;
         _audioSeparationCts = null;
         cts?.Cancel();
@@ -223,8 +389,47 @@ public partial class MainWindow
     internal void OpenMusic_Click(object sender, RoutedEventArgs e) => OpenStemInEditor(_lastStemResult?.MusicPath);
     private void OpenStemInEditor(string? path)
     {
-        if (path != null && File.Exists(path)) LoadAudioEditor(path);
-        else AudioEditorGrid.SeparationStatusText.Text = "This output was moved or deleted.";
+        if (path != null && File.Exists(path))
+        {
+            bool stop = _playingStemPath == path && _stemPreviewPlayer?.PlaybackState == NAudio.Wave.PlaybackState.Playing;
+            StopStemPreview();
+            StopAudioPlayback(false);
+            if (stop) return;
+            try
+            {
+                _stemPreviewReader = new NAudio.Wave.AudioFileReader(path)
+                { Volume = _isPreviewMuted ? 0f : (float)_previewVolume };
+                _stemPreviewPlayer = new NAudio.Wave.WaveOutEvent();
+                _stemPreviewPlayer.Init(_stemPreviewReader);
+                _playingStemPath = path;
+                AudioSeparatorEditor.VocalsLabel.Text = path == _lastStemResult?.VocalsPath ? "■  Stop vocals" : "▶  Vocals";
+                AudioSeparatorEditor.MusicLabel.Text = path == _lastStemResult?.MusicPath ? "■  Stop music" : "▶  Instrumental";
+                _stemPreviewPlayer.PlaybackStopped += (_, _) => Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (_playingStemPath == path && _stemPreviewPlayer?.PlaybackState == NAudio.Wave.PlaybackState.Stopped) StopStemPreview();
+                }));
+                _stemPreviewPlayer.Play();
+            }
+            catch (Exception ex)
+            {
+                StopStemPreview();
+                ConsoleLogger.Error("StemPreview", ex.ToString());
+                AudioSeparatorEditor.SeparationStatusText.Text = "Cannot preview this stem. You can open the saved files from the output folder.";
+            }
+        }
+        else AudioSeparatorEditor.SeparationStatusText.Text = "This output was moved or deleted.";
+    }
+
+    private void StopStemPreview()
+    {
+        _playingStemPath = null;
+        _stemPreviewPlayer?.Stop();
+        _stemPreviewPlayer?.Dispose();
+        _stemPreviewPlayer = null;
+        _stemPreviewReader?.Dispose();
+        _stemPreviewReader = null;
+        AudioSeparatorEditor.VocalsLabel.Text = "▶  Vocals";
+        AudioSeparatorEditor.MusicLabel.Text = "▶  Instrumental";
     }
     internal void OpenStemsFolder_Click(object sender, RoutedEventArgs e)
     {
@@ -233,6 +438,6 @@ public partial class MainWindow
             try { Process.Start(new ProcessStartInfo(_lastStemResult.Folder) { UseShellExecute = true }); }
             catch (Exception ex) { ConsoleLogger.Error("AudioSeparation", ex.ToString()); }
         }
-        else AudioEditorGrid.SeparationStatusText.Text = "The output folder was moved or deleted.";
+        else AudioSeparatorEditor.SeparationStatusText.Text = "The output folder was moved or deleted.";
     }
 }

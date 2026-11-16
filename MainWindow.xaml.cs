@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -88,17 +87,22 @@ public partial class MainWindow : Window
         {
             InitializeComponent();
             AudioEditorGrid.Owner = this;
+            AudioSeparatorEditor.Owner = this;
+            AudioSeparatorEditor.SeekRequested += SeekSeparationAudio;
+            AudioSeparatorEditor.VolumeRequested += SetSeparationPreviewVolume;
+            AudioSeparatorEditor.ToggleMuteRequested += () => PreviewSound_Click(this, new RoutedEventArgs());
 
             VideoCompressorEditor.Initialize(_config.FFmpegPath);
             VideoCompressorEditor.CloseRequested += (s, e) => SwitchToMode(AppMode.Dashboard);
             VideoCutterEditor.Initialize(_config.FFmpegPath);
             VideoCutterEditor.CloseRequested += (s, e) => SwitchToMode(AppMode.Dashboard);
+            VideoCutterEditor.WorkspaceActivated += (_, _) => MaximizeWindowForStudio();
 
             FilesList.ItemsSource = _filesToConvert;
             PopulateFormats("Document");
 
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.7.0";
+            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.8.5";
             ConsoleLogger.Info("UI", $"Version label set to {VersionText.Text}.");
 
             // File passed from Explorer context menu
@@ -159,11 +163,7 @@ public partial class MainWindow : Window
             {
                 ConsoleLogger.Warning("Resources", BuildResourceStatusMessage(resourceStatus));
                 StatusText.Text = "Some local tools are missing. Open Settings for logs.";
-                MessageBox.Show(
-                    BuildResourceWarning(resourceStatus),
-                    "Resource Status",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                ShowToolStatus();
             }
             else
             {
@@ -226,48 +226,6 @@ public partial class MainWindow : Window
         return string.Join(" ", parts);
     }
 
-    private static string BuildResourceWarning(ResourceValidationResult status)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine("Cortex FX could not find every local tool it needs.");
-        builder.AppendLine();
-
-        if (!status.ResourcesDirectoryExists)
-        {
-            builder.AppendLine("Missing folder:");
-            builder.AppendLine(status.ResourcesDirectory);
-            builder.AppendLine();
-        }
-
-        if (status.MissingTools.Count > 0)
-        {
-            builder.AppendLine("Place these files in the Resources folder:");
-            foreach (string tool in status.MissingTools)
-            {
-                builder.AppendLine($"- {tool}");
-            }
-            builder.AppendLine();
-        }
-
-        if (status.MissingFFmpegDlls.Count > 0)
-        {
-            builder.AppendLine("Place these FFME DLLs in:");
-            builder.AppendLine(status.FFmpegLibsDirectory);
-            foreach (string dll in status.MissingFFmpegDlls)
-            {
-                builder.AppendLine($"- {dll}");
-            }
-            builder.AppendLine();
-        }
-
-        builder.AppendLine("Expected core Resources layout:");
-        builder.AppendLine("Resources\\ffmpeg.exe");
-        builder.AppendLine("Resources\\magick.exe");
-        builder.AppendLine("Resources\\pdftocairo.exe");
-        builder.AppendLine("Resources\\ffmpeg_libs\\*.dll");
-        return builder.ToString();
-    }
-
     #endregion
 
     #region Dashboard / Navigation
@@ -280,11 +238,12 @@ public partial class MainWindow : Window
 
     private void ShowMainContent(FrameworkElement activeView)
     {
-        BackBtn.Margin = ReferenceEquals(activeView, VideoCutterEditor)
+        BackBtn.Margin = ReferenceEquals(activeView, VideoCutterEditor) || ReferenceEquals(activeView, AudioSeparatorEditor)
             ? new Thickness(12, 3, 12, 3)
             : new Thickness(12, 8, 12, 8);
         CollapseMainContent(DashboardView, activeView);
         CollapseMainContent(ConversionView, activeView);
+        if (AudioSeparatorEditor != null) CollapseMainContent(AudioSeparatorEditor, activeView);
         if (AudioEditorGrid != null)
         {
             CollapseMainContent(AudioEditorGrid, activeView);
@@ -439,7 +398,7 @@ public partial class MainWindow : Window
             {
                 if (VideoCutterEditor != null) ShowMainContent(VideoCutterEditor);
                 CurrentToolTitle.Text = "Video Cutter";
-                BackBtn.Visibility = Visibility.Visible;
+                BackBtn.Visibility = Visibility.Collapsed; // Video Cutter has its own session-aware Back button in the studio header.
             }
             else if (tool == "AudioCutter")
             {
@@ -573,6 +532,10 @@ public partial class MainWindow : Window
 
         if (mode != AppMode.Unknown)
         {
+            if (mode == AppMode.AudioTrimmer)
+            {
+                _audioSeparationMode = false;
+            }
             SwitchToMode(mode);
 
             if (IsQuickFilePickerMode(mode))
@@ -649,8 +612,8 @@ public partial class MainWindow : Window
         // Keep an active trim session when returning from Back.
         if (!string.IsNullOrEmpty(_currentAudioFile) && File.Exists(_currentAudioFile))
         {
-            ShowMainContent(AudioEditorGrid);
-            CurrentToolTitle.Text = "Audio Cutter";
+            ShowMainContent(_audioSeparationMode ? AudioSeparatorEditor : AudioEditorGrid);
+            CurrentToolTitle.Text = _audioSeparationMode ? "AI Audio Separator" : "Audio Cutter";
             BackBtn.Visibility = Visibility.Visible;
             return;
         }
@@ -777,6 +740,48 @@ public partial class MainWindow : Window
     {
         // Normal minimize to the Windows taskbar (not the tray)
         WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeWindowForStudio()
+    {
+        if (WindowState != WindowState.Maximized)
+        {
+            MaxHeight = SystemParameters.MaximizedPrimaryScreenHeight;
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        else
+        {
+            MaximizeWindowForStudio();
+        }
+    }
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        bool isMaximized = WindowState == WindowState.Maximized;
+        MaxHeight = isMaximized
+            ? SystemParameters.MaximizedPrimaryScreenHeight
+            : double.PositiveInfinity;
+
+        if (MainWindowBorder != null)
+        {
+            MainWindowBorder.CornerRadius = isMaximized ? new CornerRadius(0) : new CornerRadius(10);
+            MainWindowBorder.BorderThickness = isMaximized ? new Thickness(0) : new Thickness(1);
+            MainWindowBorder.Margin = isMaximized ? new Thickness(7) : new Thickness(0);
+        }
+
+        if (MaximizeButton != null)
+        {
+            MaximizeButton.Content = isMaximized ? "\uE923" : "\uE922";
+            MaximizeButton.ToolTip = isMaximized ? "Restore" : "Maximize";
+        }
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -962,13 +967,17 @@ public partial class MainWindow : Window
 
     private void ShowResourceStatus_Click(object sender, RoutedEventArgs e)
     {
-        var status = _resourceValidator.ValidateCoreResources();
-        string message = status.IsReady
-            ? $"All core resources are ready.\n\nResources folder:\n{status.ResourcesDirectory}\n\nFFME DLL folder:\n{status.FFmpegLibsDirectory}"
-            : BuildResourceWarning(status);
+        ShowToolStatus();
+    }
 
-        MessageBox.Show(message, "Resource Status", MessageBoxButton.OK,
-            status.IsReady ? MessageBoxImage.Information : MessageBoxImage.Warning);
+    private void ShowToolStatus()
+    {
+        var dialog = new ResourceStatusDialog(() => CortexFX.ViewModels.ResourceStatusReport.Create(
+            _resourceValidator.ValidateCoreResources(),
+            _conversionRouter.GetUnavailableReason(".docx", "pdf") == null,
+            _conversionRouter.GetUnavailableReason(".pptx", "pdf") == null,
+            CreateSeparationService().IsAvailable)) { Owner = this };
+        dialog.ShowDialog();
     }
 
     private void OpenLogFolder_Click(object sender, RoutedEventArgs e)
@@ -1578,10 +1587,15 @@ public partial class MainWindow : Window
         string name = System.IO.Path.GetFileName(filePath);
         string target = targetFormat.ToUpperInvariant();
 
+        if (message == CortexFX.Core.Services.Documents.EmptyDocumentException.UserMessage ||
+            message.StartsWith("PDF conversion failed:", StringComparison.OrdinalIgnoreCase) ||
+            message.StartsWith("Microsoft ", StringComparison.OrdinalIgnoreCase) && message.Contains("required", StringComparison.OrdinalIgnoreCase))
+            return $"{name}: {message}";
+
         if (message.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("Executable", StringComparison.OrdinalIgnoreCase))
         {
-            return $"{name}: a required local tool is missing. Open Settings > Resource Status for the expected Resources layout.";
+            return $"{name}: a required local tool is missing. Open Settings > Tool status to see which feature needs setup.";
         }
 
         if (message.Contains("invalid conversion", StringComparison.OrdinalIgnoreCase) ||
@@ -1803,6 +1817,8 @@ public partial class MainWindow : Window
 
                     if (!result.Success)
                     {
+                        if (result.ErrorMessage == CortexFX.Core.Services.Documents.EmptyDocumentException.UserMessage)
+                            throw new CortexFX.Core.Services.Documents.EmptyDocumentException();
                         throw new InvalidOperationException(result.ErrorMessage ?? "Conversion failed.");
                     }
 
@@ -1822,6 +1838,13 @@ public partial class MainWindow : Window
                 {
                     UpdateFileStatus(fileItem, "Cancelled", "#AAAAAA");
                     throw;
+                }
+                catch (CortexFX.Core.Services.Documents.EmptyDocumentException ex)
+                {
+                    UpdateFileStatus(fileItem, "الملف فارغ", "#D6A54D");
+                    errorCount++;
+                    failedMessages.Add(FriendlyErrorMessage(file, targetFormat, ex.Message));
+                    ConsoleLogger.Warning("Conversion", $"Empty document skipped: {ConsoleLogger.ShortPath(file)}");
                 }
                 catch (Exception ex)
                 {
@@ -1844,7 +1867,7 @@ public partial class MainWindow : Window
             string? detail = failedMessages.Count > 0
                 ? $"Converted {successCount}/{files.Count} files.\n\n{string.Join("\n", failedMessages.Take(3))}" +
                   (failedMessages.Count > 3 ? $"\n...and {failedMessages.Count - 3} more. See logs for details." : "")
-                : null;
+                : $"Successfully converted {successCount}/{files.Count} files.\nSaved to: {_lastOutputFolder ?? outputDir}";
             ShowConversionSummary(successCount, errorCount, files.Count, detail);
         }
         catch (OperationCanceledException)

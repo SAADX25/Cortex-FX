@@ -9,8 +9,11 @@ using Xunit;
 
 namespace CortexFX.Tests;
 
-public sealed class DocumentConversionTests
+public sealed class DocumentConversionTests : IDisposable
 {
+    private readonly string _folder = Path.Combine(Path.GetTempPath(), "CortexFX-DocumentTests-" + Guid.NewGuid().ToString("N"));
+    public DocumentConversionTests() => Directory.CreateDirectory(_folder);
+    public void Dispose() => Directory.Delete(_folder, true);
     [Theory]
     [InlineData(".docx", "txt", "word-txt")]
     [InlineData(".docx", "rtf", "word-rtf")]
@@ -145,8 +148,69 @@ public sealed class DocumentConversionTests
         if (error is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
     }
 
-    private static ConversionJob Job(string extension, string target) => new()
-    { InputPath = Path.Combine(Path.GetTempPath(), "document" + extension), TargetFormat = target, OutputDirectory = Path.GetTempPath(), CreateSubfolder = false };
+    private ConversionJob Job(string extension, string target) => new()
+    { InputPath = Path.Combine(_folder, "document" + extension), TargetFormat = target, OutputDirectory = _folder, CreateSubfolder = false };
+
+    [Theory]
+    [InlineData(".docx")]
+    [InlineData(".pptx")]
+    [InlineData(".xlsx")]
+    public async Task SilentOfficeFailureCannotReportSuccessOrReplaceAnExistingPdf(string extension)
+    {
+        var fake = new FakeEngines { OfficeCreatesPdf = false };
+        string existing = Path.Combine(_folder, "document.pdf");
+        File.WriteAllText(existing, "existing export stays untouched");
+        var result = await fake.Router.ConvertAsync(Job(extension, "pdf"));
+        Assert.False(result.Success);
+        Assert.Contains("did not produce a valid PDF", result.ErrorMessage);
+        Assert.Equal("existing export stays untouched", File.ReadAllText(existing));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MissingOrInvalidOfficeOutputUsesInstalledLibreOffice(bool corrupt)
+    {
+        var fake = new FakeEngines { OfficeCreatesPdf = corrupt, CorruptOfficePdf = corrupt,
+            OptionalSupported = true, OptionalInstalled = true };
+        var result = await fake.Router.ConvertAsync(Job(".pptx", "pdf"));
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("optional", fake.Called);
+        DocumentPdfOutput.Validate(result.OutputPath!);
+    }
+
+    [Fact]
+    public async Task OfficeAccessDeniedUsesFallbackAndRetainsNestedErrorDiagnostics()
+    {
+        var accessDenied = new System.Runtime.InteropServices.COMException("fixture", unchecked((int)0x80070005));
+        var fake = new FakeEngines { OfficePdfError = new InvalidOperationException("Office wrapper", accessDenied),
+            OptionalSupported = true, OptionalInstalled = true };
+        var result = await fake.Router.ConvertAsync(Job(".docx", "pdf"));
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, fake.OptionalCalls);
+        Assert.Contains("denied access", DocumentPdfOutput.ExplainOfficeFailure("Word", fake.OfficePdfError));
+    }
+
+    [Fact]
+    public async Task NeitherEngineCanClaimSuccessWithoutProducingAPdf()
+    {
+        var fake = new FakeEngines { OfficeCreatesPdf = false, OptionalCreatesPdf = false,
+            OptionalSupported = true, OptionalInstalled = true };
+        var result = await fake.Router.ConvertAsync(Job(".docx", "pdf"));
+        Assert.False(result.Success);
+        Assert.Contains("LibreOffice did not produce a valid PDF", result.ErrorMessage);
+        Assert.False(File.Exists(Path.Combine(_folder, "document.pdf")));
+    }
+
+    [Fact]
+    public async Task CancelledOfficeDoesNotStartFallback()
+    {
+        var fake = new FakeEngines { OfficePdfError = new OperationCanceledException(),
+            OptionalSupported = true, OptionalInstalled = true };
+        var result = await fake.Router.ConvertAsync(Job(".docx", "pdf"));
+        Assert.False(result.Success);
+        Assert.Equal(0, fake.OptionalCalls);
+    }
 
     private sealed class EbookRouter(IConversionRouter inner) : IConversionRouter
     {

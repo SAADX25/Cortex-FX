@@ -38,7 +38,7 @@ public sealed class RadialWheelController : IDisposable
         _wheel.CancelRequested += Cancel;
         var open = new MenuItem { Header = "Open conversion wheel…" };
         open.Click += (_, _) => ChooseFiles(RadialMode.Convert);
-        var settings = new MenuItem { Header = "Radial wheel settings…" };
+        var settings = new MenuItem { Header = "File shortcuts settings…" };
         settings.Click += (_, _) => ShowSettings();
         _enabled = new MenuItem { Header = "Enable drag wheel", IsCheckable = true, IsChecked = _settings.Enabled };
         _enabled.Click += (_, _) =>

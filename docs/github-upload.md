@@ -84,8 +84,10 @@ complete security audit or proof that every possible secret/defect is absent.
 ```powershell
 # Smaller CPU distribution (GPU option is unavailable until the add-on is installed):
 powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1 -CpuOnly -SkipInstaller -CreatePortableZip
-# Complete CPU/GPU distribution, with Inno Setup 6 when installed:
+# Lightweight distribution with optional in-app AI downloads:
 powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1 -CreatePortableZip
+# Offline CPU/GPU distribution:
+powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1 -BundleAudioAi -CreatePortableZip
 ```
 
 Every build creates a fresh release directory under `Publish/` and an `app/` child.
@@ -94,8 +96,8 @@ get a timestamped directory. The installer keeps the exact name
 `CortexFX_Setup_v<version>.exe` required by the app updater. Choose one installer
 per release; the CPU portable ZIP has an additional `-cpu` suffix.
 
-A direct CPU-only publish can use `-p:IncludeAudioGpu=false`; the default profile
-keeps the existing behavior and includes an installed GPU add-on. Integration tests
+A direct offline CPU-only publish uses `-p:IncludeAudioAi=true -p:IncludeAudioGpu=false`;
+add `-p:IncludeAudioGpu=true` for GPU. The default excludes large AI files. Integration tests
 are opt-in via the variables documented in `docs/audio-studio.md`.
 
 All source checks here are local. Commit, push, release creation and artifact upload

@@ -7,7 +7,7 @@
 **A powerful local file conversion desktop app for Windows.**  
 Convert images, videos, audio, documents, archives, and e-books — entirely offline, on your machine.
 
-[![Version](https://img.shields.io/badge/version-1.7.0-blue?style=for-the-badge)](https://github.com/SAADX25/Cortex-FX/releases)
+[![Version](https://img.shields.io/badge/version-1.8.5-blue?style=for-the-badge)](https://github.com/SAADX25/Cortex-FX/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%20%7C%2010%20LTSC-0078d4?style=for-the-badge&logo=windows)](https://github.com/SAADX25/Cortex-FX)
 [![Framework](https://img.shields.io/badge/.NET-10.0--windows-512bd4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
 [![UI](https://img.shields.io/badge/UI-WPF-68217a?style=for-the-badge&logo=microsoft)](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/)
@@ -56,7 +56,7 @@ Convert images, videos, audio, documents, archives, and e-books — entirely off
 
 Drag files from Explorer or the desktop and hold **Shift** for format conversion, **Alt** for image/video/PDF tools, or **Ctrl** for ZIP, copying paths and SHA-256. Drop onto a segment to run the action in the background. The original files remain in place; results are saved beside them with collision-safe names.
 
-Open **Settings → Radial wheel settings** to change the modifiers, quality, PDF DPI and optional FFmpeg override. The same settings and a file picker are available from Cortex FX's existing tray icon. Closing the main window keeps the wheel available in the background. Press Esc in the wheel or use **Cancel wheel conversion** from the tray to cancel.
+Open **Settings → File shortcuts → Set up shortcuts** for a three-step usage guide, shortcut keys, conversion quality and PDF image detail. **Try it without dragging** opens a file picker; **Advanced settings** contains the optional custom FFmpeg path. The same settings and a file picker are available from Cortex FX's existing tray icon. Closing the main window keeps the wheel available in the background. Press Esc in the wheel or use **Cancel wheel conversion** from the tray to cancel.
 
 The wheel is native C#/WPF and shares Cortex FX's engines; no Python installation or secondary converter executable is needed. See [Radial wheel integration](docs/radial-wheel.md) for details and verification commands.
 
@@ -68,8 +68,9 @@ The wheel is native C#/WPF and shares Cortex FX's engines; no Python installatio
 - **Video:** MP4, MKV, MOV, AVI, WEBM
 - **Audio:** MP3, WAV, AAC, FLAC, OGG, M4A
 - Built-in **Video Compressor** and **Video Cutter** tools
-- Integrated **Audio Studio** with waveform selection, edge trimming, loop preview and spectrum analysis
-- Local **vocals / instrumental separation** with CPU or NVIDIA GPU processing
+- Separate **Audio Cutter** and **AI Audio Separator** tools on the home screen
+- Waveform selection, edge trimming, loop preview and spectrum analysis
+- Optional AI downloads for local **vocals / instrumental separation**, with separate CPU and NVIDIA GPU packages
 - **MP3 192 kbps** output by default, optional uncompressed WAV, and estimated/actual stem sizes
 - Audio setup and verification: [Audio Studio](docs/audio-studio.md), [source and release preparation](docs/github-upload.md)
 
@@ -96,7 +97,7 @@ Unit tests live in `CortexFX.Tests`; `dotnet test CortexFX.slnx -c Release` runs
 - Local conversion engines; files are processed on the device
 - Batch conversion support
 - Local logging under `%LOCALAPPDATA%\Cortex FX\Logs`
-- Settings panel with **Resource Status** checker
+- Settings panel with a clear **Tool status** window for included tools and optional features
 - Modern dark UI with smooth animations
 
 ---
@@ -277,7 +278,7 @@ Resources/
   Calibre/ebook-convert.exe         # E-book conversion
 ```
 
-> **Tip:** Open **Settings > Resource Status** in the app to see exact expected paths and which tools are found or missing.
+> **Tip:** Open **Settings > Tool status** to see which features are ready or need setup. Paths and missing file names are under **Technical details**.
 
 ### Resource Resolution Order
 
@@ -289,7 +290,7 @@ Resources/
 ## Quick Start
 
 1. Download the latest release from [GitHub Releases](https://github.com/SAADX25/Cortex-FX/releases).
-2. Run the installer (`CortexFX_Setup_v1.7.0.exe`) **or** extract the portable ZIP.
+2. Run the installer (`CortexFX_Setup_v1.8.5.exe`) **or** extract the portable ZIP.
 3. Ensure the `Resources` folder is present beside `CortexFX.exe` (portable only).
 4. Open Cortex FX, pick a tool from the dashboard, add files, choose an output folder, and click **Convert**.
 
@@ -330,18 +331,21 @@ dotnet run --project .\CortexFX.csproj
 ### Manual Publish
 
 ```powershell
-dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.7.0\app
+dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.8.5\app
 ```
 
 ### Using the Build Script
 
 | Command | Description |
 |---|---|
-| `.\build.ps1` | Publish -> validate resources -> build installer |
+| `.\build.ps1` | Lightweight app with optional in-app AI downloads -> build installer |
+| `.\build.ps1 -BundleAudioAi` | Offline distribution including CPU and GPU AI resources |
 | `.\build.ps1 -CreatePortableZip` | Also creates a portable ZIP alongside the installer |
-| `.\build.ps1 -CpuOnly -SkipInstaller -CreatePortableZip` | Smaller CPU portable distribution |
+| `.\build.ps1 -CpuOnly -SkipInstaller -CreatePortableZip` | Offline CPU portable distribution |
 | `.\build.ps1 -RemoveStagingFolder` | Deletes only this build's `app` staging folder after an artifact is created |
 | `.\build.ps1 -SkipInstaller -CreatePortableZip` | Portable ZIP only, no installer |
+
+Build_Release.bat prepares the installer and removes its temporary app staging after success. Pass -CreatePortableZip when a portable ZIP is also needed; it is optional to avoid storing duplicate large distributions.
 
 The script validates local resources, restores/builds/publishes into a fresh `Publish/CortexFX_v<version>/app` directory, then creates the requested ZIP/installer in its parent directory. Rebuilds use a timestamped parent; existing releases are preserved. Staging is kept unless `-RemoveStagingFolder` is requested and an artifact exists.
 
@@ -352,7 +356,7 @@ Before tagging a release:
 - [ ] Run `.\build.ps1 -CreatePortableZip` and verify both artifacts appear in `Publish\`
 - [ ] Test on a **clean Windows machine** (no dev tools installed):
   - App starts without the .NET SDK
-  - **Settings > Resource Status** reports all core tools as ready
+  - **Settings > Tool status** reports all included tools as ready
   - Image, video/audio, PDF/document conversions complete successfully
   - Missing resource warnings show the correct expected paths
 - [ ] Version in `CortexFX.csproj` matches the release tag
@@ -362,8 +366,8 @@ Before tagging a release:
 
 | Artifact | Description |
 |---|---|
-| `Publish\CortexFX_v1.7.0\CortexFX_Setup_v1.7.0.exe` | Windows installer |
-| `Publish\CortexFX_v1.7.0\CortexFX_Portable_v1.7.0-win-x64.zip` | Self-contained portable build |
+| `Publish\CortexFX_v1.8.5\CortexFX_Setup_v1.8.5.exe` | Windows installer |
+| `Publish\CortexFX_v1.8.5\CortexFX_Portable_v1.8.5-win-x64.zip` | Self-contained portable build |
 
 ---
 
@@ -371,7 +375,7 @@ Before tagging a release:
 
 ### Missing Resources
 
-Open **Settings > Resource Status**. Core tools must be in the `Resources` folder next to `CortexFX.exe`. If a file is missing, place it at the exact path shown in the app.
+Open **Settings > Tool status**. Missing included files are marked separately from optional features. Reinstall the latest Cortex FX package to restore included tools. Use **Technical details** to inspect/copy paths and missing file names, or **Open tools folder** to locate the files.
 
 ### Failed Conversions
 

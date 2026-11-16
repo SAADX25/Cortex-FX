@@ -158,13 +158,21 @@ internal sealed class FakeEngines : IFFmpegService, IMagickService, IOfficeInter
     public bool ExcelInstalled { get; set; } = true;
     public bool OptionalSupported { get; set; }
     public bool OptionalInstalled { get; set; }
+    public Exception? OfficePdfError { get; set; }
+    public bool OfficeCreatesPdf { get; set; } = true;
+    public bool OptionalCreatesPdf { get; set; } = true;
+    public bool CorruptOfficePdf { get; set; }
+    public int OptionalCalls { get; private set; }
     public bool FailHardware { get; set; }
     public TimeSpan ImageDelay { get; set; }
     private int _concurrentImages;
     public int MaxConcurrentImages { get; private set; }
     public int VideoAttempts { get; private set; }
     public string? LastArguments { get; private set; }
-    public ConversionRouter Router => new(new FakeConfig("."), this, this, this, this, this, this);
+    public DocumentContentInspector DocumentInspector { get; set; } = new SkipDocumentInspection();
+    public ConversionRouter Router => new(new FakeConfig("."), this, this, this, this, this, this, DocumentInspector);
+    private sealed class SkipDocumentInspection : DocumentContentInspector
+    { public override Task EnsureContentAsync(string path, CancellationToken ct = default) => Task.CompletedTask; }
     public string BuildVideoArguments(string a, string b, double q, string f, bool preferHardware = true) => preferHardware ? "hardware" : "software";
     public string BuildAudioArguments(string a, string b, string? f = null, double q = 75) => "audio";
     public bool UsesHardwareEncoder(string args) => args == "hardware";
@@ -191,6 +199,9 @@ internal sealed class FakeEngines : IFFmpegService, IMagickService, IOfficeInter
     public Task MergeImagesToPdfAsync(IReadOnlyList<string> a, string b, CancellationToken ct = default) => Task.CompletedTask;
     public Task TrimAudioAsync(string a, string b, TimeSpan s, TimeSpan e, CancellationToken ct = default) => Task.CompletedTask;
     public Task CutVideoSegmentsAsync(string a, string b, IReadOnlyList<VideoCutSegment> s, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
+    public Task<VideoMediaInfo> ProbeVideoAsync(string inputFile, CancellationToken ct = default) =>
+        Task.FromResult(new VideoMediaInfo(inputFile, TimeSpan.FromSeconds(10), 1920, 1080, 1920, 1080, 0, 30, "h264", "aac", true, true, "mp4", 0));
+    public Task ExportMontageAsync(VideoMontageExportRequest request, CancellationToken ct = default, IProgress<double>? progress = null) => Task.CompletedTask;
     public Task ExtractAudioAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null)
     { ct.ThrowIfCancellationRequested(); Called = "ffmpeg-audio"; return Task.CompletedTask; }
     public Task ConvertToGifAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
@@ -200,7 +211,16 @@ internal sealed class FakeEngines : IFFmpegService, IMagickService, IOfficeInter
     public Task ConvertWordDocumentAsync(string a, string b, string target, CancellationToken ct = default, IProgress<double>? p = null)
     { ct.ThrowIfCancellationRequested(); Called = "word-" + target; return Task.CompletedTask; }
     public Task ConvertToPdfAsync(string a, string b, int q = 1, CancellationToken ct = default, IProgress<double>? p = null)
-    { ct.ThrowIfCancellationRequested(); Called = "office-pdf"; return Task.CompletedTask; }
+    {
+        ct.ThrowIfCancellationRequested(); Called = "office-pdf";
+        if (OfficePdfError != null) throw OfficePdfError;
+        if (OfficeCreatesPdf)
+        {
+            if (CorruptOfficePdf) File.WriteAllText(b, "not a PDF");
+            else WritePdf(b);
+        }
+        return Task.CompletedTask;
+    }
     public Task ConvertPdfToWordAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
     public Task ConvertWordToPowerPointAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
     public Task ConvertPdfToPowerPointAsync(string a, string b, CancellationToken ct = default, IProgress<double>? p = null) => Task.CompletedTask;
@@ -208,7 +228,20 @@ internal sealed class FakeEngines : IFFmpegService, IMagickService, IOfficeInter
     public bool CanConvert(string a, string b) => OptionalSupported;
     public string? GetUnavailableReason(string a, string b) => OptionalInstalled ? null : "Optional engine is missing.";
     public Task<ConversionResult> ConvertAsync(string a, string b, string ext, string target, CancellationToken ct = default, IProgress<double>? p = null)
-    { ct.ThrowIfCancellationRequested(); Called = "optional"; return Task.FromResult(ConversionResult.Ok(b)); }
+    {
+        ct.ThrowIfCancellationRequested(); Called = "optional"; OptionalCalls++;
+        if (target == "pdf" && OptionalCreatesPdf) WritePdf(b);
+        return Task.FromResult(ConversionResult.Ok(b));
+    }
+    private static void WritePdf(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var pdf = new PdfSharp.Pdf.PdfDocument();
+        pdf.AddPage();
+        using (var graphics = PdfSharp.Drawing.XGraphics.FromPdfPage(pdf.Pages[0]))
+            graphics.DrawLine(PdfSharp.Drawing.XPens.Black, 10, 10, 100, 100);
+        pdf.Save(path);
+    }
 }
 
 internal sealed class FakeConfig(string dir) : IAppConfiguration

@@ -19,6 +19,7 @@ public sealed class ConversionRouter : IConversionRouter
     private readonly IPdfRenderService _pdfRenderer;
     private readonly IOptionalConversionService _optional;
     private readonly IPdfToWordService _pdfToWord;
+    private readonly DocumentContentInspector _documentContent;
     private readonly SemaphoreSlim _officeLimit = new(1);
     private readonly SemaphoreSlim _ffmpegLimit = new(2);
     private readonly SemaphoreSlim _magickLimit = new(3);
@@ -39,7 +40,8 @@ public sealed class ConversionRouter : IConversionRouter
         IOfficeInteropService office,
         IPdfRenderService pdfRenderer,
         IOptionalConversionService optional,
-        IPdfToWordService pdfToWord)
+        IPdfToWordService pdfToWord,
+        DocumentContentInspector? documentContent = null)
     {
         _config = config;
         _ffmpeg = ffmpeg;
@@ -48,6 +50,7 @@ public sealed class ConversionRouter : IConversionRouter
         _pdfRenderer = pdfRenderer;
         _optional = optional;
         _pdfToWord = pdfToWord;
+        _documentContent = documentContent ?? new DocumentContentInspector();
     }
 
     // IConversionRouter
@@ -97,6 +100,9 @@ public sealed class ConversionRouter : IConversionRouter
             string ext = Path.GetExtension(job.InputPath).ToLowerInvariant();
             string target = job.TargetFormat.ToLowerInvariant();
             ct.ThrowIfCancellationRequested();
+            if (IsDocumentToPdf(ext, target) || IsDocumentBridge(ext, target) ||
+                ext == ".pdf" && target is "docx" or "pptx")
+                await _documentContent.EnsureContentAsync(job.InputPath, ct);
             string? unavailable = GetUnavailableReason(ext, target);
             if (unavailable is not null) return ConversionResult.Fail(unavailable);
 
@@ -119,11 +125,7 @@ public sealed class ConversionRouter : IConversionRouter
             // Document → PDF
             if (IsDocumentToPdf(ext, target))
             {
-                if (!_office.IsApplicationInstalled(DocumentApplication(ext)))
-                    return await _optional.ConvertAsync(job.InputPath, outputPath, ext, target, ct, progress);
-                int engineQuality = job.QualityLevel < 30 ? 0 : 1;
-                await _office.ConvertToPdfAsync(job.InputPath, outputPath, engineQuality, ct, progress);
-                return ConversionResult.Ok(outputPath);
+                return await ConvertDocumentToPdfAsync(job, outputPath, ext, ct, progress);
             }
 
             // PDF → Word / PowerPoint
@@ -254,6 +256,10 @@ public sealed class ConversionRouter : IConversionRouter
         {
             return ConversionResult.Fail("Conversion cancelled.");
         }
+        catch (EmptyDocumentException ex)
+        {
+            return ConversionResult.Fail(ex.Message);
+        }
         catch (ProcessExecutionException ex) when (ex.ExecutableName.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) && ex.ExitCode == -22)
         {
             return ConversionResult.Fail("Invalid conversion arguments. This file could not be converted with the selected output format.");
@@ -266,6 +272,11 @@ public sealed class ConversionRouter : IConversionRouter
         {
             ConsoleLogger.Error("Conversion", ex.ToString());
             return ConversionResult.Fail("The selected conversion engine or input file is unavailable.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            ConsoleLogger.Error("Conversion", ex.ToString());
+            return ConversionResult.Fail("PDF conversion failed: access to the file or output folder was denied. Choose a writable folder such as Documents and check that the source file can be opened.");
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("OCR", StringComparison.OrdinalIgnoreCase) ||
                                                    ex.Message.Contains("Microsoft Word is required", StringComparison.OrdinalIgnoreCase))
@@ -431,6 +442,74 @@ public sealed class ConversionRouter : IConversionRouter
     }
 
     // Private routing helpers
+
+    private async Task<ConversionResult> ConvertDocumentToPdfAsync(ConversionJob job, string outputPath,
+        string extension, CancellationToken ct, IProgress<double>? progress)
+    {
+        string application = DocumentApplication(extension);
+        string work = Path.Combine(Path.GetTempPath(), "CortexFX-DocumentPdf-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+        try
+        {
+            string candidate = Path.Combine(work, "office.pdf");
+            string? officeFailure = null;
+            bool valid = false;
+            if (_office.IsApplicationInstalled(application))
+            {
+                try
+                {
+                    await _office.ConvertToPdfAsync(job.InputPath, candidate, job.QualityLevel < 30 ? 0 : 1, ct, progress);
+                    ct.ThrowIfCancellationRequested();
+                    DocumentPdfOutput.Validate(candidate);
+                    if (extension is ".doc" or ".ppt" or ".odt" or ".rtf" && !DocumentContentInspector.HasPdfContent(candidate, ct))
+                        throw new EmptyDocumentException();
+                    valid = true;
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (EmptyDocumentException) { throw; }
+                catch (Exception ex)
+                {
+                    ConsoleLogger.Error("DocumentPdf", ex.ToString());
+                    officeFailure = DocumentPdfOutput.ExplainOfficeFailure(application, ex);
+                }
+            }
+            if (!valid)
+            {
+                if (!_optional.CanConvert(extension, "pdf") || _optional.GetUnavailableReason(extension, "pdf") != null)
+                    return ConversionResult.Fail("PDF conversion failed: " + (officeFailure ?? $"Install Microsoft {application} desktop or LibreOffice."));
+                // A different staging path prevents a partial Office PDF from counting as a fallback result.
+                candidate = Path.Combine(work, "fallback.pdf");
+                try
+                {
+                    ConsoleLogger.Info("DocumentPdf", "Using LibreOffice for document PDF export.");
+                    var result = await _optional.ConvertAsync(job.InputPath, candidate, extension, "pdf", ct, progress);
+                    ct.ThrowIfCancellationRequested();
+                    if (!result.Success) throw new InvalidDataException(result.ErrorMessage ?? "LibreOffice did not finish.");
+                    DocumentPdfOutput.Validate(candidate);
+                    if (extension is ".doc" or ".ppt" or ".odt" or ".rtf" && !DocumentContentInspector.HasPdfContent(candidate, ct))
+                        throw new EmptyDocumentException();
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (EmptyDocumentException) { throw; }
+                catch (Exception ex)
+                {
+                    ConsoleLogger.Error("DocumentPdf", ex.ToString());
+                    return ConversionResult.Fail("PDF conversion failed: " + (officeFailure == null ? "" : officeFailure + " ") +
+                        "LibreOffice did not produce a valid PDF either. Check that the source opens normally and is not password-protected. See the log for details.");
+                }
+            }
+            ct.ThrowIfCancellationRequested();
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputPath))!);
+            File.Move(candidate, outputPath, true);
+            progress?.Report(100);
+            return ConversionResult.Ok(outputPath);
+        }
+        finally
+        {
+            try { Directory.Delete(work, true); }
+            catch (Exception ex) { ConsoleLogger.Warning("DocumentPdf", "Could not remove temporary conversion files: " + ex.Message); }
+        }
+    }
 
     private static bool IsDocumentToPdf(string ext, string target)
     {

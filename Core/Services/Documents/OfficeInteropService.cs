@@ -66,6 +66,8 @@ public sealed class OfficeInteropService : IOfficeInteropService
                                          CancellationToken ct = default, IProgress<double>? progress = null)
     {
         string extension = Path.GetExtension(inputFile).ToLowerInvariant();
+        if (extension is not (".xlsx" or ".xls"))
+            await new DocumentContentInspector().EnsureContentAsync(inputFile, ct);
 
         switch (extension)
         {
@@ -87,12 +89,15 @@ public sealed class OfficeInteropService : IOfficeInteropService
             default:
                 throw new NotSupportedException($"Format '{extension}' is not supported for PDF conversion.");
         }
+        ct.ThrowIfCancellationRequested();
+        DocumentPdfOutput.Validate(outputFile);
     }
 
     /// <inheritdoc />
     public async Task ConvertPdfToWordAsync(string inputFile, string outputFile,
                                              CancellationToken ct = default, IProgress<double>? progress = null)
     {
+        await new DocumentContentInspector().EnsureContentAsync(inputFile, ct);
         await RunOnStaAsync(() =>
         {
             Log($"Starting PDF to Word: {inputFile}");
@@ -256,7 +261,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
             app.DisplayAlerts = WdAlertLevel.wdAlertsNone;
             TrackOfficePid(app, existingWordPids);
 
-            doc = app.Documents.Open(inputFile, false, true);
+            doc = app.Documents.Open(Path.GetFullPath(inputFile), false, true, false);
 
             var optimization = qualityLevel == 0
                 ? WdExportOptimizeFor.wdExportOptimizeForOnScreen
@@ -271,13 +276,14 @@ public sealed class OfficeInteropService : IOfficeInteropService
             doc.Dispose();
             doc = null;
 
+            DocumentPdfOutput.Validate(absPath);
             Log("Word→PDF successful.");
             progress?.Report(100);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            Log($"Word→PDF Error: {ex.Message}");
+            Log($"Word→PDF Error: {ex}");
             throw new InvalidOperationException($"Cortex Engine Error (Word→PDF): {ex.Message}", ex);
         }
         finally
@@ -300,7 +306,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
             app.DisplayAlerts = false;
             TrackOfficePid(app, existingExcelPids);
 
-            wb = app.Workbooks.Open(inputFile, 0, true);
+            wb = app.Workbooks.Open(Path.GetFullPath(inputFile), 0, true);
 
             var quality = qualityLevel == 0
                 ? XlFixedFormatQuality.xlQualityMinimum
@@ -315,6 +321,7 @@ public sealed class OfficeInteropService : IOfficeInteropService
             wb.Dispose();
             wb = null;
 
+            DocumentPdfOutput.Validate(absPath);
             Log("Excel→PDF successful.");
             progress?.Report(100);
         }
@@ -347,8 +354,8 @@ public sealed class OfficeInteropService : IOfficeInteropService
             TrackOfficePid(app, existingPowerPointPids);
 
             progress?.Report(30);
-            pres = app.Presentations.Open(inputFile,
-                NetOffice.OfficeApi.Enums.MsoTriState.msoFalse,
+            pres = app.Presentations.Open(Path.GetFullPath(inputFile),
+                NetOffice.OfficeApi.Enums.MsoTriState.msoTrue,
                 NetOffice.OfficeApi.Enums.MsoTriState.msoFalse,
                 NetOffice.OfficeApi.Enums.MsoTriState.msoFalse);
 
@@ -380,13 +387,14 @@ public sealed class OfficeInteropService : IOfficeInteropService
             pres.Dispose();
             pres = null;
 
+            DocumentPdfOutput.Validate(absPath);
             Log("PPT→PDF successful.");
             progress?.Report(100);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            Log($"PPT→PDF Error: {ex.Message}");
+            Log($"PPT→PDF Error: {ex}");
             throw new InvalidOperationException($"Cortex Engine Error (PPT→PDF): {ex.Message}", ex);
         }
         finally
@@ -556,10 +564,17 @@ public sealed class OfficeInteropService : IOfficeInteropService
         }
     }
 
-    private static int GetOfficePid(object application)
+    internal static int GetOfficePid(object application)
     {
         try
         {
+            if (application is PowerPoint.Application powerPoint)
+            {
+                // PowerPoint's legacy dispatch HWND property is unavailable in newer Office versions.
+                var window = new PowerPoint.Tools.Contribution.CommonUtils(powerPoint).Application.HWND;
+                GetWindowThreadProcessId((IntPtr)window, out uint powerPointPid);
+                return (int)powerPointPid;
+            }
             dynamic app = application;
             int hwnd = app.Hwnd;
             GetWindowThreadProcessId((IntPtr)hwnd, out uint pid);

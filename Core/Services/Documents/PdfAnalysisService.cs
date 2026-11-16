@@ -6,8 +6,9 @@ public class PdfAnalysisService
 {
     public virtual Task<bool> HasUsableTextAsync(string path, CancellationToken ct = default) => Task.Run(() =>
     {
+        if (new FileInfo(path).Length == 0) throw new EmptyDocumentException();
         using var pdf = PdfiumViewer.PdfDocument.Load(path);
-        if (pdf.PageCount == 0) throw new InvalidDataException("The PDF has no pages.");
+        if (!DocumentContentInspector.HasPdfContent(pdf, ct)) throw new EmptyDocumentException();
         var pageText = new List<string>(pdf.PageCount);
         for (int page = 0; page < pdf.PageCount; page++)
         {

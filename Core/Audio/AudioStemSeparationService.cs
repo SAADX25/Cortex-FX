@@ -53,12 +53,12 @@ public sealed class AudioStemSeparationService(IProcessManager processes, string
         if (request.Start < TimeSpan.Zero || request.Duration <= TimeSpan.Zero)
             throw new ArgumentException("Select a non-empty audio range.");
         if (!File.Exists(request.SourcePath)) throw new FileNotFoundException("The source audio file is missing.", request.SourcePath);
-        if (!IsAvailable) throw new FileNotFoundException("The local AI engine is incomplete. Reinstall the Audio Studio build with its Resources folder.");
+        if (!IsAvailable) throw new FileNotFoundException("Download the optional AI engine from AI Audio Separator, then retry.");
         if (!Enum.IsDefined(request.Processor) || !Enum.IsDefined(request.OutputFormat))
             throw new ArgumentException("Choose a valid processor and output format.");
         if (request.Processor == AudioSeparationProcessor.Gpu)
         {
-            if (!IsGpuEngineAvailable) throw new AudioGpuUnavailableException("GPU engine files are missing. Use the GPU build or choose CPU.");
+            if (!IsGpuEngineAvailable) throw new AudioGpuUnavailableException("Download the GPU add-on from AI Audio Separator or choose CPU.");
             var device = (gpuDetector ?? AudioGpuDeviceDetector.Detect)();
             if (!device.Available) throw new AudioGpuUnavailableException(device.Reason);
         }

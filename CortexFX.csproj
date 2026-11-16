@@ -17,11 +17,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Resources\AudioSeparation\**\*" Exclude="Resources\AudioSeparation\Gpu\**\*">
+    <Content Include="tools\audio-resources.lock.json" Link="Resources\audio-resources.lock.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="Resources\AudioSeparation\Gpu\**\*" Condition="'$(IncludeAudioGpu)' != 'false'">
+    <Content Include="Resources\AudioSeparation\**\*.txt;Resources\AudioSeparation\Gpu\msvcp140*.dll;Resources\AudioSeparation\Gpu\vcruntime140*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Resources\AudioSeparation\**\*" Exclude="Resources\AudioSeparation\Gpu\**\*;Resources\AudioSeparation\**\*.txt" Condition="'$(IncludeAudioAi)' == 'true'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Resources\AudioSeparation\Gpu\**\*" Exclude="Resources\AudioSeparation\**\*.txt;Resources\AudioSeparation\Gpu\msvcp140*.dll;Resources\AudioSeparation\Gpu\vcruntime140*.dll" Condition="'$(IncludeAudioAi)' == 'true' and '$(IncludeAudioGpu)' == 'true'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
@@ -81,8 +89,8 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <Version>1.7.0</Version>
-    <FileVersion>1.7.0.0</FileVersion>
-    <AssemblyVersion>1.7.0.0</AssemblyVersion>
+    <Version>1.8.5</Version>
+    <FileVersion>1.8.5.0</FileVersion>
+    <AssemblyVersion>1.8.5.0</AssemblyVersion>
   </PropertyGroup>
 </Project>

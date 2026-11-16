@@ -106,26 +106,30 @@ public sealed class OptionalConversionService : IOptionalConversionService
             return ConversionResult.Fail("LibreOffice is required for this document conversion. Install LibreOffice or place soffice.exe in Resources\\LibreOffice\\program.");
         }
 
-        string outputDir = Path.GetDirectoryName(outputPath) ?? Path.GetTempPath();
+        string consoleLauncher = Path.ChangeExtension(soffice, ".com");
+        if (File.Exists(consoleLauncher)) soffice = consoleLauncher;
+        string work = Path.Combine(Path.GetTempPath(), "CortexFX-LibreOffice-" + Guid.NewGuid().ToString("N"));
+        string outputDir = Path.Combine(work, "output");
         Directory.CreateDirectory(outputDir);
-
-        string args = $"--headless --nologo --nodefault --nofirststartwizard --convert-to {target} --outdir \"{outputDir}\" \"{inputFile}\"";
-        await _processManager.RunAsync(soffice, args, ct);
-
-        string producedPath = Path.Combine(outputDir, $"{Path.GetFileNameWithoutExtension(inputFile)}.{target}");
-        if (!File.Exists(producedPath))
+        try
         {
-            return ConversionResult.Fail("LibreOffice finished, but the converted file was not found.");
+            string profile = new Uri(Path.Combine(work, "profile")).AbsoluteUri;
+            string args = $"-env:UserInstallation=\"{profile}\" --headless --nologo --nodefault --norestore --convert-to {target} --outdir \"{outputDir}\" \"{Path.GetFullPath(inputFile)}\"";
+            await _processManager.RunAsync(soffice, args, ct);
+            ct.ThrowIfCancellationRequested();
+            string producedPath = Path.Combine(outputDir, $"{Path.GetFileNameWithoutExtension(inputFile)}.{target}");
+            if (!File.Exists(producedPath) || new FileInfo(producedPath).Length == 0)
+                return ConversionResult.Fail("LibreOffice finished, but no converted file was created. Open the source document and check for password or format problems.");
+            if (target == "pdf") DocumentPdfOutput.Validate(producedPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputPath))!);
+            File.Move(producedPath, outputPath, true);
+            progress?.Report(100);
+            return ConversionResult.Ok(outputPath);
         }
-
-        if (!producedPath.Equals(outputPath, StringComparison.OrdinalIgnoreCase))
+        finally
         {
-            if (File.Exists(outputPath)) File.Delete(outputPath);
-            File.Move(producedPath, outputPath);
+            try { Directory.Delete(work, true); } catch { /* Conversion results are independent of temporary profile cleanup. */ }
         }
-
-        progress?.Report(100);
-        return ConversionResult.Ok(outputPath);
     }
 
     private async Task<ConversionResult> ConvertArchiveAsync(

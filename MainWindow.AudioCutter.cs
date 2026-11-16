@@ -67,8 +67,8 @@ public partial class MainWindow
             _currentMode = AppMode.AudioTrimmer;
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
             BackBtn.Visibility = Visibility.Visible;
-            ShowMainContent(AudioEditorGrid);
-            CurrentToolTitle.Text = "Audio Studio";
+            ShowMainContent(_audioSeparationMode ? AudioSeparatorEditor : AudioEditorGrid);
+            CurrentToolTitle.Text = _audioSeparationMode ? "AI Audio Separator" : "Audio Cutter";
             AudioEditorFileNameText.Text = System.IO.Path.GetFileName(filePath);
 
             // Initialize Audio + live spectrum analyzer in the playback chain
@@ -108,7 +108,8 @@ public partial class MainWindow
             // Wait for layout update to draw waveform correctly
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
             {
-                DrawWaveform();
+                if (_audioSeparationMode) _ = RenderSeparationWaveformAsync(filePath);
+                else DrawWaveform();
                 UpdateSelectionVisuals();
                 UpdateTimeDisplay();
                 UpdatePlaybackCursor();
@@ -496,7 +497,10 @@ public partial class MainWindow
 
     private void UpdatePlaybackCursor()
     {
-        if (_audioReader == null || WaveformContainer.ActualWidth <= 0) return;
+        if (_audioReader == null) return;
+        // The separator uses the same player while the cutter waveform is hidden.
+        UpdateCurrentTimeDisplay();
+        if (WaveformContainer.ActualWidth <= 0) return;
 
         double progress = 0;
         if (_audioReader.TotalTime.TotalSeconds > 0)
@@ -510,7 +514,6 @@ public partial class MainWindow
         PlaybackCursor.X1 = x;
         PlaybackCursor.X2 = x;
         PlaybackCursor.Y2 = Math.Max(1, WaveformContainer.ActualHeight);
-        UpdateCurrentTimeDisplay();
 
         if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
         {
@@ -680,6 +683,8 @@ public partial class MainWindow
         CurrentTimeDisplay.Text = _audioReader == null && previewTime == null
             ? "00:00.000"
             : FormatAudioTime(previewTime.HasValue ? ClampAudioTime(previewTime.Value) : ClampAudioTime(_audioReader!.CurrentTime));
+        AudioSeparatorEditor.SetPlaybackPosition(previewTime ?? _audioReader?.CurrentTime ?? TimeSpan.Zero,
+            _audioReader?.TotalTime ?? TimeSpan.Zero);
     }
 
     private void UpdateTimeDisplay()
@@ -804,7 +809,7 @@ public partial class MainWindow
             {
                 if (_waveOut.PlaybackState == PlaybackState.Playing)
                 {
-                    StopAudioPlayback(resetToSelectionStart: true);
+                    StopAudioPlayback(resetToSelectionStart: !_audioSeparationMode);
                     return;
                 }
 
@@ -815,7 +820,8 @@ public partial class MainWindow
                     return;
                 }
 
-                _audioReader.CurrentTime = _selectionStart;
+                if (!_audioSeparationMode || _audioReader.CurrentTime >= _selectionEnd)
+                    _audioReader.CurrentTime = _selectionStart;
                 UpdatePlaybackCursor();
                 _spectrumAnalyzer?.ResetLevels();
                 Array.Clear(_displaySpectrumBands);
@@ -846,10 +852,6 @@ public partial class MainWindow
         {
             _isPreviewMuted = !_isPreviewMuted;
         }
-        if (_audioReader != null)
-        {
-            _audioReader.Volume = _isPreviewMuted ? 0f : (float)_previewVolume;
-        }
         UpdatePreviewSoundButton();
     }
 
@@ -858,10 +860,6 @@ public partial class MainWindow
         _previewVolume = Math.Clamp(e.NewValue / 100.0, 0.0, 1.0);
         AudioGainText.Text = $"{(int)Math.Round(_previewVolume * 100)}%";
         UpdatePreviewSoundButton();
-        if (_audioReader != null && !_isPreviewMuted)
-        {
-            _audioReader.Volume = (float)_previewVolume;
-        }
     }
 
     private void UpdatePreviewSoundButton()
@@ -872,12 +870,17 @@ public partial class MainWindow
         PreviewSoundBtn.ToolTip = _previewVolume <= 0
             ? "Restore sound to 100%"
             : _isPreviewMuted ? "Unmute preview sound" : "Mute preview sound";
+        AudioSeparatorEditor.SetPreviewVolume(_previewVolume * 100, _isPreviewMuted);
+        float gain = _isPreviewMuted ? 0f : (float)_previewVolume;
+        if (_audioReader != null) _audioReader.Volume = gain;
+        if (_stemPreviewReader != null) _stemPreviewReader.Volume = gain;
     }
 
     private void UpdatePlaybackButton(bool playing)
     {
         PlaybackButtonIcon.Text = playing ? "\uE71A" : "\uE768";
         PlaybackButtonLabel.Text = playing ? "Stop" : "Play";
+        AudioSeparatorEditor.PreviewSourceBtn.Content = playing ? "■  Stop preview" : "▶  Preview song";
         PlaySelectionBtn.ToolTip = playing ? "Stop preview" : "Play selected range";
     }
 
@@ -1040,6 +1043,7 @@ public partial class MainWindow
 
     private void CloseAudioEditor(bool returnToPrevious)
     {
+        StopStemPreview();
         CancelAudioSeparation();
         CancelWaveformRender();
 
@@ -1065,6 +1069,7 @@ public partial class MainWindow
         }
 
         AudioEditorGrid.Visibility = Visibility.Collapsed;
+        AudioSeparatorEditor.Visibility = Visibility.Collapsed;
         DropZone.Visibility = Visibility.Visible;
         FilesList.Visibility = Visibility.Visible;
 

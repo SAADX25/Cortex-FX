@@ -4,409 +4,802 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
-             mc:Ignorable="d" d:DesignHeight="720" d:DesignWidth="960"
+             mc:Ignorable="d" d:DesignHeight="680" d:DesignWidth="1040"
              FontFamily="Segoe UI" Focusable="True" UseLayoutRounding="True" SnapsToDevicePixels="True"
              TextOptions.TextFormattingMode="Display"
+             Background="#121212"
              PreviewKeyDown="UserControl_PreviewKeyDown">
     <UserControl.Resources>
-        <SolidColorBrush x:Key="TextPrimary" Color="#F2F7FA"/>
-        <SolidColorBrush x:Key="TextSecondary" Color="#9CB1BF"/>
-        <SolidColorBrush x:Key="InfoColor" Color="#58C9EF"/>
-        <SolidColorBrush x:Key="SuccessColor" Color="#42D6A4"/>
-        <SolidColorBrush x:Key="DangerColor" Color="#F47788"/>
-        <Style x:Key="CutterFocusVisual" TargetType="Control">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Control">
-                        <Border Margin="-3" CornerRadius="10" BorderBrush="#7DD3FC"
-                                BorderThickness="2" IsHitTestVisible="False"/>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="CutterButton" TargetType="Button">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
-            <Setter Property="Background" Value="#172631"/>
-            <Setter Property="Foreground" Value="#E8F2F7"/>
-            <Setter Property="BorderBrush" Value="#365164"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Effect" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#244052"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#61B8D5"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.72"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.42"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource CutterButton}">
-            <Setter Property="Background" Value="#121B25"/>
-            <Setter Property="BorderBrush" Value="#2C4050"/>
-        </Style>
-        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource CutterButton}">
-            <Setter Property="Background" Value="#2A1C25"/>
-            <Setter Property="BorderBrush" Value="#67404C"/>
-            <Setter Property="Foreground" Value="#F5AAB5"/>
-        </Style>
-        <Style x:Key="SegmentButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="MinWidth" Value="30"/>
-            <Setter Property="Margin" Value="0,0,5,0"/>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="CutterTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Background="#0A1017">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#101B24" BorderBrush="#29404F"
-                BorderThickness="0,0,0,1" Padding="16,6">
+        <!-- Top Studio Bar -->
+        <Border Grid.Row="0" Background="#181818" BorderBrush="#2B2B2B"
+                BorderThickness="0,0,0,1" Padding="10,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="VIDEO CUTTER" Foreground="{StaticResource InfoColor}"
-                               FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Border Background="#123342" BorderBrush="#347D96" BorderThickness="1"
-                            CornerRadius="6" Padding="6,2" Margin="8,0,0,0">
-                        <TextBlock Text="PRECISION EDIT" FontSize="9" FontWeight="Bold"
-                                   Foreground="#A1E6F9"/>
+                    <Button x:Name="BackButton" Style="{StaticResource PremiereIconButton}" Click="BackButton_Click"
+                            Width="26" Height="24" Padding="0" Margin="0,0,8,0"
+                            AutomationProperties.Name="Back to tools"
+                            ToolTip="Back to tools · keeps your session active">
+                        <Path Data="M15,4 L7,12 L15,20 M7,12 H21" Stroke="#C8C8C8" StrokeThickness="1.6"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="12" Height="12" Stretch="Uniform"/>
+                    </Button>
+                    <TextBlock Text="Video Cutter" Foreground="{StaticResource TextPrimary}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Border Background="#1B3557" BorderBrush="#2D8CFF" BorderThickness="1"
+                            CornerRadius="2" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="PRO STUDIO" FontSize="8.5" FontWeight="Bold" Foreground="#9ACAFF"/>
                     </Border>
                 </StackPanel>
-                <TextBlock x:Name="FileNameText" Grid.Column="1" Text="Open a video to begin"
-                           Foreground="{StaticResource TextPrimary}" FontSize="12"
-                           FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                           Margin="16,0,12,0" VerticalAlignment="Center"/>
+
+                <TextBlock x:Name="FileNameText" Grid.Column="1" Text="No media loaded"
+                           Foreground="{StaticResource TextSecondary}" FontSize="11.5"
+                           TextTrimming="CharacterEllipsis" Margin="14,0,12,0" VerticalAlignment="Center"/>
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="BackgroundJobBadge" Visibility="Collapsed"
+                            Background="#193429" BorderBrush="#2E8B64" BorderThickness="1"
+                            CornerRadius="3" Padding="7,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="5" Height="5" Fill="#34D399" Margin="0,0,5,0"/>
+                            <TextBlock Text="Exporting" FontSize="10.5" Foreground="#A7F3D0" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Button x:Name="HeaderAddClipButton" Click="AddClipVideo_Click"
+                            Style="{StaticResource QuietButton}" Visibility="Collapsed"
+                            Height="24" MinHeight="24" Margin="0,0,5,0" Padding="8,2"
+                            ToolTip="Import additional video clips (any resolution or format)">
+                        <TextBlock Text="+ Add clip" FontSize="11"/>
+                    </Button>
                     <Button x:Name="PreviewFocusButton" Click="PreviewFocusButton_Click"
                             Style="{StaticResource QuietButton}" Visibility="Collapsed"
-                            Height="28" Margin="0,0,8,0" Padding="8,3"
-                            ToolTip="Expand the video preview">
-                        <TextBlock x:Name="PreviewFocusButtonLabel" Text="Focus preview"/>
+                            Height="24" MinHeight="24" Margin="0,0,5,0" Padding="8,2"
+                            ToolTip="Expand Program monitor (F)">
+                        <TextBlock x:Name="PreviewFocusButtonLabel" Text="Focus preview" FontSize="11"/>
                     </Button>
-                    <Border x:Name="BackgroundJobBadge" Visibility="Collapsed"
-                            Background="#17332C" BorderBrush="#3E9D78" BorderThickness="1"
-                            CornerRadius="8" Padding="8,5" VerticalAlignment="Center">
-                        <TextBlock Text="Export running in background" FontSize="11"
-                                   Foreground="#88E3BA" FontWeight="SemiBold"/>
+                    <Button x:Name="HeaderClearButton" Click="ClearFile_Click"
+                            Style="{StaticResource DangerButton}" Visibility="Collapsed"
+                            Height="24" MinHeight="24" Padding="8,2" ToolTip="Close current project">
+                        <TextBlock Text="Clear" FontSize="11"/>
+                    </Button>
+                    <Border x:Name="HeaderReadyPill" Background="#1F1F1F" BorderBrush="#333333" BorderThickness="1"
+                            CornerRadius="2" Padding="8,3" VerticalAlignment="Center">
+                        <TextBlock Text="ALL RESOLUTIONS · ALL FORMATS" FontSize="9" FontWeight="SemiBold" Foreground="#9A9A9A"/>
                     </Border>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Border x:Name="DropZoneBorder" Grid.Row="1" Margin="18"
-                Background="#101C25" BorderBrush="#385E70" BorderThickness="1"
-                CornerRadius="14" AllowDrop="True" Drop="DropZone_Drop"
-                DragEnter="DropZone_DragEnter" DragLeave="DropZone_DragLeave"
-                MouseLeftButtonUp="DropZone_Click" Cursor="Hand">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="38"
-                           Foreground="{StaticResource InfoColor}" HorizontalAlignment="Center"/>
-                <TextBlock Text="Open or drop a video" FontSize="20" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center"
-                           Margin="0,12,0,0"/>
-                <TextBlock Text="MP4, MOV, MKV, WEBM, AVI and more"
-                           FontSize="12" Foreground="{StaticResource TextSecondary}"
-                           HorizontalAlignment="Center" Margin="0,6,0,0"/>
-            </StackPanel>
-        </Border>
-
-        <Grid x:Name="EditorPanel" Grid.Row="1" Visibility="Collapsed" Margin="12,8,12,8">
+        <!-- Empty Drop Zone -->
+        <Grid x:Name="EmptyStatePanel" Grid.Row="1" Margin="18,14,18,16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+
+            <Border x:Name="DropZoneBorder" CornerRadius="6" Background="#1B1B1B"
+                    BorderBrush="#363636" BorderThickness="1.5"
+                    AllowDrop="True" Drop="DropZone_Drop"
+                    DragEnter="DropZone_DragEnter" DragLeave="DropZone_DragLeave"
+                    MouseLeftButtonUp="DropZone_Click" KeyDown="DropZone_KeyDown"
+                    Focusable="True" Cursor="Hand"
+                    FocusVisualStyle="{StaticResource CutterFocusVisual}"
+                    AutomationProperties.Name="Open or drop video files to cut and assemble">
+                <Grid>
+                    <Rectangle Stroke="#383838" StrokeDashArray="5,5" RadiusX="4" RadiusY="4"
+                               Margin="10" IsHitTestVisible="False"/>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                        <Border Width="58" Height="48" Background="#1D2B3D" BorderBrush="#2D8CFF"
+                                BorderThickness="1" CornerRadius="6" HorizontalAlignment="Center" Margin="0,0,0,14">
+                            <Path Data="M3,5 H18 V19 H3 Z M7,5 V19 M14,5 V19 M18,9 L23,6 V18 L18,15"
+                                  Stroke="#4EA1FF" StrokeThickness="1.5" StrokeLineJoin="Round"
+                                  Width="24" Height="20" Stretch="Uniform"/>
+                        </Border>
+                        <TextBlock Text="Import media to begin editing"
+                                   Foreground="{StaticResource TextPrimary}" FontSize="20" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Drop one or more video files here to open the timeline workspace."
+                                   Foreground="{StaticResource TextSecondary}" FontSize="12.5"
+                                   HorizontalAlignment="Center" Margin="0,6,0,16"/>
+                        <Button Content="Import Media" Click="ChooseVideo_Click"
+                                Style="{StaticResource PremierePrimaryButton}" MinWidth="144" Height="34"
+                                HorizontalAlignment="Center" FontSize="12.5"
+                                AutomationProperties.Name="Import one or more video files"/>
+                        <TextBlock Text="MP4 · MOV · MKV · WEBM · AVI · 4K · 9:16 Vertical · 16:9 Landscape · 1:1 Square"
+                                   FontSize="11" Foreground="#8C8C8C" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <UniformGrid Grid.Row="1" Columns="3" Margin="4,14,4,0">
+                <StackPanel Margin="8,0">
+                    <TextBlock Text="01  Import any format" Foreground="#DCDCDC" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Text="Combine clips across different resolutions, FPS, or vertical &amp; horizontal ratios."
+                               Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Margin="8,0">
+                    <TextBlock Text="02  Premiere timeline" Foreground="#DCDCDC" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Text="Use Select (V) or Razor (C) to cut, trim edges, and arrange V1/A1 tracks."
+                               Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Margin="8,0">
+                    <TextBlock Text="03  Fast export" Foreground="#DCDCDC" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Text="GPU-accelerated Smart Render or instant Fast Copy to MP4, MOV, MKV, WEBM, AVI."
+                               Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </UniformGrid>
+        </Grid>
+
+        <!-- Adobe Premiere Pro 4-Panel Dock Workspace -->
+        <Grid x:Name="EditorPanel" Grid.Row="1" Visibility="Collapsed" Background="#121212"
+              AllowDrop="True" Drop="EditorPanel_Drop">
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="TopDockRow" Height="1.10*" MinHeight="235"/>
+                <RowDefinition Height="3"/>
+                <RowDefinition x:Name="BottomDockRow" Height="0.90*" MinHeight="224"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top Row: Left Export Panel + Right Program Monitor -->
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2.15*"/>
-                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition x:Name="LeftDockCol" Width="314" MinWidth="268" MaxWidth="440"/>
+                    <ColumnDefinition Width="3"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Preview, transport and trim controls share one stable workspace. -->
-                <Grid x:Name="EditorLeftPanel" Grid.Column="0" Margin="0,0,10,0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#03080C" BorderBrush="#315265"
-                            BorderThickness="1" CornerRadius="11" ClipToBounds="True">
-                        <Grid>
-                            <ffme:MediaElement x:Name="PreviewMedia" Background="#03080C"
+                <!-- TOP-LEFT: Export Settings Panel -->
+                <Border x:Name="CutterSidePanel" Grid.Column="0" Style="{StaticResource PremierePanel}" Margin="2,2,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="26"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Premiere Panel Tab Header -->
+                        <Border Grid.Row="0" Background="#181818" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1" Padding="8,0">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border BorderBrush="#2D8CFF" BorderThickness="0,0,0,2" Padding="2,4,6,3">
+                                        <TextBlock Text="Export Settings" Foreground="#E6E6E6" FontSize="11.5" FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock x:Name="EncoderStatusText" Text="GPU Ready" HorizontalAlignment="Right"
+                                           VerticalAlignment="Center" Foreground="#4EA1FF" FontSize="10" FontWeight="SemiBold"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Settings Body -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                      Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="RENDER MODE" Foreground="{StaticResource TextMuted}" FontSize="9.5" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="5"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <RadioButton x:Name="ModeSmartRender" Grid.Column="0" GroupName="CutMode"
+                                                 IsChecked="True" Style="{StaticResource ModeChipRadio}"
+                                                 Checked="ExportOption_Changed"
+                                                 ToolTip="Frame-accurate cut &amp; montage join across all resolutions &amp; formats (GPU accelerated)">
+                                        <TextBlock Text="Smart Render"/>
+                                    </RadioButton>
+                                    <RadioButton x:Name="ModeFastCopy" Grid.Column="2" GroupName="CutMode"
+                                                 Style="{StaticResource ModeChipRadio}"
+                                                 Checked="ExportOption_Changed"
+                                                 ToolTip="Instant stream copy without re-encoding (keyframe-snapped on single source)">
+                                        <TextBlock Text="Fast Copy"/>
+                                    </RadioButton>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,7">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="0.9*"/>
+                                        <ColumnDefinition Width="7"/>
+                                        <ColumnDefinition Width="1.1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="FORMAT" Foreground="{StaticResource TextMuted}" FontSize="9.5" FontWeight="Bold" Margin="0,0,0,3"/>
+                                        <ComboBox x:Name="FormatCombo" Style="{StaticResource StudioComboBox}"
+                                                  SelectionChanged="ExportOption_Changed"
+                                                  AutomationProperties.Name="Output video format">
+                                            <ComboBoxItem Content="MP4 (H.264)" Tag="mp4" IsSelected="True"/>
+                                            <ComboBoxItem Content="Same as Source" Tag="auto"/>
+                                            <ComboBoxItem Content="MOV (QuickTime)" Tag="mov"/>
+                                            <ComboBoxItem Content="MKV (Matroska)" Tag="mkv"/>
+                                            <ComboBoxItem Content="WEBM (VP9)" Tag="webm"/>
+                                            <ComboBoxItem Content="AVI (Legacy)" Tag="avi"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="RESOLUTION" Foreground="{StaticResource TextMuted}" FontSize="9.5" FontWeight="Bold" Margin="0,0,0,3"/>
+                                        <ComboBox x:Name="ResolutionCombo" Style="{StaticResource StudioComboBox}"
+                                                  SelectionChanged="ExportOption_Changed"
+                                                  AutomationProperties.Name="Output video resolution">
+                                            <ComboBoxItem Content="Original" Tag="Original" IsSelected="True"/>
+                                            <ComboBoxItem Content="4K (2160p)" Tag="Uhd4K"/>
+                                            <ComboBoxItem Content="1440p (2K)" Tag="Qhd1440"/>
+                                            <ComboBoxItem Content="1080p (Full HD)" Tag="Fhd1080"/>
+                                            <ComboBoxItem Content="720p (HD)" Tag="Hd720"/>
+                                            <ComboBoxItem Content="480p (SD)" Tag="Sd480"/>
+                                            <ComboBoxItem Content="9:16 Vertical (1080×1920)" Tag="Vertical1080x1920"/>
+                                            <ComboBoxItem Content="1:1 Square (1080×1080)" Tag="Square1080x1080"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,7">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="0.9*"/>
+                                        <ColumnDefinition Width="7"/>
+                                        <ColumnDefinition Width="1.1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="SCALING" Foreground="{StaticResource TextMuted}" FontSize="9.5" FontWeight="Bold" Margin="0,0,0,3"/>
+                                        <ComboBox x:Name="AspectFitCombo" Style="{StaticResource StudioComboBox}"
+                                                  SelectionChanged="ExportOption_Changed"
+                                                  AutomationProperties.Name="Aspect ratio scaling mode">
+                                            <ComboBoxItem Content="Fit (No Crop)" Tag="FitPad" IsSelected="True"/>
+                                            <ComboBoxItem Content="Fill (Crop)" Tag="FillCrop"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="OUTPUT FOLDER" Foreground="{StaticResource TextMuted}" FontSize="9.5" FontWeight="Bold" Margin="0,0,0,3"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Background="#161616" BorderBrush="#363636" BorderThickness="1"
+                                                    CornerRadius="3" Padding="6,0" Height="26">
+                                                <TextBlock x:Name="OutputPathText" Text="" Foreground="#D0D0D0"
+                                                           FontSize="10.5" TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center"
+                                                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                                            </Border>
+                                            <Button Grid.Column="1" Style="{StaticResource QuietButton}" Content="…"
+                                                    Click="ChangeOutput_Click" Width="26" Height="26" MinHeight="26"
+                                                    Padding="0" Margin="4,0,0,0" ToolTip="Choose output folder"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock x:Name="ExportSummaryHint" Text="MP4 · Original · Fit Pad · Frame-accurate"
+                                           Foreground="#8C8C8C" FontSize="10" TextTrimming="CharacterEllipsis"/>
+
+                                <!-- Export Progress -->
+                                <Border x:Name="ProgressPanel" Visibility="Collapsed"
+                                        Background="#17202B" BorderBrush="#2D8CFF" BorderThickness="1"
+                                        CornerRadius="3" Padding="8,7" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,5">
+                                            <TextBlock x:Name="ProgressStatusText" Text="Exporting..."
+                                                       Foreground="#E6E6E6" FontSize="10.5" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,34,0"/>
+                                            <TextBlock x:Name="ProgressPercentText" Text="0%" HorizontalAlignment="Right"
+                                                       Foreground="#4EA1FF" FontSize="10.5" FontWeight="Bold"/>
+                                        </Grid>
+                                        <ProgressBar x:Name="ExportProgress" Minimum="0" Maximum="100" Value="0"
+                                                     Height="5" Foreground="#2D8CFF" Background="#101010"/>
+                                        <Button x:Name="CancelButton" Style="{StaticResource DangerButton}"
+                                                Content="Cancel" Click="CancelExport_Click"
+                                                MinHeight="22" Padding="8,2" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Export Result -->
+                                <Border x:Name="ResultCard" Visibility="Collapsed"
+                                        Background="#17261F" BorderBrush="#338262" BorderThickness="1"
+                                        CornerRadius="3" Padding="8,7" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock x:Name="ResultTitle" Text="Export complete" Foreground="#86EFAC"
+                                                   FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock x:Name="ResultDetailText" Text="" Foreground="#C7E3D7"
+                                                   FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,2,0,6"/>
+                                        <WrapPanel Orientation="Horizontal">
+                                            <Button x:Name="WatchOutputButton" Style="{StaticResource CutterButton}"
+                                                    Content="Watch" Click="PlayOutput_Click"
+                                                    MinHeight="23" Padding="8,2" Margin="0,0,5,4"
+                                                    ToolTip="Play exported video in default player"/>
+                                            <Button Style="{StaticResource CutterButton}" Content="Open folder"
+                                                    Click="OpenOutputFolder_Click" MinHeight="23" Padding="8,2" Margin="0,0,5,4"/>
+                                            <Button Style="{StaticResource QuietButton}" Content="New project"
+                                                    Click="CutAnother_Click" MinHeight="23" Padding="8,2" Margin="0,0,0,4"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Export Action Button -->
+                        <Border Grid.Row="2" Background="#1A1A1A" BorderBrush="#2C2C2C" BorderThickness="0,1,0,0" Padding="10,7">
+                            <Button x:Name="ExportButton" Click="ExportButton_Click"
+                                    Style="{StaticResource PremierePrimaryButton}" Height="32" FontSize="12">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M2,1 L10,6 L2,11 Z" Fill="White" Width="8" Height="10"
+                                          Stretch="Uniform" Margin="0,0,7,0"/>
+                                    <TextBlock x:Name="ExportButtonLabel" Text="Export Cut"/>
+                                </StackPanel>
+                            </Button>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <GridSplitter x:Name="WorkspaceColSplitter" Grid.Column="1" Width="3"
+                              HorizontalAlignment="Stretch" Background="#121212" ResizeBehavior="PreviousAndNext"/>
+
+                <!-- TOP-RIGHT: Program Monitor (Pure Adobe Premiere Style) -->
+                <Border x:Name="EditorLeftPanel" Grid.Column="2" Style="{StaticResource PremierePanel}" Margin="0,2,2,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="26"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Program Header Tab -->
+                        <Border x:Name="MonitorHeaderBar" Grid.Row="0" Background="#181818" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1" Padding="8,0">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border BorderBrush="#2D8CFF" BorderThickness="0,0,0,2" Padding="2,4,8,3">
+                                        <TextBlock Text="Program" Foreground="#E6E6E6" FontSize="11.5" FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock x:Name="MonitorMediaHudText" Text="" HorizontalAlignment="Right"
+                                           VerticalAlignment="Center" Foreground="#8C8C8C" FontSize="10.5"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Clean Matte-Black Video Stage -->
+                        <Grid Grid.Row="1" Background="#000000" ClipToBounds="True"
+                              MouseLeftButtonUp="MonitorSurface_MouseLeftButtonUp">
+                            <ffme:MediaElement x:Name="PreviewMedia" Background="#000000"
+                                              Stretch="Uniform" ScrubbingEnabled="True"
                                               LoadedBehavior="Manual" UnloadedBehavior="Close"
+                                              MediaOpening="PreviewMedia_MediaOpening"
                                               MediaOpened="PreviewMedia_MediaOpened"
                                               MediaFailed="PreviewMedia_MediaFailed"/>
-                            <TextBlock x:Name="PreviewPlaceholder" Text="Opening preview..."
-                                       Foreground="{StaticResource TextSecondary}" FontSize="13"
+
+                            <!-- Target Aspect Preview Guide (only when targeting 9:16 or 1:1) -->
+                            <Grid x:Name="AspectOverlayRoot" IsHitTestVisible="False" Visibility="Collapsed">
+                                <Border x:Name="AspectTargetFrame" BorderBrush="#AA2D8CFF" BorderThickness="1.5"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Border Background="#AA141414" CornerRadius="2" Padding="5,1"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5">
+                                        <TextBlock x:Name="AspectOverlayLabel" Text="TARGET 9:16"
+                                                   FontSize="9" FontWeight="Bold" Foreground="#7AB8FF"/>
+                                    </Border>
+                                </Border>
+                            </Grid>
+
+                            <TextBlock x:Name="PreviewPlaceholder" Text="Loading program..."
+                                       Foreground="{StaticResource TextSecondary}" FontSize="12.5"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        IsHitTestVisible="False"/>
                         </Grid>
-                    </Border>
 
-                    <Border Grid.Row="1" Background="#101B24" BorderBrush="#2D4555"
-                            BorderThickness="1" CornerRadius="9" Padding="7,4" Margin="0,6,0,6">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Style="{StaticResource CutterButton}" Click="PlayPause_Click"
-                                        Height="32" Margin="0,0,7,0" ToolTip="Play or pause (Space / K)">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="PlayPauseIcon" Text="&#xE768;"
-                                                   FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                                   Foreground="{StaticResource InfoColor}" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="PlayPauseLabel" Text="Play" Margin="7,0,0,0"
-                                                   Foreground="{StaticResource TextPrimary}"/>
+                        <!-- Premiere Program Timecode, Scrub Bar & Transport -->
+                        <Border Grid.Row="2" Background="#1D1D1D" BorderBrush="#2C2C2C" BorderThickness="0,1,0,0" Padding="10,3,10,5">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="14"/>
+                                    <RowDefinition Height="18"/>
+                                    <RowDefinition Height="30"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0: Interactive Program Seek Bar (works in Full View too) -->
+                                <Slider x:Name="ProgramScrubSlider" Grid.Row="0" Style="{StaticResource StudioSlider}"
+                                        Minimum="0" Maximum="1000" Value="0" VerticalAlignment="Center"
+                                        IsMoveToPointEnabled="True"
+                                        PreviewMouseLeftButtonDown="ProgramScrubSlider_PreviewMouseDown"
+                                        PreviewMouseLeftButtonUp="ProgramScrubSlider_PreviewMouseUp"
+                                        ValueChanged="ProgramScrubSlider_ValueChanged"
+                                        AutomationProperties.Name="Program video scrub timeline"
+                                        ToolTip="Drag or click to jump anywhere in video"/>
+
+                                <!-- Row 1: Blue Current Timecode | Fit Badge | Duration -->
+                                <Grid Grid.Row="1">
+                                    <TextBlock x:Name="PositionText" Text="00:00.00" Foreground="#4EA1FF"
+                                               FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold"
+                                               HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    <Border Background="#161616" BorderBrush="#333333" BorderThickness="1"
+                                            CornerRadius="2" Padding="7,1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock x:Name="MonitorFitBadgeText" Text="Fit" Foreground="#BDBDBD" FontSize="10"/>
+                                    </Border>
+                                    <TextBlock x:Name="MonitorTotalText" Text="00:00.00" Foreground="#CFCFCF"
+                                               FontFamily="Consolas" FontSize="11.5"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- Row 2: Far-Left Expand Video | Centered Transport | Clear Right Volume -->
+                                <Grid Grid.Row="2" Margin="0,2,0,0">
+                                    <Button x:Name="MonitorExpandButton" Style="{StaticResource QuietButton}"
+                                            Click="PreviewFocusButton_Click" MinHeight="25" Padding="8,2"
+                                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            ToolTip="Expand video to full view (F · Esc to exit)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="MonitorExpandIcon" Text="&#xE740;" FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="12.5" Foreground="#4EA1FF" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                            <TextBlock x:Name="MonitorExpandLabel" Text="Full view" FontSize="11"
+                                                       Foreground="#E6E6E6" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource PremiereIconButton}" Click="NudgeBack_Click"
+                                                ToolTip="Back 1 second (J · Shift+J for 0.1s)">
+                                            <TextBlock Text="−1s" FontSize="10.5" Foreground="#BDBDBD"/>
+                                        </Button>
+                                        <Button Style="{StaticResource PremiereIconButton}" Click="StepBackFrame_Click"
+                                                ToolTip="Step Back 1 Frame (Left / ,)">
+                                            <TextBlock Text="◀|" FontSize="10.5" Foreground="#D4D4D4"/>
+                                        </Button>
+                                        <Button Style="{StaticResource PremiereIconButton}" Click="PlayPause_Click"
+                                                Width="32" ToolTip="Play / Pause (Space / K)">
+                                            <TextBlock x:Name="PlayPauseIcon" Text="&#xE768;"
+                                                       FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                       Foreground="#FFFFFF"/>
+                                        </Button>
+                                        <Button Style="{StaticResource PremiereIconButton}" Click="StepForwardFrame_Click"
+                                                ToolTip="Step Forward 1 Frame (Right / .)">
+                                            <TextBlock Text="|▶" FontSize="10.5" Foreground="#D4D4D4"/>
+                                        </Button>
+                                        <Button Style="{StaticResource PremiereIconButton}" Click="NudgeForward_Click"
+                                                ToolTip="Forward 1 second (L · Shift+L for 0.1s)">
+                                            <TextBlock Text="+1s" FontSize="10.5" Foreground="#BDBDBD"/>
+                                        </Button>
+                                        <Button x:Name="SpeedButton" Style="{StaticResource PremiereIconButton}" Content="1.0×"
+                                                Click="CycleSpeed_Click" FontSize="10.5" Foreground="#4EA1FF" Margin="4,0,0,0"
+                                                ToolTip="Preview playback speed (0.5×, 1.0×, 1.5×, 2.0×)"/>
                                     </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource QuietButton}" Content="−1s"
-                                        Click="NudgeBack_Click" Height="32" Margin="0,0,5,0" ToolTip="Back 1 second (J)"/>
-                                <Button Style="{StaticResource QuietButton}" Content="+1s"
-                                        Click="NudgeForward_Click" Height="32" Margin="0,0,5,0" ToolTip="Forward 1 second (L)"/>
-                                <Button Style="{StaticResource QuietButton}" Content="−0.1"
-                                        Click="NudgeFineBack_Click" Height="32" Margin="0,0,5,0" ToolTip="Back 0.1 second (Shift+J)"/>
-                                <Button Style="{StaticResource QuietButton}" Content="+0.1"
-                                        Click="NudgeFineForward_Click" Height="32" ToolTip="Forward 0.1 second (Shift+L)"/>
-                            </StackPanel>
-                            <TextBlock x:Name="PositionText" Grid.Column="1" Text="00:00.0 / 00:00.0"
-                                       Foreground="#D4E6EF" FontFamily="Consolas" FontSize="12"
-                                       FontWeight="SemiBold" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
-                    </Border>
 
-                    <Border x:Name="CutterTimelinePanel" Grid.Row="2" Background="#111C26" BorderBrush="#2D4555"
-                            BorderThickness="1" CornerRadius="11" Padding="10,8">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid Grid.Row="0" Margin="0,0,0,6">
-                                <TextBlock Text="TIMELINE" Foreground="#EAF3F7" FontSize="11"
-                                           FontWeight="Bold" VerticalAlignment="Center"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <TextBlock Text="IN " Foreground="{StaticResource TextSecondary}" FontSize="10"/>
-                                    <TextBlock x:Name="InPointText" Text="00:00.0" Foreground="{StaticResource SuccessColor}"
-                                               FontFamily="Consolas" FontSize="11" FontWeight="Bold" Margin="0,0,10,0"/>
-                                    <TextBlock Text="OUT " Foreground="{StaticResource TextSecondary}" FontSize="10"/>
-                                    <TextBlock x:Name="OutPointText" Text="00:00.0" Foreground="{StaticResource DangerColor}"
-                                               FontFamily="Consolas" FontSize="11" FontWeight="Bold"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Button x:Name="MuteButton" Style="{StaticResource PremiereIconButton}"
+                                                Click="MuteToggle_Click" Width="28" Height="26"
+                                                ToolTip="Mute / unmute preview (M)">
+                                            <TextBlock x:Name="MuteIcon" Text="&#xE767;" FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="14.5" Foreground="#D4D4D4"/>
+                                        </Button>
+                                        <Slider x:Name="VolumeSlider" Style="{StaticResource StudioSlider}"
+                                                Width="96" Minimum="0" Maximum="1" Value="1" Margin="2,0,5,0"
+                                                ValueChanged="VolumeSlider_ValueChanged"
+                                                AutomationProperties.Name="Preview volume" ToolTip="Preview volume"/>
+                                        <TextBlock x:Name="VolumePercentText" Text="100%" Foreground="#C8C8C8"
+                                                   FontFamily="Consolas" FontSize="10.5" Width="34"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <GridSplitter x:Name="WorkspaceRowSplitter" Grid.Row="1" Height="3"
+                          HorizontalAlignment="Stretch" Background="#121212" ResizeBehavior="PreviousAndNext"/>
+
+            <!-- Bottom Row: Project Bin + Premiere Tool Strip + Timeline (V1/A1) -->
+            <Grid x:Name="CutterTimelinePanel" Grid.Row="2" Margin="2,0,2,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="264" MinWidth="200" MaxWidth="380"/>
+                    <ColumnDefinition Width="3"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- BOTTOM-LEFT: Project Media & Clips Bin -->
+                <Border Grid.Column="0" Style="{StaticResource PremierePanel}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="26"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#181818" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1" Padding="8,0">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border BorderBrush="#2D8CFF" BorderThickness="0,0,0,2" Padding="2,4,6,3">
+                                        <TextBlock Text="Project" Foreground="#E6E6E6" FontSize="11.5" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <TextBlock x:Name="SegmentsSummaryText" Text="0 · 00:00.0"
+                                               Foreground="#8C8C8C" FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource TinyClipButton}" Content="+ Slice"
+                                            Click="DuplicateSelectedOrAddSlice_Click" Margin="0,0,3,0"
+                                            ToolTip="Duplicate selected clip (Ctrl+D)"/>
+                                    <Button Style="{StaticResource TinyClipButton}" Content="+ Video"
+                                            Click="AddClipVideo_Click" Foreground="#4EA1FF"
+                                            ToolTip="Add another video to Project &amp; Timeline"/>
                                 </StackPanel>
                             </Grid>
-                            <Grid x:Name="TimelineHitArea" Grid.Row="1" Height="54" Cursor="Hand"
-                                  MouseLeftButtonDown="Timeline_MouseLeftButtonDown"
-                                  MouseMove="Timeline_MouseMove"
-                                  MouseLeftButtonUp="Timeline_MouseLeftButtonUp"
-                                  MouseLeave="Timeline_MouseLeave"
-                                  SizeChanged="Timeline_SizeChanged"
-                                  ToolTip="Click to seek. Drag the green or red edge to adjust In or Out.">
-                                <Border CornerRadius="6" Background="#08141B" BorderBrush="#37566A" BorderThickness="1"/>
-                                <UniformGrid x:Name="TimelineFrames" Columns="12" Margin="2"
-                                             ClipToBounds="True" IsHitTestVisible="False"/>
-                                <Border x:Name="SelectionBand" CornerRadius="3" Background="Transparent"
-                                        BorderThickness="1,2,1,2" IsHitTestVisible="False"
-                                        HorizontalAlignment="Left" VerticalAlignment="Stretch" Margin="0,2">
-                                    <Border.BorderBrush>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                            <GradientStop Color="#42D6A4" Offset="0"/>
-                                            <GradientStop Color="#77C7E8" Offset="0.5"/>
-                                            <GradientStop Color="#F47788" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.BorderBrush>
-                                </Border>
-                                <TextBlock x:Name="TimelineFramesHint" Text="Preparing video frames..."
-                                           Foreground="#C8DCE6" FontSize="10" FontWeight="SemiBold"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           IsHitTestVisible="False"/>
-                                <Border x:Name="Playhead" Width="2" Background="#FF9A6F"
-                                        HorizontalAlignment="Left" Margin="0,2"/>
-                                <Border x:Name="InMarker" Width="4" Background="{StaticResource SuccessColor}"
-                                        HorizontalAlignment="Left" Margin="0,1"/>
-                                <Border x:Name="OutMarker" Width="4" Background="{StaticResource DangerColor}"
-                                        HorizontalAlignment="Left" Margin="0,1"/>
-                            </Grid>
-                            <WrapPanel Grid.Row="2" Margin="0,7,0,0">
-                                <Button Style="{StaticResource CutterButton}" Content="Set In" Click="SetIn_Click"
-                                        Foreground="{StaticResource SuccessColor}" Margin="0,0,6,0" ToolTip="Mark start (I)"/>
-                                <Button Style="{StaticResource CutterButton}" Content="Set Out" Click="SetOut_Click"
-                                        Foreground="{StaticResource DangerColor}" Margin="0,0,6,0" ToolTip="Mark end (O)"/>
-                                <Button Style="{StaticResource CutterButton}" Content="+ Keep segment"
-                                        Click="AddSegment_Click" Margin="0,0,6,0" ToolTip="Add the marked range to the export"/>
-                                <Button Style="{StaticResource QuietButton}" Content="Play In → Out"
-                                        Click="PlaySelection_Click" ToolTip="Preview marked range"/>
-                            </WrapPanel>
-                        </Grid>
-                    </Border>
-                </Grid>
+                        </Border>
 
-                <!-- The segment queue scrolls independently; output controls remain available. -->
-                <Grid x:Name="CutterSidePanel" Grid.Column="1">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#111C26" BorderBrush="#2D4555"
-                            BorderThickness="1" CornerRadius="11" Padding="12,10" ClipToBounds="True">
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled" Padding="6">
+                            <ItemsControl x:Name="ClipsList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#181818" CornerRadius="3" Padding="6,5"
+                                                Margin="0,0,0,4" Cursor="Hand"
+                                                MouseLeftButtonUp="ClipCard_MouseLeftButtonUp">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="#2C2C2C"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="#2D8CFF"/>
+                                                            <Setter Property="Background" Value="#1E2A3A"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" Width="42" Height="26" CornerRadius="2"
+                                                        Background="#0D0D0D" BorderBrush="#333333" BorderThickness="1"
+                                                        ClipToBounds="True">
+                                                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Margin="7,0,4,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayTitle}" Foreground="#E2E2E2"
+                                                               FontSize="10.5" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding DisplayRange}" Foreground="#8E8E8E"
+                                                               FontSize="9.5" TextTrimming="CharacterEllipsis"
+                                                               Margin="0,1,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Button Style="{StaticResource TinyClipButton}" Content="↑"
+                                                            Click="SegmentMoveUp_Click" Tag="{Binding}"
+                                                            Margin="0,0,2,0" ToolTip="Move earlier"/>
+                                                    <Button Style="{StaticResource TinyClipButton}" Content="↓"
+                                                            Click="SegmentMoveDown_Click" Tag="{Binding}"
+                                                            Margin="0,0,2,0" ToolTip="Move later"/>
+                                                    <Button Style="{StaticResource TinyClipButton}" Content="×"
+                                                            Click="SegmentRemove_Click" Tag="{Binding}"
+                                                            Foreground="{StaticResource DangerColor}"
+                                                            ToolTip="Remove clip (Del)"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch"
+                              Background="#121212" ResizeBehavior="PreviousAndNext"/>
+
+                <!-- BOTTOM-RIGHT: Vertical Premiere Tool Strip + Timeline (V1 & A1) -->
+                <Grid Grid.Column="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="36"/>
+                        <ColumnDefinition Width="3"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Vertical Premiere Essential Toolbar -->
+                    <Border Grid.Column="0" Style="{StaticResource PremierePanel}" Padding="3,6">
+                        <StackPanel HorizontalAlignment="Center">
+                            <ToggleButton x:Name="SelectToolBtn" Style="{StaticResource PremiereToolToggle}"
+                                          IsChecked="True" Click="SelectTool_Click" Margin="0,0,0,4"
+                                          ToolTip="Selection Tool (V) — Select clip &amp; scrub timeline">
+                                <Path Data="M4,2 L4,14 L7.5,11 L10,16 L11.8,15 L9.3,10 L13.5,10 Z"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                      Width="12" Height="14" Stretch="Uniform"/>
+                            </ToggleButton>
+                            <ToggleButton x:Name="RazorToolBtn" Style="{StaticResource PremiereToolToggle}"
+                                          Click="RazorTool_Click" Margin="0,0,0,6"
+                                          ToolTip="Razor Tool (C) — Click anywhere on a clip to split">
+                                <Path Data="M3,3 L13,13 M13,3 L3,13 M3,13 A2,2 0 1 1 3,16.5 A2,2 0 1 1 3,13 M13,13 A2,2 0 1 1 13,16.5 A2,2 0 1 1 13,13"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                      StrokeThickness="1.5" Width="13" Height="13" Stretch="Uniform"/>
+                            </ToggleButton>
+                            <Border Height="1" Background="#323232" Width="22" Margin="0,2,0,6"/>
+                            <Button Style="{StaticResource PremiereIconButton}" Click="SplitAtPlayhead_Click"
+                                    Width="28" Height="26" Margin="0,0,0,3"
+                                    ToolTip="Split clip at playhead (S / Ctrl+B)">
+                                <TextBlock Text="✂" FontSize="12" Foreground="#4EA1FF"/>
+                            </Button>
+                            <Button Style="{StaticResource PremiereIconButton}" Click="DeleteSelectedClip_Click"
+                                    Width="28" Height="26" ToolTip="Delete selected clip (Del)">
+                                <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="#FCA5A5"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Timeline Panel -->
+                    <Border Grid.Column="2" Style="{StaticResource PremierePanel}">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="26"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <Grid Grid.Row="0">
-                                <TextBlock Text="KEEP SEGMENTS" Foreground="#EAF3F7" FontSize="11" FontWeight="Bold"/>
-                                <TextBlock x:Name="SegmentsSummaryText" Text="0 segments · 00:00.0 total"
-                                           HorizontalAlignment="Right" Foreground="{StaticResource InfoColor}"
-                                           FontSize="10"/>
-                            </Grid>
-                            <TextBlock x:Name="EmptySegmentsHint" Grid.Row="1"
-                                       Text="No segments added. Export uses the current In–Out range."
-                                       Foreground="{StaticResource TextSecondary}" FontSize="11"
-                                       TextWrapping="Wrap" Margin="0,10,0,0"/>
-                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled" Margin="0,9,0,0">
-                                <ItemsControl x:Name="SegmentsList">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#0B151C" BorderBrush="#294657"
-                                                    BorderThickness="1" CornerRadius="8"
-                                                    Padding="9,7" Margin="0,0,0,6">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel>
-                                                        <TextBlock Text="{Binding DisplayTitle}" Foreground="#EAF3F7"
-                                                                   FontSize="11" FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding DisplayRange}" Foreground="#9CB1BF"
-                                                                   FontSize="10" Margin="0,3,0,0"/>
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <Button Style="{StaticResource SegmentButton}" Content="↑"
-                                                                AutomationProperties.Name="Move segment up"
-                                                                Click="SegmentMoveUp_Click" Tag="{Binding}" ToolTip="Move segment up"/>
-                                                        <Button Style="{StaticResource SegmentButton}" Content="↓"
-                                                                AutomationProperties.Name="Move segment down"
-                                                                Click="SegmentMoveDown_Click" Tag="{Binding}" ToolTip="Move segment down"/>
-                                                        <Button Style="{StaticResource SegmentButton}" Content="×"
-                                                                AutomationProperties.Name="Remove segment"
-                                                                Click="SegmentRemove_Click" Tag="{Binding}" ToolTip="Remove segment"
-                                                                Margin="0" Foreground="{StaticResource DangerColor}"/>
-                                                    </StackPanel>
-                                                </Grid>
+
+                            <!-- Timeline Header -->
+                            <Border Grid.Row="0" Background="#181818" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1" Padding="8,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border BorderBrush="#2D8CFF" BorderThickness="0,0,0,2" Padding="2,4,6,3">
+                                            <TextBlock Text="Timeline" Foreground="#E6E6E6" FontSize="11.5" FontWeight="SemiBold"/>
+                                        </Border>
+                                        <TextBlock x:Name="TimelineTimecodeText" Text="00:00.00" Foreground="#4EA1FF"
+                                                   FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"
+                                                   Margin="8,0,6,0" VerticalAlignment="Center"/>
+                                        <Button x:Name="UndoButton" Style="{StaticResource PremiereIconButton}"
+                                                Click="Undo_Click" Width="21" Height="19" Margin="0,0,2,0"
+                                                IsEnabled="False" ToolTip="Undo (Ctrl+Z)">
+                                            <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                                        </Button>
+                                        <Button x:Name="RedoButton" Style="{StaticResource PremiereIconButton}"
+                                                Click="Redo_Click" Width="21" Height="19"
+                                                IsEnabled="False" ToolTip="Redo (Ctrl+Y)">
+                                            <TextBlock Text="&#xE7A6;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <Grid Grid.Column="1" ClipToBounds="True" Margin="6,0">
+                                        <StackPanel x:Name="TimelineSummaryPanel" Orientation="Horizontal"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="CLIP " Foreground="{StaticResource TextMuted}" FontSize="9" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="SelectedClipDurationText" Text="00:00.0" Foreground="#CFCFCF"
+                                                       FontFamily="Consolas" FontSize="10" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="TOTAL " Foreground="{StaticResource TextMuted}" FontSize="9" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="MontageTotalText" Text="00:00.0" Foreground="#4EA1FF"
+                                                       FontFamily="Consolas" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Border x:Name="RazorModeHint" Visibility="Collapsed"
+                                                Background="#2B181A" BorderBrush="#F87171" BorderThickness="1"
+                                                CornerRadius="2" Padding="7,1"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="Razor · Click clip · Esc"
+                                                       Foreground="#FCA5A5" FontSize="9.5" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <ToggleButton x:Name="LoopToggle" Style="{StaticResource LoopToggleStyle}"
+                                                      Content="Loop" Margin="0,0,6,0" ToolTip="Loop montage playback"/>
+                                        <Button Style="{StaticResource TinyClipButton}" Content="−" Click="ZoomOut_Click" ToolTip="Zoom out"/>
+                                        <Slider x:Name="ZoomSlider" Style="{StaticResource StudioSlider}"
+                                                Width="54" Minimum="1" Maximum="10" Value="1" Margin="3,0"
+                                                ValueChanged="ZoomSlider_ValueChanged"
+                                                AutomationProperties.Name="Timeline zoom"/>
+                                        <Button Style="{StaticResource TinyClipButton}" Content="+" Click="ZoomIn_Click" ToolTip="Zoom in"/>
+                                        <Button Style="{StaticResource TinyClipButton}" Content="Fit" Click="ZoomFit_Click"
+                                                Margin="3,0,0,0" ToolTip="Fit timeline"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Track Headers (V1/A1) + Scrollable V1/A1 Timeline -->
+                            <Grid Grid.Row="1" Background="#141414">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="58"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left Track Header Column (V1 / A1 Premiere Blue Badges) -->
+                                <Grid Grid.Column="0" Background="#1D1D1D">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="22"/>
+                                        <RowDefinition Height="106"/>
+                                        <RowDefinition Height="64"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Border Grid.Row="0" Background="#181818" BorderBrush="#2C2C2C" BorderThickness="0,0,1,1"/>
+                                    <Border Grid.Row="1" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="4,0">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Border Background="#2D8CFF" CornerRadius="2" Padding="5,2">
+                                                <TextBlock Text="V1" Foreground="White" FontSize="10" FontWeight="Bold"/>
                                             </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </ScrollViewer>
-                        </Grid>
-                    </Border>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Row="2" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="4,0">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Border Background="#2D8CFF" CornerRadius="2" Padding="4,2" Margin="0,0,4,0">
+                                                <TextBlock Text="A1" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                                            </Border>
+                                            <ToggleButton x:Name="TrackMuteButton" Style="{StaticResource TrackBadgeToggle}"
+                                                          Content="M" Click="TrackMute_Click"
+                                                          ToolTip="Mute / unmute audio track preview"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Row="3" BorderBrush="#2B2B2B" BorderThickness="0,0,1,0"/>
+                                </Grid>
 
-                    <Border Grid.Row="1" Background="#111C26" BorderBrush="#2D4555"
-                            BorderThickness="1" CornerRadius="11" Padding="12,9" Margin="0,9,0,0">
-                        <StackPanel>
-                            <TextBlock Text="OUTPUT FOLDER" Foreground="{StaticResource TextSecondary}"
-                                       FontSize="10" FontWeight="Bold"/>
-                            <TextBlock x:Name="OutputPathText" Text="" Foreground="#EAF3F7"
-                                       FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,4,0,7"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Style="{StaticResource QuietButton}" Content="Change folder"
-                                        Click="ChangeOutput_Click" Margin="0,0,6,0"/>
-                                <Button Style="{StaticResource DangerButton}" Content="Clear video"
-                                        Click="ClearFile_Click"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
+                                <!-- Right Scrollable Track Canvas -->
+                                <ScrollViewer x:Name="TimelineScrollViewer" Grid.Column="1"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Disabled"
+                                              PreviewMouseWheel="TimelineScrollViewer_PreviewMouseWheel"
+                                              SizeChanged="TimelineScrollViewer_SizeChanged">
+                                    <Grid x:Name="TimelineSurface" Height="192" Background="#141414"
+                                          HorizontalAlignment="Left" VerticalAlignment="Top"
+                                          AllowDrop="True" Drop="EditorPanel_Drop"
+                                          MouseLeftButtonDown="Timeline_MouseLeftButtonDown"
+                                          MouseMove="Timeline_MouseMove"
+                                          MouseLeftButtonUp="Timeline_MouseLeftButtonUp"
+                                          MouseLeave="Timeline_MouseLeave">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="22"/>
+                                            <RowDefinition Height="106"/>
+                                            <RowDefinition Height="64"/>
+                                        </Grid.RowDefinitions>
 
-                    <Border x:Name="ProgressPanel" Grid.Row="2" Visibility="Collapsed"
-                            Background="#12232D" BorderBrush="#32778B" BorderThickness="1"
-                            CornerRadius="10" Padding="11,8" Margin="0,9,0,0">
-                        <StackPanel>
-                            <Grid Margin="0,0,0,7">
-                                <TextBlock x:Name="ProgressStatusText" Text="Exporting..."
-                                           Foreground="#EAF3F7" FontSize="11" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="ProgressPercentText" Text="0%" HorizontalAlignment="Right"
-                                           Foreground="{StaticResource InfoColor}" FontSize="11" FontWeight="Bold"/>
+                                        <!-- Time Ruler -->
+                                        <Border Grid.Row="0" Background="#181818" BorderBrush="#2B2B2B" BorderThickness="0,0,0,1"/>
+                                        <Canvas x:Name="TimelineRulerCanvas" Grid.Row="0" IsHitTestVisible="False"/>
+
+                                        <!-- V1 Video Track -->
+                                        <Border Grid.Row="1" Background="#141414" BorderBrush="#252525" BorderThickness="0,0,0,1"/>
+                                        <Canvas x:Name="TimelineClipsCanvas" Grid.Row="1" ClipToBounds="True"/>
+
+                                        <!-- A1 Audio Track -->
+                                        <Border Grid.Row="2" Background="#121212" BorderBrush="#252525" BorderThickness="0,0,0,1"/>
+                                        <Canvas x:Name="TimelineAudioCanvas" Grid.Row="2" ClipToBounds="True"/>
+
+                                        <TextBlock x:Name="TimelineFramesHint" Grid.Row="1" Text=""
+                                                   Foreground="#8C8C8C" FontSize="10" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   IsHitTestVisible="False" Visibility="Collapsed"/>
+
+                                        <!-- Premiere Blue Playhead + Razor Hover Guide -->
+                                        <Canvas x:Name="TimelineOverlayCanvas" Grid.RowSpan="3" IsHitTestVisible="False">
+                                            <Line x:Name="RazorGuideLine" X1="0" X2="0" Y1="22" Y2="192"
+                                                  Stroke="#F87171" StrokeThickness="1.5" StrokeDashArray="3,2"
+                                                  Visibility="Collapsed"/>
+                                            <Border x:Name="PlayheadCap" Width="9" Height="11" Background="#2D8CFF"
+                                                    CornerRadius="1,1,4,4" Canvas.Left="0" Canvas.Top="11"/>
+                                            <Rectangle x:Name="PlayheadLine" Width="1.5" Height="172" Fill="#2D8CFF"
+                                                       Canvas.Left="3.75" Canvas.Top="20"/>
+                                            <Border x:Name="TimelineDragBadge" Visibility="Collapsed"
+                                                    Background="#E6141414" BorderBrush="#2D8CFF" BorderThickness="1"
+                                                    CornerRadius="2" Padding="5,1" Canvas.Top="24">
+                                                <TextBlock x:Name="TimelineDragBadgeText" Text="00:00.00"
+                                                           FontFamily="Consolas" FontSize="10" FontWeight="Bold"
+                                                           Foreground="#E6E6E6"/>
+                                            </Border>
+                                        </Canvas>
+                                    </Grid>
+                                </ScrollViewer>
                             </Grid>
-                            <ProgressBar x:Name="ExportProgress" Minimum="0" Maximum="100" Value="0"
-                                         Height="6" Foreground="{StaticResource InfoColor}"/>
-                            <Button x:Name="CancelButton" Style="{StaticResource DangerButton}"
-                                    Content="Cancel export" Click="CancelExport_Click"
-                                    HorizontalAlignment="Left" Margin="0,7,0,0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Border x:Name="ResultCard" Grid.Row="3" Visibility="Collapsed"
-                            Background="#132A27" BorderBrush="#438E72" BorderThickness="1"
-                            CornerRadius="10" Padding="11,8" Margin="0,9,0,0">
-                        <StackPanel>
-                            <TextBlock x:Name="ResultTitle" Text="Cut exported" Foreground="#A2E7C9"
-                                       FontWeight="Bold" FontSize="12"/>
-                            <TextBlock x:Name="ResultDetailText" Text="" Foreground="#C7DAD3"
-                                       FontSize="10" TextWrapping="Wrap" Margin="0,4,0,7"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Style="{StaticResource CutterButton}" Content="Open folder"
-                                        Click="OpenOutputFolder_Click" Margin="0,0,6,0"/>
-                                <Button Style="{StaticResource QuietButton}" Content="Cut another"
-                                        Click="CutAnother_Click"/>
-                            </StackPanel>
-                        </StackPanel>
+                        </Grid>
                     </Border>
                 </Grid>
             </Grid>
-
-            <Border x:Name="CutterExportDock" Grid.Row="1" Background="#111F29" BorderBrush="#2D4555"
-                    BorderThickness="1" CornerRadius="10" Padding="10,6" Margin="0,8,0,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="READY TO EXPORT" Foreground="#A9CEDD"
-                                   FontSize="10" FontWeight="Bold"/>
-                        <TextBlock Text="Current In–Out range or queued segments · MP4"
-                                   Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,3,0,0"/>
-                    </StackPanel>
-                    <Button x:Name="ExportButton" Grid.Column="1" Click="ExportButton_Click"
-                            Style="{StaticResource CutterButton}" Content="Export Cut"
-                            Width="178" Height="38" Background="#16728B" BorderBrush="#4AB8D5"
-                            Foreground="White" FontSize="14" FontWeight="Bold"/>
-                </Grid>
-            </Border>
         </Grid>
     </Grid>
 </UserControl>
