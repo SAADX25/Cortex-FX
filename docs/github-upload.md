@@ -31,7 +31,7 @@ Install a supported .NET 10 SDK on Windows x64, then run:
 
 ```powershell
 dotnet restore CortexFX.slnx
-dotnet test CortexFX.slnx -c Release
+dotnet build CortexFX.slnx -c Release --no-restore
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/Restore-AudioResources.ps1
 ```
 

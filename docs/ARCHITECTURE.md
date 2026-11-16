@@ -80,9 +80,9 @@ Keep Views thin: UI + calling services. Keep Services free of Window/UserControl
 
 Audio playback and shell navigation still share `MainWindow` state; the view extraction preserves the existing controls and behavior. A later pass can move the playback controller out of the partial window class.
 
-## Tests and CI
+## Build and CI
 
-`CortexFX.Tests` contains pure unit tests with fake engines, so Microsoft Office and bundled binaries are not required for the test run. Use `dotnet restore CortexFX.slnx`, `dotnet build CortexFX.slnx -c Release`, and `dotnet test CortexFX.slnx -c Release`. `.github/workflows/ci.yml` runs these steps on a Windows runner with .NET 10.
+Use `dotnet restore CortexFX.slnx` and `dotnet build CortexFX.slnx -c Release`. `.github/workflows/ci.yml` runs these steps on a Windows runner with .NET 10.
 
 ## DI registration
 

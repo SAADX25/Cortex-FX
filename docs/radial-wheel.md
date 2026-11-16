@@ -30,22 +30,4 @@ Image/PDF compression keeps the original bytes in the new output when optimizati
 
 The integration preserves the existing main-window startup, close-to-tray behavior and other tool settings. The wheel runs after the app starts, including while the main window is hidden. Quit from the existing tray menu stops monitoring and cancels the active wheel job; force-closing the process may leave a `.cortex-wheel-*` staging directory, while original files remain intact.
 
-## Verification
-
-```powershell
-dotnet test CortexFX.slnx -c Release
-```
-
-Tests include routing, alias exclusion, batch intersections, gesture thresholds/latching, ordinary-click release, polar hit testing, output collisions/concurrency, staging cleanup, settings validation, native image conversion (including HEIC/AVIF), real PDF merge/split/render/compression, ZIP, hashes, cancellation, partial failures and WPF rendering.
-
-For the optional actual FFmpeg integration test:
-
-```powershell
-$env:CORTEXFX_TEST_FFMPEG = "$PWD\Resources\ffmpeg.exe"
-$env:CORTEXFX_RADIAL_ARTIFACTS = "$PWD\docs\validation\radial"
-dotnet test CortexFX.slnx -c Release --logger "trx;LogFileName=radial-integration.trx"
-```
-
-It encodes all six audio outputs and all six video/GIF outputs, then checks extraction and compression. Without FFmpeg, only that integration test is explicitly skipped. Setting `CORTEXFX_RADIAL_ARTIFACTS` saves real WPF screenshots. The pre-integration project had 53 passing tests; the integrated suite has 84 passing tests with FFmpeg enabled.
-
-Manual Windows acceptance remains necessary for actual Explorer/desktop drag gestures and mixed-DPI monitor placement: run Cortex FX normally (at the same privilege level as Explorer), close the main window to the tray, drag a real PNG with Shift and drop onto WEBP, try Alt with two PDFs and choose merge, then try Ctrl with several files. Check that originals remain, duplicate outputs receive new names, and the wheel appears correctly on each monitor. Automated tests exercise rendering and gesture state; they do not simulate a human Explorer drag.
+Manual Windows acceptance remains necessary for actual Explorer/desktop drag gestures and mixed-DPI monitor placement: run Cortex FX normally (at the same privilege level as Explorer), close the main window to the tray, drag a real PNG with Shift and drop onto WEBP, try Alt with two PDFs and choose merge, then try Ctrl with several files. Check that originals remain, duplicate outputs receive new names, and the wheel appears correctly on each monitor.

@@ -85,8 +85,6 @@ OCR is optional and is not included in the release. Install Tesseract for Window
 
 Batch conversion limits concurrent work by engine: Office 1, FFmpeg 2, ImageMagick 3, PDF rendering 2, and PDF-to-Word/OCR 1. Office cleanup terminates only processes started and tracked by Cortex FX. FFmpeg diagnostics keep a bounded recent history.
 
-Unit tests live in `CortexFX.Tests`; `dotnet test CortexFX.slnx -c Release` runs them without Office or bundled media tools. GitHub Actions builds and tests on Windows with .NET 10.
-
 ### Archives *(optional — requires 7-Zip)*
 - Input: ZIP, RAR | Output: 7Z, ZIP, TAR
 

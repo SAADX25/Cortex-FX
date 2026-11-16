@@ -53,21 +53,5 @@ Office processes tracked as newly created by Cortex FX.
 Without the failing document and that computer's log, local tests cannot establish
 the exact reason for a failure on another computer.
 
-## Checks
-
-Regression tests cover silent success without a file, corrupt PDF output,
-preservation of previous exports, Office access-denied fallback, absent output
-from both engines, cancellation, and isolated LibreOffice profiles. Real Office
-checks are opt-in:
-
-```powershell
-$env:CORTEXFX_TEST_OFFICE = '1'
-dotnet test CortexFX.Tests/CortexFX.Tests.csproj -c Release --filter FullyQualifiedName~OfficePdfIntegrationTests
-```
-
-They generate sample Word/PowerPoint files locally, export PDF, reopen it with a
-second PDF library, and check page count and readable text. PowerPoint's input is
-read-only. They do not use personal documents or modify Office settings.
-
 References: [PowerPoint Presentations.Open](https://learn.microsoft.com/en-us/office/vba/api/powerpoint.presentations.open),
 [LibreOffice command-line parameters and user profiles](https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html).

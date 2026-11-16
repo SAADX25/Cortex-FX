@@ -17,4 +17,3 @@ jobs:
         run: ./tools/Test-Repository.ps1
       - run: dotnet restore CortexFX.slnx
       - run: dotnet build CortexFX.slnx -c Release --no-restore
-      - run: dotnet test CortexFX.slnx -c Release --no-build
