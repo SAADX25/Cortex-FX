@@ -14,7 +14,13 @@ public sealed record VideoMontageClip(
     bool HasAudio = true,
     int SourceWidth = 0,
     int SourceHeight = 0,
-    double SourceFps = 0)
+    double SourceFps = 0,
+    double AudioVolume = 1.0,
+    TimeSpan? TimelineStart = null,
+    double VideoScale = 1.0,
+    double VideoOffsetX = 0.0,
+    double VideoOffsetY = 0.0,
+    double VideoOpacity = 1.0)
 {
     public TimeSpan Duration => End > Start ? End - Start : TimeSpan.Zero;
 }
@@ -104,7 +110,9 @@ public sealed record VideoMontageExportRequest(
     VideoCutMode CutMode = VideoCutMode.AccurateEncode,
     VideoResolutionPreset Resolution = VideoResolutionPreset.Original,
     VideoAspectFitMode AspectFitMode = VideoAspectFitMode.FitPad,
-    int QualityCrf = 20);
+    int QualityCrf = 20,
+    IReadOnlyList<VideoMontageClip>? AudioOverlayClips = null,
+    IReadOnlyList<VideoMontageClip>? VideoOverlayClips = null);
 
 /// <summary>
 /// FFmpeg jobs: convert, trim, cut segments, montage export, extract audio, make GIF.

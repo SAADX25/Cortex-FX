@@ -12,7 +12,7 @@ CortexFX/
   Assets/                    App icons (logo.ico)
   Controls/                  Reusable UI pieces (ToolCard, …)
   Converters/                WPF value converters
-  Dialogs/                   Modal windows (ModernSuccessDialog, ModernConfirmDialog)
+  Dialogs/                   Modal windows (AppDialog, ModernMessageDialog, ModernConfirmDialog, ModernSuccessDialog)
   Views/
     Video/                   Feature UIs: VideoCompressorView, VideoCutterView
     Audio/                   AudioCutterView markup and event forwarding
@@ -57,7 +57,7 @@ Example: **Image Cropper**
 4. **Host the view** — add the control to `MainWindow.xaml` next to the other feature views and show/hide it like Video tools.
 5. **Engine logic** — put FFmpeg/Magick/process code in `Core/Services/Media/` (or Documents if Office/PDF). Prefer an interface in `Core/Interfaces/` and register it in `App.xaml.cs`.
 6. **Formats** — update `Core/Constants/MediaTypes.cs` if the tool needs new extensions or conversion rules.
-7. **Dialogs** — reuse `Dialogs/ModernSuccessDialog` / `ModernConfirmDialog` instead of Windows `MessageBox` when possible.
+7. **Dialogs** — use `Dialogs/AppDialog` (`ModernMessageDialog` / `ModernConfirmDialog`) or `ModernSuccessDialog` instead of Windows `MessageBox`.
 8. **Build** — `dotnet build .\CortexFX.csproj -c Debug` and smoke-test the happy path.
 
 Keep Views thin: UI + calling services. Keep Services free of Window/UserControl types.

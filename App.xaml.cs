@@ -6,6 +6,7 @@ using CortexFX.Core.Interfaces;
 using CortexFX.Core.Services.Documents;
 using CortexFX.Core.Services.Infrastructure;
 using CortexFX.Core.Services.Media;
+using CortexFX.Dialogs;
 using CortexFX.ViewModels;
 using CortexFX.Core.Radial;
 
@@ -44,12 +45,16 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             ConsoleLogger.Error("Unhandled", args.Exception.ToString());
-            MessageBox.Show(
-                "Cortex FX hit an unexpected problem. Your files were not deleted or uploaded.\n\n" +
-                $"A diagnostic log was saved here:\n{ConsoleLogger.LogFilePath}",
-                "Unexpected Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            string msg = "Cortex FX hit an unexpected problem. Your files were not deleted or uploaded.\n\n" +
+                         $"A diagnostic log was saved here:\n{ConsoleLogger.LogFilePath}";
+            try
+            {
+                AppDialog.ShowError(null, "Unexpected Error", msg);
+            }
+            catch
+            {
+                MessageBox.Show(msg, "Unexpected Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             args.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>

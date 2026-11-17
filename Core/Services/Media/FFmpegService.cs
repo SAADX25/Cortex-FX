@@ -21,6 +21,10 @@ public sealed class FFmpegService : IFFmpegService
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex StatusTimeRegex = new(@"\btime=(?<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly HashSet<string> PureAudioExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp3", ".wav", ".aac", ".m4a", ".flac", ".ogg", ".opus", ".wma", ".aiff", ".alac"
+    };
 
     // Probed once per process
     private readonly Lazy<HardwareCapabilities> _hwCaps;
@@ -159,13 +163,14 @@ public sealed class FFmpegService : IFFmpegService
         double fps = 0;
         string videoCodec = string.Empty;
 
+        bool isPureAudioExt = PureAudioExtensions.Contains(Path.GetExtension(filePath));
         string[] lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
         bool inVideoStream = false;
         foreach (string line in lines)
         {
             if (Regex.IsMatch(line, @"^\s*Stream #\d+:\d+.*?: Video:", RegexOptions.CultureInvariant))
             {
-                if (hasVideo)
+                if (isPureAudioExt || line.Contains("(attached pic)", StringComparison.OrdinalIgnoreCase) || hasVideo)
                 {
                     inVideoStream = false;
                     continue;
@@ -266,42 +271,61 @@ public sealed class FFmpegService : IFFmpegService
                         c.End > c.Start && c.Duration.TotalMilliseconds >= 40)
             .ToList();
 
-        if (validInput.Count == 0)
+        var validOverlays = (request.AudioOverlayClips ?? Array.Empty<VideoMontageClip>())
+            .Where(c => !string.IsNullOrWhiteSpace(c.SourcePath) && File.Exists(c.SourcePath) &&
+                        c.End > c.Start && c.Duration.TotalMilliseconds >= 40)
+            .OrderBy(c => c.TimelineStart ?? TimeSpan.Zero)
+            .ToList();
+
+        var validVideoOverlays = (request.VideoOverlayClips ?? Array.Empty<VideoMontageClip>())
+            .Where(c => !string.IsNullOrWhiteSpace(c.SourcePath) && File.Exists(c.SourcePath) &&
+                        c.End > c.Start && c.Duration.TotalMilliseconds >= 40)
+            .OrderBy(c => c.TimelineStart ?? TimeSpan.Zero)
+            .ToList();
+
+        if (validInput.Count == 0 && validOverlays.Count == 0 && validVideoOverlays.Count == 0)
             throw new ArgumentException("At least one valid montage clip (>= 40ms) is required.", nameof(request));
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
 
         // Ensure every clip has accurate source dimensions, FPS, and audio-presence flags.
         var probeCache = new Dictionary<string, VideoMediaInfo>(StringComparer.OrdinalIgnoreCase);
-        var clips = new List<VideoMontageClip>(validInput.Count);
-        foreach (VideoMontageClip clip in validInput)
+        async Task<List<VideoMontageClip>> ResolveDimsAsync(List<VideoMontageClip> source)
         {
-            if (clip.SourceWidth <= 0 || clip.SourceHeight <= 0 || clip.SourceFps <= 0)
+            var resolved = new List<VideoMontageClip>(source.Count);
+            foreach (VideoMontageClip clip in source)
             {
-                if (!probeCache.TryGetValue(clip.SourcePath, out VideoMediaInfo? probed))
+                if (clip.SourceWidth <= 0 || clip.SourceHeight <= 0 || clip.SourceFps <= 0)
                 {
-                    probed = await ProbeVideoAsync(clip.SourcePath, ct).ConfigureAwait(false);
-                    probeCache[clip.SourcePath] = probed;
-                }
+                    if (!probeCache.TryGetValue(clip.SourcePath, out VideoMediaInfo? probed))
+                    {
+                        probed = await ProbeVideoAsync(clip.SourcePath, ct).ConfigureAwait(false);
+                        probeCache[clip.SourcePath] = probed;
+                    }
 
-                clips.Add(clip with
+                    resolved.Add(clip with
+                    {
+                        HasAudio = probed.HasAudio,
+                        SourceWidth = clip.SourceWidth > 0 ? clip.SourceWidth : probed.DisplayWidth,
+                        SourceHeight = clip.SourceHeight > 0 ? clip.SourceHeight : probed.DisplayHeight,
+                        SourceFps = clip.SourceFps > 0 ? clip.SourceFps : probed.Fps
+                    });
+                }
+                else
                 {
-                    HasAudio = probed.HasAudio,
-                    SourceWidth = clip.SourceWidth > 0 ? clip.SourceWidth : probed.DisplayWidth,
-                    SourceHeight = clip.SourceHeight > 0 ? clip.SourceHeight : probed.DisplayHeight,
-                    SourceFps = clip.SourceFps > 0 ? clip.SourceFps : probed.Fps
-                });
+                    resolved.Add(clip);
+                }
             }
-            else
-            {
-                clips.Add(clip);
-            }
+            return resolved;
         }
 
-        string targetFmt = NormalizeOutputFormat(request.OutputFormat, request.OutputPath);
-        TimeSpan totalDuration = TimeSpan.FromSeconds(clips.Sum(c => c.Duration.TotalSeconds));
+        var clips = await ResolveDimsAsync(validInput).ConfigureAwait(false);
+        var videoOverlays = await ResolveDimsAsync(validVideoOverlays).ConfigureAwait(false);
 
-        if (CanUseLosslessCopy(clips, request, targetFmt))
+        string targetFmt = NormalizeOutputFormat(request.OutputFormat, request.OutputPath);
+        TimeSpan totalDuration = ComputeTimelineSpan(clips, validOverlays, videoOverlays);
+
+        if (CanUseLosslessCopy(clips, validOverlays, videoOverlays, request, targetFmt))
         {
             try
             {
@@ -319,19 +343,73 @@ public sealed class FFmpegService : IFFmpegService
             }
         }
 
-        await ExportSmartRenderAsync(clips, request, targetFmt, totalDuration, ct, progress).ConfigureAwait(false);
+        await ExportSmartRenderAsync(clips, validOverlays, videoOverlays, request, targetFmt, totalDuration, ct, progress).ConfigureAwait(false);
         progress?.Report(100);
+    }
+
+    private static bool HasTimelineGaps(IReadOnlyList<VideoMontageClip> clips)
+    {
+        if (clips.Count == 0) return false;
+        TimeSpan cursor = TimeSpan.Zero;
+        foreach (VideoMontageClip c in clips)
+        {
+            if (!c.TimelineStart.HasValue)
+            {
+                cursor += c.Duration;
+                continue;
+            }
+            if ((c.TimelineStart.Value - cursor).Duration() > TimeSpan.FromMilliseconds(25))
+                return true;
+            cursor = c.TimelineStart.Value + c.Duration;
+        }
+        return false;
+    }
+
+    private static bool HasCustomVideoTransform(VideoMontageClip c) =>
+        Math.Abs(c.VideoScale - 1.0) > 0.005 ||
+        Math.Abs(c.VideoOffsetX) > 0.003 ||
+        Math.Abs(c.VideoOffsetY) > 0.003 ||
+        Math.Abs(c.VideoOpacity - 1.0) > 0.005;
+
+    private static TimeSpan ComputeTimelineSpan(
+        IReadOnlyList<VideoMontageClip> clips,
+        IReadOnlyList<VideoMontageClip> overlayClips,
+        IReadOnlyList<VideoMontageClip> videoOverlays)
+    {
+        TimeSpan cursor = TimeSpan.Zero;
+        foreach (VideoMontageClip c in clips)
+        {
+            TimeSpan start = c.TimelineStart ?? cursor;
+            if (start < cursor) start = cursor;
+            cursor = start + c.Duration;
+        }
+        TimeSpan maxA2 = overlayClips.Count > 0
+            ? overlayClips.Max(o => (o.TimelineStart ?? TimeSpan.Zero) + o.Duration)
+            : TimeSpan.Zero;
+        TimeSpan maxV2 = videoOverlays.Count > 0
+            ? videoOverlays.Max(o => (o.TimelineStart ?? TimeSpan.Zero) + o.Duration)
+            : TimeSpan.Zero;
+        TimeSpan maxOverlay = maxA2 > maxV2 ? maxA2 : maxV2;
+        return cursor > maxOverlay ? cursor : maxOverlay;
     }
 
     private static bool CanUseLosslessCopy(
         IReadOnlyList<VideoMontageClip> clips,
+        IReadOnlyList<VideoMontageClip> overlayClips,
+        IReadOnlyList<VideoMontageClip> videoOverlays,
         VideoMontageExportRequest request,
         string targetFmt)
     {
+        if (clips.Count == 0 || overlayClips.Count > 0 || videoOverlays.Count > 0 || HasTimelineGaps(clips))
+            return false;
+
         if (request.CutMode == VideoCutMode.AccurateEncode)
             return false;
 
         if (request.Resolution != VideoResolutionPreset.Original)
+            return false;
+
+        if (clips.Any(c => Math.Abs(c.AudioVolume - 1.0) > 0.01 || HasCustomVideoTransform(c)))
             return false;
 
         string firstSource = clips[0].SourcePath;
@@ -412,27 +490,35 @@ public sealed class FFmpegService : IFFmpegService
 
     private async Task ExportSmartRenderAsync(
         IReadOnlyList<VideoMontageClip> clips,
+        IReadOnlyList<VideoMontageClip> overlayClips,
+        IReadOnlyList<VideoMontageClip> videoOverlays,
         VideoMontageExportRequest request,
         string targetFmt,
         TimeSpan totalDuration,
         CancellationToken ct,
         IProgress<double>? progress)
     {
-        var (targetW, targetH) = ResolveTargetCanvas(clips, request.Resolution);
-        double targetFps = ResolveTargetFps(clips);
+        IReadOnlyList<VideoMontageClip> refClips = clips.Count > 0 ? clips : videoOverlays;
+        var (targetW, targetH) = ResolveTargetCanvas(refClips, request.Resolution);
+        double targetFps = ResolveTargetFps(refClips);
         string fpsStr = targetFps.ToString("0.###", CultureInfo.InvariantCulture);
-        bool anyAudio = clips.Any(c => c.HasAudio);
+        bool hasVideoOverlays = videoOverlays.Count > 0;
+        bool hasAnyAudioOverlays = overlayClips.Count > 0 || videoOverlays.Any(v => v.HasAudio);
+        bool anyAudio = clips.Any(c => c.HasAudio) || hasAnyAudioOverlays;
         int crf = Math.Clamp(request.QualityCrf, 14, 34);
 
         string scaleFilter = BuildClipVideoFilter(targetW, targetH, request.AspectFitMode, fpsStr);
 
-        if (clips.Count == 1)
+        bool hasGaps = HasTimelineGaps(clips);
+        bool anyTransform = clips.Any(HasCustomVideoTransform);
+        if (clips.Count == 1 && !hasGaps && !hasAnyAudioOverlays && !hasVideoOverlays && !anyTransform)
         {
             VideoMontageClip c = clips[0];
             string ss = FormatTs(c.Start);
             string dur = FormatTs(c.Duration);
+            string volFilter = BuildVolumeFilterSuffix(c.AudioVolume);
             string audioArgs = c.HasAudio
-                ? "-map 0:a:0? -af \"aformat=sample_rates=48000:channel_layouts=stereo,aresample=async=1:first_pts=0\""
+                ? $"-map 0:a:0? -af \"aformat=sample_rates=48000:channel_layouts=stereo,aresample=async=1:first_pts=0{volFilter}\""
                 : "-an";
 
             await RunWithCpuFallbackAsync(
@@ -445,6 +531,39 @@ public sealed class FFmpegService : IFFmpegService
             return;
         }
 
+        // Build ordered V1 video + black-gap segments spanning [0 .. totalDuration]
+        var segments = new List<(bool IsGap, TimeSpan Duration, VideoMontageClip? Clip)>();
+        TimeSpan cursor = TimeSpan.Zero;
+        foreach (VideoMontageClip c in clips)
+        {
+            TimeSpan start = c.TimelineStart ?? cursor;
+            if (start < cursor) start = cursor;
+            TimeSpan gap = start - cursor;
+            if (gap > TimeSpan.FromMilliseconds(20))
+                segments.Add((true, gap, null));
+            segments.Add((false, c.Duration, c));
+            cursor = start + c.Duration;
+        }
+        TimeSpan trailingGap = totalDuration - cursor;
+        if (trailingGap > TimeSpan.FromMilliseconds(20) || segments.Count == 0)
+            segments.Add((true, trailingGap > TimeSpan.FromMilliseconds(20) ? trailingGap : totalDuration, null));
+
+        static int MakeEvenInt(int val) => Math.Max(2, (val + 1) & ~1);
+        (int ScaledW, int ScaledH, int PosX, int PosY) ComputeTransformBox(VideoMontageClip c)
+        {
+            int srcW = c.SourceWidth > 0 ? c.SourceWidth : targetW;
+            int srcH = c.SourceHeight > 0 ? c.SourceHeight : targetH;
+            double fitScale = request.AspectFitMode == VideoAspectFitMode.FillCrop
+                ? Math.Max(targetW / (double)srcW, targetH / (double)srcH)
+                : Math.Min(targetW / (double)srcW, targetH / (double)srcH);
+            double effScale = Math.Clamp(c.VideoScale, 0.10, 4.0);
+            int sw = MakeEvenInt((int)Math.Round(srcW * fitScale * effScale));
+            int sh = MakeEvenInt((int)Math.Round(srcH * fitScale * effScale));
+            int px = (int)Math.Round(targetW * 0.5 + c.VideoOffsetX * targetW - sw * 0.5);
+            int py = (int)Math.Round(targetH * 0.5 + c.VideoOffsetY * targetH - sh * 0.5);
+            return (sw, sh, px, py);
+        }
+
         string tempRoot = Path.Combine(Path.GetTempPath(), "CortexFX_Montage_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
         string filterScriptPath = Path.Combine(tempRoot, "montage_filter.txt");
@@ -454,36 +573,141 @@ public sealed class FFmpegService : IFFmpegService
             var inputs = new StringBuilder();
             var filter = new StringBuilder();
             var concatInputs = new StringBuilder();
+            int nextInputIndex = 0;
 
-            for (int i = 0; i < clips.Count; i++)
+            for (int segIdx = 0; segIdx < segments.Count; segIdx++)
             {
-                VideoMontageClip c = clips[i];
-                inputs.Append($"-ss {FormatTs(c.Start)} -t {FormatTs(c.Duration)} -i \"{c.SourcePath}\" ");
-                filter.Append($"[{i}:v:0]{scaleFilter},setpts=PTS-STARTPTS[v{i}];");
+                var (isGap, segDur, c) = segments[segIdx];
+                string durSec = Math.Max(0.04, segDur.TotalSeconds).ToString("0.###", CultureInfo.InvariantCulture);
 
-                if (anyAudio)
+                if (isGap || c == null)
                 {
-                    if (c.HasAudio)
+                    filter.Append($"color=c=black:s={targetW}x{targetH}:r={fpsStr}:d={durSec},setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v{segIdx}];");
+                    if (anyAudio)
                     {
-                        filter.Append($"[{i}:a:0]aformat=sample_rates=48000:channel_layouts=stereo,aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS[a{i}];");
+                        filter.Append($"anullsrc=r=48000:cl=stereo:d={durSec}[a{segIdx}];");
+                        concatInputs.Append($"[v{segIdx}][a{segIdx}]");
                     }
                     else
                     {
-                        string durSec = c.Duration.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
-                        filter.Append($"anullsrc=r=48000:cl=stereo:d={durSec}[a{i}];");
+                        concatInputs.Append($"[v{segIdx}]");
                     }
-                    concatInputs.Append($"[v{i}][a{i}]");
                 }
                 else
                 {
-                    concatInputs.Append($"[v{i}]");
+                    int inIdx = nextInputIndex++;
+                    inputs.Append($"-ss {FormatTs(c.Start)} -t {FormatTs(c.Duration)} -i \"{c.SourcePath}\" ");
+
+                    if (HasCustomVideoTransform(c))
+                    {
+                        var (sw, sh, px, py) = ComputeTransformBox(c);
+                        string alphaPart = c.VideoOpacity < 0.995
+                            ? $",format=yuva420p,colorchannelmixer=aa={Math.Clamp(c.VideoOpacity, 0.0, 1.0).ToString("0.###", CultureInfo.InvariantCulture)}"
+                            : ",format=yuv420p";
+                        filter.Append($"color=c=black:s={targetW}x{targetH}:r={fpsStr}:d={durSec},setsar=1,format=yuv420p[bg{segIdx}];");
+                        filter.Append($"[{inIdx}:v:0]scale={sw}:{sh}:flags=lanczos,setsar=1,fps={fpsStr}{alphaPart}[fg{segIdx}];");
+                        filter.Append($"[bg{segIdx}][fg{segIdx}]overlay=x={px}:y={py}:eof_action=pass,format=yuv420p,setpts=PTS-STARTPTS[v{segIdx}];");
+                    }
+                    else
+                    {
+                        filter.Append($"[{inIdx}:v:0]{scaleFilter},setpts=PTS-STARTPTS[v{segIdx}];");
+                    }
+
+                    if (anyAudio)
+                    {
+                        if (c.HasAudio)
+                        {
+                            string volFilter = BuildVolumeFilterSuffix(c.AudioVolume);
+                            filter.Append($"[{inIdx}:a:0]aformat=sample_rates=48000:channel_layouts=stereo,aresample=async=1:first_pts=0{volFilter},asetpts=PTS-STARTPTS[a{segIdx}];");
+                        }
+                        else
+                        {
+                            filter.Append($"anullsrc=r=48000:cl=stereo:d={durSec}[a{segIdx}];");
+                        }
+                        concatInputs.Append($"[v{segIdx}][a{segIdx}]");
+                    }
+                    else
+                    {
+                        concatInputs.Append($"[v{segIdx}]");
+                    }
                 }
             }
 
+            string baseVideoLabel = hasVideoOverlays ? "[v_base]" : "[vout]";
             if (anyAudio)
-                filter.Append($"{concatInputs}concat=n={clips.Count}:v=1:a=1[vout][aout]");
+            {
+                string baseAudioLabel = hasAnyAudioOverlays ? "[a_base]" : "[aout]";
+                filter.Append($"{concatInputs}concat=n={segments.Count}:v=1:a=1{baseVideoLabel}{baseAudioLabel}");
+            }
             else
-                filter.Append($"{concatInputs}concat=n={clips.Count}:v=1:a=0[vout]");
+            {
+                filter.Append($"{concatInputs}concat=n={segments.Count}:v=1:a=0{baseVideoLabel}");
+            }
+
+            var extraAudioLabels = new List<string>();
+            if (hasVideoOverlays)
+            {
+                string curV = "[v_base]";
+                for (int k = 0; k < videoOverlays.Count; k++)
+                {
+                    VideoMontageClip ov = videoOverlays[k];
+                    int inIdx = nextInputIndex++;
+                    inputs.Append($"-ss {FormatTs(ov.Start)} -t {FormatTs(ov.Duration)} -i \"{ov.SourcePath}\" ");
+
+                    var (sw, sh, px, py) = ComputeTransformBox(ov);
+                    double startSec = Math.Max(0.0, (ov.TimelineStart ?? TimeSpan.Zero).TotalSeconds);
+                    double endSec = startSec + Math.Max(0.04, ov.Duration.TotalSeconds);
+                    string sStr = startSec.ToString("0.###", CultureInfo.InvariantCulture);
+                    string eStr = endSec.ToString("0.###", CultureInfo.InvariantCulture);
+                    string alphaPart = ov.VideoOpacity < 0.995
+                        ? $",format=yuva420p,colorchannelmixer=aa={Math.Clamp(ov.VideoOpacity, 0.0, 1.0).ToString("0.###", CultureInfo.InvariantCulture)}"
+                        : ",format=yuv420p";
+
+                    filter.Append($";[{inIdx}:v:0]scale={sw}:{sh}:flags=lanczos,setsar=1,fps={fpsStr}{alphaPart},setpts=PTS-STARTPTS+{sStr}/TB[ov_v{k}]");
+                    string nextV = k == videoOverlays.Count - 1 ? "[vout]" : $"[v_st{k}]";
+                    filter.Append($";{curV}[ov_v{k}]overlay=x={px}:y={py}:enable='between(t,{sStr},{eStr})':eof_action=pass,format=yuv420p{nextV}");
+                    curV = nextV;
+
+                    if (ov.HasAudio)
+                    {
+                        string volFilter = BuildVolumeFilterSuffix(ov.AudioVolume);
+                        long delayMs = Math.Max(0L, (long)Math.Round(startSec * 1000.0));
+                        string delayPart = delayMs > 0 ? $",adelay={delayMs}:all=1" : string.Empty;
+                        filter.Append($";[{inIdx}:a:0]aformat=sample_rates=48000:channel_layouts=stereo,aresample=async=1:first_pts=0{volFilter}{delayPart},asetpts=PTS-STARTPTS[vov_a{k}]");
+                        extraAudioLabels.Add($"[vov_a{k}]");
+                    }
+                }
+            }
+
+            if (overlayClips.Count > 0)
+            {
+                for (int k = 0; k < overlayClips.Count; k++)
+                {
+                    VideoMontageClip ov = overlayClips[k];
+                    int inIdx = nextInputIndex++;
+                    inputs.Append($"-ss {FormatTs(ov.Start)} -t {FormatTs(ov.Duration)} -i \"{ov.SourcePath}\" ");
+                    string volFilter = BuildVolumeFilterSuffix(ov.AudioVolume);
+                    long delayMs = Math.Max(0L, (long)Math.Round((ov.TimelineStart ?? TimeSpan.Zero).TotalMilliseconds));
+                    string delayPart = delayMs > 0 ? $",adelay={delayMs}:all=1" : string.Empty;
+                    filter.Append($";[{inIdx}:a:0]aformat=sample_rates=48000:channel_layouts=stereo,aresample=async=1:first_pts=0{volFilter}{delayPart},asetpts=PTS-STARTPTS[aov{k}]");
+                    extraAudioLabels.Add($"[aov{k}]");
+                }
+            }
+
+            if (hasAnyAudioOverlays)
+            {
+                if (extraAudioLabels.Count > 0)
+                {
+                    var mixLabels = new StringBuilder("[a_base]");
+                    foreach (string lbl in extraAudioLabels)
+                        mixLabels.Append(lbl);
+                    filter.Append($";{mixLabels}amix=inputs={1 + extraAudioLabels.Count}:duration=first:normalize=0,alimiter=limit=0.98[aout]");
+                }
+                else
+                {
+                    filter.Append(";[a_base]acopy[aout]");
+                }
+            }
 
             await File.WriteAllTextAsync(filterScriptPath, filter.ToString(), ct).ConfigureAwait(false);
 
@@ -569,6 +793,14 @@ public sealed class FFmpegService : IFFmpegService
         if (validFps.All(f => Math.Abs(f - first) < 0.5))
             return Math.Clamp(first, 15, 60);
         return validFps.Any(f => f >= 50) ? 60 : 30;
+    }
+
+    private static string BuildVolumeFilterSuffix(double audioVolume)
+    {
+        double clamped = Math.Clamp(audioVolume, 0.0, 2.5);
+        if (Math.Abs(clamped - 1.0) <= 0.01)
+            return string.Empty;
+        return $",volume={clamped.ToString("0.###", CultureInfo.InvariantCulture)}";
     }
 
     private static string BuildClipVideoFilter(int targetW, int targetH, VideoAspectFitMode aspectFit, string fpsStr)

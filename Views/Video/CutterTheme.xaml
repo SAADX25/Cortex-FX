@@ -93,6 +93,43 @@
         </Style.Triggers>
     </Style>
 
+    <Style x:Key="PremiereRepeatIconButton" TargetType="RepeatButton">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#E2E2E2"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="MinWidth" Value="26"/>
+        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="3" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="#2F2F2F"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#424242"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="#1E4B85"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#2D8CFF"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.38"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="PremiereToolToggle" TargetType="ToggleButton">
         <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
         <Setter Property="Background" Value="Transparent"/>
@@ -453,9 +490,105 @@
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
                 <Setter Property="Width" Value="Auto"/>
-                <Setter Property="Height" Value="7"/>
-                <Setter Property="MinHeight" Value="7"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="Height" Value="9"/>
+                <Setter Property="MinHeight" Value="9"/>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <Style x:Key="StudioContextMenu" TargetType="ContextMenu">
+        <Setter Property="Background" Value="#1E1F24"/>
+        <Setter Property="BorderBrush" Value="#383B44"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="HasDropShadow" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="5" Padding="{TemplateBinding Padding}">
+                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="StudioMenuItem" TargetType="MenuItem">
+        <Setter Property="Foreground" Value="#E2E5EB"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="Bg" Background="Transparent" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{TemplateBinding InputGestureText}"
+                                       Foreground="#7F8796" FontFamily="Consolas" FontSize="10"
+                                       Margin="18,0,0,0" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="#1E4B85"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="StudioMenuSeparator" TargetType="Separator">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Margin" Value="6,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Background="#2E323B" Height="1"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="StudioProgressBar" TargetType="ProgressBar">
+        <Setter Property="Background" Value="#101218"/>
+        <Setter Property="Foreground" Value="#2D8CFF"/>
+        <Setter Property="BorderBrush" Value="#2A2F3A"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Height" Value="9"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border x:Name="PART_Track" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4.5" SnapsToDevicePixels="True">
+                        <Grid x:Name="PART_Indicator" HorizontalAlignment="Left" ClipToBounds="True">
+                            <Border CornerRadius="4">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#2172D4" Offset="0"/>
+                                        <GradientStop Color="#4EA1FF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

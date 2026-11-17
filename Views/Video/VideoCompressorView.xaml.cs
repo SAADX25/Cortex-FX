@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using CortexFX.Dialogs;
 using Microsoft.Win32;
 
 namespace CortexFX.Views.Video;
@@ -128,11 +129,10 @@ public partial class VideoCompressorView : UserControl
     {
         if (IsCompressing)
         {
-            MessageBox.Show(
-                "A compression job is already running. Wait for it to finish or cancel it first.",
+            AppDialog.ShowInfo(
+                this,
                 "Compression in progress",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "A compression job is already running. Wait for it to finish or cancel it first.");
             e.Handled = true;
             return;
         }
@@ -170,19 +170,20 @@ public partial class VideoCompressorView : UserControl
     {
         if (IsCompressing)
         {
-            MessageBox.Show(
-                "Finish or cancel the current compression before loading another video.",
+            AppDialog.ShowInfo(
+                this,
                 "Compression in progress",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "Finish or cancel the current compression before loading another video.");
             return;
         }
 
         string ext = Path.GetExtension(path).ToLowerInvariant();
         if (Array.IndexOf(SupportedExtensions, ext) < 0)
         {
-            MessageBox.Show($"Unsupported format: {ext}\n\nSupported: MP4, MOV, AVI, MKV, WEBM, FLV, WMV",
-                "Unsupported File", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppDialog.ShowWarning(
+                this,
+                "Unsupported File",
+                $"Unsupported format: {ext}\n\nSupported: MP4, MOV, AVI, MKV, WEBM, FLV, WMV");
             return;
         }
 
@@ -219,12 +220,13 @@ public partial class VideoCompressorView : UserControl
     {
         if (IsCompressing)
         {
-            var answer = MessageBox.Show(
-                "Compression is still running. Cancel it and clear this video?",
-                "Cancel compression?",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-            if (answer != MessageBoxResult.Yes)
+            if (!AppDialog.Confirm(
+                    this,
+                    "Cancel compression?",
+                    "Compression is still running. Cancel it and clear this video?",
+                    confirmText: "Cancel & Clear",
+                    cancelText: "Keep Running",
+                    tone: DialogTone.Danger))
                 return;
         }
 
@@ -360,13 +362,13 @@ public partial class VideoCompressorView : UserControl
     private void ChangeOutput_Click(object sender, RoutedEventArgs e)
     {
         if (IsCompressing) return;
-        var dlg = new System.Windows.Forms.FolderBrowserDialog
+        var dlg = new OpenFolderDialog
         {
-            Description = "Select output folder for compressed video"
+            Title = "Select output folder for compressed video"
         };
-        if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        if (dlg.ShowDialog() == true)
         {
-            _outputFolderOverride = dlg.SelectedPath;
+            _outputFolderOverride = dlg.FolderName;
             OutputPathText.Text = _outputFolderOverride;
         }
     }
@@ -380,14 +382,13 @@ public partial class VideoCompressorView : UserControl
 
         if (string.IsNullOrEmpty(_inputFilePath) || !File.Exists(_inputFilePath))
         {
-            MessageBox.Show("No input file selected.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppDialog.ShowWarning(this, "Error", "No input file selected.");
             return;
         }
 
         if (string.IsNullOrEmpty(_ffmpegPath) || !File.Exists(_ffmpegPath))
         {
-            MessageBox.Show("FFmpeg not found. Ensure ffmpeg.exe is in the Resources folder.",
-                "FFmpeg Missing", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppDialog.ShowError(this, "FFmpeg Missing", "FFmpeg not found. Ensure ffmpeg.exe is in the Resources folder.");
             return;
         }
 
@@ -476,7 +477,7 @@ public partial class VideoCompressorView : UserControl
             {
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    MessageBox.Show($"Compression failed:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    AppDialog.ShowError(this, "Compression Failed", $"Compression failed:\n{ex.Message}");
                     ProgressStatusText.Text = "Failed";
                     ProgressDetailText.Text = encoderLabel;
                     BackgroundJobBadge.Visibility = Visibility.Collapsed;

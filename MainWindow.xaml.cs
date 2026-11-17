@@ -128,7 +128,14 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ConsoleLogger.Error("Startup", ex.Message);
-            MessageBox.Show($"Startup Error: {ex}", "Cortex FX Crash", MessageBoxButton.OK, MessageBoxImage.Error);
+            try
+            {
+                AppDialog.ShowError(null, "Cortex FX Crash", $"Startup Error: {ex}");
+            }
+            catch
+            {
+                MessageBox.Show($"Startup Error: {ex}", "Cortex FX Crash", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             Application.Current.Shutdown();
         }
     }
@@ -801,11 +808,10 @@ public partial class MainWindow : Window
         if (_filesToConvert.Count >= MaxBatchFiles)
         {
             StatusText.Text = $"Batch limit reached ({MaxBatchFiles} files).";
-            MessageBox.Show(
-                $"Cortex FX can process up to {MaxBatchFiles} files in one batch. Start this batch first, then add more files.",
+            AppDialog.ShowInfo(
+                this,
                 "Batch Limit",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                $"Cortex FX can process up to {MaxBatchFiles} files in one batch. Start this batch first, then add more files.");
             return;
         }
 
@@ -940,9 +946,13 @@ public partial class MainWindow : Window
             }
 
             UpdateStatusText.Text = $"Version {release.Tag} is available.";
-            if (MessageBox.Show(
+            if (!AppDialog.Confirm(
+                    this,
+                    "Cortex FX Update",
                     $"Download and install Cortex FX {release.Tag}? The app will close while Setup replaces the installed version.",
-                    "Cortex FX Update", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                    confirmText: "Install Update",
+                    cancelText: "Later",
+                    tone: DialogTone.Question))
                 return;
 
             var progress = new Progress<double>(percent =>
@@ -956,8 +966,7 @@ public partial class MainWindow : Window
         {
             ConsoleLogger.Error("Update", ex.ToString());
             UpdateStatusText.Text = "Update failed. Check your connection or open GitHub Releases.";
-            MessageBox.Show($"Could not install the update:\n{ex.Message}", "Cortex FX Update",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppDialog.ShowWarning(this, "Cortex FX Update", $"Could not install the update:\n{ex.Message}");
         }
         finally
         {
@@ -1005,7 +1014,7 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
-            MessageBox.Show("The folder is not available yet.", "Folder Not Found", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppDialog.ShowInfo(null, "Folder Not Found", "The folder is not available yet.");
             return;
         }
 
@@ -1021,7 +1030,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ConsoleLogger.Error("Shell", $"Could not open folder {ConsoleLogger.ShortPath(folderPath)}: {ex.Message}");
-            MessageBox.Show($"Could not open the folder.\n\n{folderPath}", "Open Folder Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppDialog.ShowWarning(null, "Open Folder Failed", $"Could not open the folder.\n\n{folderPath}");
         }
     }
 
@@ -1033,7 +1042,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error registering context menu: {ex.Message}", "Registry Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppDialog.ShowError(this, "Registry Error", $"Error registering context menu: {ex.Message}");
             ContextMenuCheckBox.IsChecked = false;
         }
     }
@@ -1046,7 +1055,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error unregistering context menu: {ex.Message}", "Registry Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppDialog.ShowError(this, "Registry Error", $"Error unregistering context menu: {ex.Message}");
         }
     }
 
@@ -1112,7 +1121,7 @@ public partial class MainWindow : Window
                     }
                     else
                     {
-                        MessageBox.Show($"Universal Mode: Format '{ext}' is not supported yet.", "Not Supported", MessageBoxButton.OK, MessageBoxImage.Information);
+                        AppDialog.ShowInfo(this, "Not Supported", $"Universal Mode: Format '{ext}' is not supported yet.");
                         return; // Reject drop
                     }
                 }
@@ -1138,7 +1147,7 @@ public partial class MainWindow : Window
 
                 if (invalidFound)
                 {
-                    MessageBox.Show($"Some files were skipped because they don't match the current tool mode ({_currentMode}).", "Invalid File Type", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    AppDialog.ShowWarning(this, "Invalid File Type", $"Some files were skipped because they don't match the current tool mode ({_currentMode}).");
                 }
             }
         }
@@ -1666,14 +1675,14 @@ public partial class MainWindow : Window
 
         if (_filesToConvert.Count == 0)
         {
-            MessageBox.Show("Add at least one file before converting.", "No Files", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppDialog.ShowInfo(this, "No Files", "Add at least one file before converting.");
             UpdateConvertButtonAvailability();
             return;
         }
 
         if (_filesToConvert.Count > MaxBatchFiles)
         {
-            MessageBox.Show($"Reduce the batch to {MaxBatchFiles} files or fewer.", "Batch Too Large", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppDialog.ShowWarning(this, "Batch Too Large", $"Reduce the batch to {MaxBatchFiles} files or fewer.");
             return;
         }
 
@@ -1684,7 +1693,7 @@ public partial class MainWindow : Window
         if (targetFormat.Contains("ready", StringComparison.OrdinalIgnoreCase) ||
             targetFormat.Contains("no common", StringComparison.OrdinalIgnoreCase))
         {
-            MessageBox.Show("Choose a valid output format for the selected files.", "Output Format Needed", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppDialog.ShowInfo(this, "Output Format Needed", "Choose a valid output format for the selected files.");
             return;
         }
 
@@ -1696,7 +1705,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ConsoleLogger.Error("Conversion", $"Output folder unavailable: {ex.Message}");
-            MessageBox.Show($"Cortex FX could not use this output folder:\n{outputDir}\n\nChoose another folder and try again.", "Output Folder Unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppDialog.ShowWarning(this, "Output Folder Unavailable", $"Cortex FX could not use this output folder:\n{outputDir}\n\nChoose another folder and try again.");
             return;
         }
 
@@ -1879,12 +1888,11 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ConsoleLogger.Error("Conversion", $"Critical error: {ex}");
-            MessageBox.Show(
-                "Cortex FX could not complete the batch.\n\n" +
-                $"Details were written to:\n{ConsoleLogger.LogFilePath}",
+            AppDialog.ShowError(
+                this,
                 "Conversion Failed",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                "Cortex FX could not complete the batch.\n\n" +
+                $"Details were written to:\n{ConsoleLogger.LogFilePath}");
         }
         finally
         {

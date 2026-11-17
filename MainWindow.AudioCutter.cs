@@ -130,7 +130,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading audio: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppDialog.ShowError(this, "Error", $"Error loading audio: {ex.Message}");
             CloseAudioEditor(returnToPrevious: true);
         }
     }
@@ -816,7 +816,7 @@ public partial class MainWindow
                 NormalizeSelection();
                 if ((_selectionEnd - _selectionStart).TotalMilliseconds <= 0)
                 {
-                    MessageBox.Show("Select a valid audio range first.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Information);
+                    AppDialog.ShowInfo(this, "No Selection", "Select a valid audio range first.");
                     return;
                 }
 
@@ -836,7 +836,7 @@ public partial class MainWindow
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Could not play audio:\n{ex.Message}", "Playback Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppDialog.ShowError(this, "Playback Error", $"Could not play audio:\n{ex.Message}");
             }
         }
     }
@@ -916,7 +916,7 @@ public partial class MainWindow
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Could not stop audio:\n{ex.Message}", "Playback Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppDialog.ShowError(this, "Playback Error", $"Could not stop audio:\n{ex.Message}");
             }
         }
     }
@@ -934,7 +934,7 @@ public partial class MainWindow
         TimeSpan selectedDuration = _selectionEnd - _selectionStart;
         if (selectedDuration.TotalMilliseconds <= 0)
         {
-            MessageBox.Show("Select a valid audio range before saving.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Information);
+            AppDialog.ShowInfo(this, "No Selection", "Select a valid audio range before saving.");
             return;
         }
 
@@ -990,13 +990,13 @@ public partial class MainWindow
 
             if (string.Equals(outputFile, _currentAudioFile, StringComparison.OrdinalIgnoreCase))
             {
-                MessageBox.Show("Cannot overwrite the source file while it is open. Please choose a different name.", "File Locked", MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppDialog.ShowWarning(this, "File Locked", "Cannot overwrite the source file while it is open. Please choose a different name.");
                 return;
             }
 
             if (!File.Exists(_config.FFmpegPath))
             {
-                MessageBox.Show($"FFmpeg not found.\nExpected location:\n{_config.FFmpegPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppDialog.ShowError(this, "Error", $"FFmpeg not found.\nExpected location:\n{_config.FFmpegPath}");
                 return;
             }
 
@@ -1026,11 +1026,11 @@ public partial class MainWindow
             }
             catch (OperationCanceledException)
             {
-                MessageBox.Show("Audio save was cancelled.", "Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
+                AppDialog.ShowInfo(this, "Cancelled", "Audio save was cancelled.");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Save Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                AppDialog.ShowError(this, "Save Error", $"Save Error: {ex.Message}");
             }
             finally
             {
