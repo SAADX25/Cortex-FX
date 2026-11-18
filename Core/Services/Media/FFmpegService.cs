@@ -280,7 +280,6 @@ public sealed class FFmpegService : IFFmpegService
         var validVideoOverlays = (request.VideoOverlayClips ?? Array.Empty<VideoMontageClip>())
             .Where(c => !string.IsNullOrWhiteSpace(c.SourcePath) && File.Exists(c.SourcePath) &&
                         c.End > c.Start && c.Duration.TotalMilliseconds >= 40)
-            .OrderBy(c => c.TimelineStart ?? TimeSpan.Zero)
             .ToList();
 
         if (validInput.Count == 0 && validOverlays.Count == 0 && validVideoOverlays.Count == 0)
@@ -288,7 +287,7 @@ public sealed class FFmpegService : IFFmpegService
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
 
-        // Ensure every clip has accurate source dimensions, FPS, and audio-presence flags.
+        // Ensure every clip has accurate source dimensions, FPS, and audio-presence flags (respecting explicit mute/separation).
         var probeCache = new Dictionary<string, VideoMediaInfo>(StringComparer.OrdinalIgnoreCase);
         async Task<List<VideoMontageClip>> ResolveDimsAsync(List<VideoMontageClip> source)
         {
@@ -305,7 +304,7 @@ public sealed class FFmpegService : IFFmpegService
 
                     resolved.Add(clip with
                     {
-                        HasAudio = probed.HasAudio,
+                        HasAudio = clip.HasAudio && probed.HasAudio,
                         SourceWidth = clip.SourceWidth > 0 ? clip.SourceWidth : probed.DisplayWidth,
                         SourceHeight = clip.SourceHeight > 0 ? clip.SourceHeight : probed.DisplayHeight,
                         SourceFps = clip.SourceFps > 0 ? clip.SourceFps : probed.Fps

@@ -411,19 +411,42 @@
                             </Grid>
                         </Border>
 
-                        <!-- Clean Matte-Black Layered Video Stage (V1 Base + V2 Overlay + Interactive Premiere Motion Controls) -->
+                        <!-- Clean Matte-Black Layered Video Stage (V1 + V2 + V3 Overlay + Dedicated A1..A4 Audio Channels) -->
                         <Grid x:Name="ProgramStageGrid" Grid.Row="1" Background="#000000" ClipToBounds="True"
                               MouseLeftButtonUp="MonitorSurface_MouseLeftButtonUp"
                               MouseLeftButtonDown="ProgramStage_MouseLeftButtonDown"
                               MouseMove="ProgramStage_MouseMove"
                               MouseLeave="ProgramStage_MouseLeave"
                               SizeChanged="ProgramStageGrid_SizeChanged">
-                            <ffme:MediaElement x:Name="AudioOverlayMedia" Width="1" Height="1" Opacity="0"
+                            <!-- Hidden FFME Audio Decoders for A1..A4 (synced or independent audio editing) -->
+                            <ffme:MediaElement x:Name="Audio1Media" Tag="0" Width="1" Height="1" Opacity="0"
                                               IsHitTestVisible="False" Visibility="Hidden"
                                               LoadedBehavior="Manual" UnloadedBehavior="Manual"
-                                              MediaOpening="AudioOverlayMedia_MediaOpening"
-                                              MediaOpened="AudioOverlayMedia_MediaOpened"
-                                              MediaFailed="AudioOverlayMedia_MediaFailed"/>
+                                              MediaOpening="AudioChannelMedia_MediaOpening"
+                                              MediaOpened="AudioChannelMedia_MediaOpened"
+                                              MediaEnded="AudioChannelMedia_MediaEnded"
+                                              MediaFailed="AudioChannelMedia_MediaFailed"/>
+                            <ffme:MediaElement x:Name="Audio2Media" Tag="1" Width="1" Height="1" Opacity="0"
+                                              IsHitTestVisible="False" Visibility="Hidden"
+                                              LoadedBehavior="Manual" UnloadedBehavior="Manual"
+                                              MediaOpening="AudioChannelMedia_MediaOpening"
+                                              MediaOpened="AudioChannelMedia_MediaOpened"
+                                              MediaEnded="AudioChannelMedia_MediaEnded"
+                                              MediaFailed="AudioChannelMedia_MediaFailed"/>
+                            <ffme:MediaElement x:Name="Audio3Media" Tag="2" Width="1" Height="1" Opacity="0"
+                                              IsHitTestVisible="False" Visibility="Hidden"
+                                              LoadedBehavior="Manual" UnloadedBehavior="Manual"
+                                              MediaOpening="AudioChannelMedia_MediaOpening"
+                                              MediaOpened="AudioChannelMedia_MediaOpened"
+                                              MediaEnded="AudioChannelMedia_MediaEnded"
+                                              MediaFailed="AudioChannelMedia_MediaFailed"/>
+                            <ffme:MediaElement x:Name="AudioOverlayMedia" Tag="3" Width="1" Height="1" Opacity="0"
+                                              IsHitTestVisible="False" Visibility="Hidden"
+                                              LoadedBehavior="Manual" UnloadedBehavior="Manual"
+                                              MediaOpening="AudioChannelMedia_MediaOpening"
+                                              MediaOpened="AudioChannelMedia_MediaOpened"
+                                              MediaEnded="AudioChannelMedia_MediaEnded"
+                                              MediaFailed="AudioChannelMedia_MediaFailed"/>
 
                             <!-- V1 Base Layer -->
                             <Grid x:Name="V1TransformHost" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False">
@@ -432,16 +455,29 @@
                                                   LoadedBehavior="Manual" UnloadedBehavior="Manual"
                                                   MediaOpening="PreviewMedia_MediaOpening"
                                                   MediaOpened="PreviewMedia_MediaOpened"
+                                                  MediaEnded="PreviewMedia_MediaEnded"
                                                   MediaFailed="PreviewMedia_MediaFailed"/>
                             </Grid>
 
-                            <!-- V2 Overlay Video Layer (Picture-in-Picture / Layered Video) -->
+                            <!-- V2 Overlay Video Layer -->
                             <Grid x:Name="V2TransformHost" RenderTransformOrigin="0.5,0.5" Visibility="Collapsed" IsHitTestVisible="False">
-                                <ffme:MediaElement x:Name="OverlayVideoMedia" Background="Transparent"
+                                <ffme:MediaElement x:Name="OverlayVideoMedia" Tag="1" Background="Transparent"
                                                   Stretch="Uniform" ScrubbingEnabled="True"
                                                   LoadedBehavior="Manual" UnloadedBehavior="Manual"
                                                   MediaOpening="OverlayVideoMedia_MediaOpening"
                                                   MediaOpened="OverlayVideoMedia_MediaOpened"
+                                                  MediaEnded="OverlayVideoMedia_MediaEnded"
+                                                  MediaFailed="OverlayVideoMedia_MediaFailed"/>
+                            </Grid>
+
+                            <!-- V3 Top Overlay Video Layer -->
+                            <Grid x:Name="V3TransformHost" RenderTransformOrigin="0.5,0.5" Visibility="Collapsed" IsHitTestVisible="False">
+                                <ffme:MediaElement x:Name="OverlayVideo3Media" Tag="2" Background="Transparent"
+                                                  Stretch="Uniform" ScrubbingEnabled="True"
+                                                  LoadedBehavior="Manual" UnloadedBehavior="Manual"
+                                                  MediaOpening="OverlayVideoMedia_MediaOpening"
+                                                  MediaOpened="OverlayVideoMedia_MediaOpened"
+                                                  MediaEnded="OverlayVideoMedia_MediaEnded"
                                                   MediaFailed="OverlayVideoMedia_MediaFailed"/>
                             </Grid>
 
@@ -904,7 +940,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Expandable Premiere Audio Level Control Strip (A1) -->
+                            <!-- Expandable Premiere Audio Level Control Strip (A1 / A2 / A3 / A4) -->
                             <Border x:Name="AudioGainStrip" Grid.Row="1" Visibility="Collapsed"
                                     Background="#151D24" BorderBrush="#28414F" BorderThickness="0,0,0,1" Padding="10,4">
                                 <Grid>
@@ -917,15 +953,19 @@
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                                         <Border Background="#1B4657" BorderBrush="#41A7C4" BorderThickness="1"
                                                 CornerRadius="2" Padding="5,1" Margin="0,0,7,0">
-                                            <TextBlock Text="A1 LEVEL" Foreground="#9CE9FA" FontSize="8.5" FontWeight="Bold"/>
+                                            <TextBlock x:Name="AudioGainTrackBadgeText" Text="A1 LEVEL" Foreground="#9CE9FA" FontSize="8.5" FontWeight="Bold"/>
                                         </Border>
                                         <TextBlock x:Name="AudioGainClipTitle" Text="Clip #1"
                                                    Foreground="#D6E6EE" FontSize="10.5" FontWeight="SemiBold"
-                                                   MaxWidth="120" TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="140" TextTrimming="CharacterEllipsis"
                                                    VerticalAlignment="Center"/>
+                                        <Button x:Name="AudioRestoreBtn" Style="{StaticResource TinyClipButton}"
+                                                Content="+ Restore Audio" Visibility="Collapsed"
+                                                Click="AudioRestoreBtn_Click" Foreground="#38BDF8" Margin="8,0,0,0"
+                                                ToolTip="Separate / restore this video's audio onto its dedicated audio track"/>
                                     </StackPanel>
 
-                                    <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <Grid x:Name="AudioGainControlsHost" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
@@ -960,6 +1000,10 @@
                                     </Grid>
 
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="AudioUnlinkBtn" Style="{StaticResource TinyClipButton}"
+                                                Content="Unlink" Visibility="Collapsed"
+                                                Click="AudioUnlinkBtn_Click" Foreground="#FBBF24" Margin="0,0,6,0"
+                                                ToolTip="Unlink audio track clip from its parent video clip"/>
                                         <Button Style="{StaticResource TinyClipButton}" Content="-6 dB" Tag="-6"
                                                 Click="AudioPresetDb_Click" Margin="0,0,3,0" ToolTip="Attenuate -6.0 dB (50%)"/>
                                         <Button Style="{StaticResource TinyClipButton}" Content="0 dB" Tag="0"
@@ -970,90 +1014,142 @@
                                         <Button Style="{StaticResource TinyClipButton}" Content="+6 dB" Tag="6"
                                                 Click="AudioPresetDb_Click" Margin="0,0,6,0" ToolTip="Boost +6.0 dB (200%)"/>
                                         <Button Style="{StaticResource TinyClipButton}" Content="×" Width="20"
-                                                Click="AudioStripClose_Click" ToolTip="Collapse A1 audio strip"/>
+                                                Click="AudioStripClose_Click" ToolTip="Collapse audio strip"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <!-- Track Headers (V1/A1) + Scrollable V1/A1 Timeline -->
+                            <!-- Track Headers (V3/V2/V1 Video + A1/A2/A3/A4 Audio) + Scrollable Timeline -->
                             <Grid Grid.Row="2" Background="#141414">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="66"/>
+                                    <ColumnDefinition Width="68"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Left Track Header Column (V2 / V1 / A1 / A2 Premiere Badges) -->
-                                <Grid Grid.Column="0" Background="#1D1D1D">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition x:Name="TrackHeaderV2Row" Height="70"/>
-                                        <RowDefinition Height="90"/>
-                                        <RowDefinition x:Name="TrackHeaderA1Row" Height="60"/>
-                                        <RowDefinition x:Name="TrackHeaderA2Row" Height="48"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-                                    <Border Grid.Row="0" Background="#181818" BorderBrush="#2C2C2C" BorderThickness="0,0,1,1">
-                                        <TextBlock Text="FPS" x:Name="TrackHeaderFpsText" FontFamily="Consolas" FontSize="8.5"
-                                                   Foreground="#7A7A7A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <Border Grid.Row="1" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="3,0">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Border Background="#6E52A8" CornerRadius="2" Padding="5,2" Margin="0,0,3,0"
-                                                    ToolTip="V2 Overlay Video Track (drop a video here to layer on top of V1)">
-                                                <TextBlock Text="V2" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
-                                            </Border>
-                                            <ToggleButton x:Name="TrackV2MuteButton" Style="{StaticResource TrackBadgeToggle}"
-                                                          Content="M" Width="17" Height="17"
-                                                          Click="TrackV2Mute_Click"
-                                                          ToolTip="Mute / unmute V2 overlay audio"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Row="2" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="4,0">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Border Background="#2D8CFF" CornerRadius="2" Padding="6,2">
-                                                <TextBlock Text="V1" Foreground="White" FontSize="10" FontWeight="Bold"/>
-                                            </Border>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Row="3" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="3,4">
-                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                <Border Background="#2D8CFF" CornerRadius="2" Padding="4,2" Margin="0,0,2,0"
-                                                        Cursor="Hand" MouseLeftButtonUp="AudioTrackBadge_Click"
-                                                        ToolTip="Click A1 to expand audio track &amp; volume line control">
-                                                    <TextBlock Text="A1" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
+                                <!-- Left Track Header Column (Synchronized vertical scroll with Timeline) -->
+                                <ScrollViewer x:Name="TrackHeaderScrollViewer" Grid.Column="0"
+                                              Background="#1D1D1D"
+                                              VerticalScrollBarVisibility="Hidden"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              IsHitTestVisible="True"
+                                              Focusable="False">
+                                    <Grid x:Name="TrackHeadersGrid" Background="#1D1D1D" MinHeight="226">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="28"/>
+                                            <RowDefinition x:Name="TrackHeaderV3Row" Height="0"/>
+                                            <RowDefinition x:Name="TrackHeaderV2Row" Height="0"/>
+                                            <RowDefinition Height="90"/>
+                                            <RowDefinition x:Name="TrackHeaderA1Row" Height="60"/>
+                                            <RowDefinition x:Name="TrackHeaderA2Row" Height="0"/>
+                                            <RowDefinition x:Name="TrackHeaderA3Row" Height="0"/>
+                                            <RowDefinition x:Name="TrackHeaderA4Row" Height="48"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Border Grid.Row="0" Background="#181818" BorderBrush="#2C2C2C" BorderThickness="0,0,1,1">
+                                            <TextBlock Text="FPS" x:Name="TrackHeaderFpsText" FontFamily="Consolas" FontSize="8.5"
+                                                       Foreground="#7A7A7A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Border x:Name="V3TrackHeaderBorder" Grid.Row="1" Visibility="Collapsed" Opacity="0"
+                                                Background="#101B27" BorderBrush="#1F364D" BorderThickness="0,0,1,1" Padding="3,0">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border Background="#0369A1" CornerRadius="2" Padding="5,2" Margin="0,0,3,0"
+                                                        ToolTip="V3 Top Video Overlay Layer">
+                                                    <TextBlock Text="V3" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
                                                 </Border>
-                                                <ToggleButton x:Name="TrackMuteButton" Style="{StaticResource TrackBadgeToggle}"
-                                                              Content="M" Width="17" Height="17" Margin="0,0,2,0"
-                                                              Click="TrackMute_Click"
-                                                              ToolTip="Mute / unmute V1+A1 track preview"/>
-                                                <ToggleButton x:Name="AudioStripToggle" Style="{StaticResource TrackBadgeToggle}"
-                                                              Content="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="9"
-                                                              Width="17" Height="17"
-                                                              Click="AudioStripToggle_Click"
-                                                              ToolTip="Expand audio track &amp; open volume control strip"/>
+                                                <ToggleButton x:Name="TrackV3MuteButton" Tag="2" Style="{StaticResource TrackBadgeToggle}"
+                                                              Content="M" Width="17" Height="17"
+                                                              Click="TrackVideoMute_Click"
+                                                              ToolTip="Hide / mute V3 video layer"/>
                                             </StackPanel>
-                                            <TextBlock x:Name="TrackA1ScaleHint" Visibility="Collapsed"
-                                                       Text="-∞ · 0dB · +6" FontSize="7.5" FontFamily="Consolas"
-                                                       Foreground="#6BA9BD" HorizontalAlignment="Center" Margin="0,5,0,0"
-                                                       IsHitTestVisible="False"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Row="4" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="3,4">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Border Background="#1B7F79" CornerRadius="2" Padding="4,2" Margin="0,0,3,0"
-                                                    Cursor="Hand" MouseLeftButtonUp="AudioTrackA2Badge_Click"
-                                                    ToolTip="A2 Overlay Audio Track (drop .mp3/.wav from Project Bin)">
-                                                <TextBlock Text="A2" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
-                                            </Border>
-                                            <ToggleButton x:Name="TrackA2MuteButton" Style="{StaticResource TrackBadgeToggle}"
-                                                          Content="M" Width="17" Height="17"
-                                                          Click="TrackA2Mute_Click"
-                                                          ToolTip="Mute / unmute A2 overlay audio track"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Row="5" BorderBrush="#2B2B2B" BorderThickness="0,0,1,0"/>
-                                </Grid>
+                                        </Border>
+                                        <Border x:Name="V2TrackHeaderBorder" Grid.Row="2" Visibility="Collapsed" Opacity="0"
+                                                Background="#141C26" BorderBrush="#243244" BorderThickness="0,0,1,1" Padding="3,0">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border Background="#0284C7" CornerRadius="2" Padding="5,2" Margin="0,0,3,0"
+                                                        ToolTip="V2 Overlay Video Layer">
+                                                    <TextBlock Text="V2" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
+                                                </Border>
+                                                <ToggleButton x:Name="TrackV2MuteButton" Tag="1" Style="{StaticResource TrackBadgeToggle}"
+                                                              Content="M" Width="17" Height="17"
+                                                              Click="TrackVideoMute_Click"
+                                                              ToolTip="Hide / mute V2 overlay video layer"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Row="3" BorderBrush="#2F3B4A" BorderThickness="0,0,1,2" Padding="4,0">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border Background="#2D8CFF" CornerRadius="2" Padding="6,2">
+                                                    <TextBlock Text="V1" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Row="4" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="3,4">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Border Background="#2D8CFF" CornerRadius="2" Padding="4,2" Margin="0,0,2,0"
+                                                            Cursor="Hand" Tag="0" MouseLeftButtonUp="AudioTrackBadge_Click"
+                                                            ToolTip="Click A1 to expand audio track &amp; volume line control">
+                                                        <TextBlock Text="A1" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
+                                                    </Border>
+                                                    <ToggleButton x:Name="TrackMuteButton" Tag="0" Style="{StaticResource TrackBadgeToggle}"
+                                                                  Content="M" Width="17" Height="17" Margin="0,0,2,0"
+                                                                  Click="TrackAudioMute_Click"
+                                                                  ToolTip="Mute / unmute A1 audio track"/>
+                                                    <ToggleButton x:Name="AudioStripToggle" Style="{StaticResource TrackBadgeToggle}"
+                                                                  Content="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                                  Width="17" Height="17"
+                                                                  Click="AudioStripToggle_Click"
+                                                                  ToolTip="Expand audio waveform height &amp; open audio strip"/>
+                                                </StackPanel>
+                                                <TextBlock x:Name="TrackA1ScaleHint" Visibility="Collapsed"
+                                                           Text="-∞ · 0dB · +6" FontSize="7.5" FontFamily="Consolas"
+                                                           Foreground="#6BA9BD" HorizontalAlignment="Center" Margin="0,5,0,0"
+                                                           IsHitTestVisible="False"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border x:Name="A2TrackHeaderBorder" Grid.Row="5" Visibility="Collapsed" Opacity="0"
+                                                Background="#162127" BorderBrush="#223742" BorderThickness="0,0,1,1" Padding="3,2">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border Background="#0E7490" CornerRadius="2" Padding="4,2" Margin="0,0,3,0"
+                                                        Cursor="Hand" Tag="1" MouseLeftButtonUp="AudioTrackBadge_Click"
+                                                        ToolTip="A2 Separated Audio Track for V2 videos">
+                                                    <TextBlock Text="A2" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
+                                                </Border>
+                                                <ToggleButton x:Name="TrackA2MuteButton" Tag="1" Style="{StaticResource TrackBadgeToggle}"
+                                                              Content="M" Width="17" Height="17"
+                                                              Click="TrackAudioMute_Click"
+                                                              ToolTip="Mute / unmute A2 track"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border x:Name="A3TrackHeaderBorder" Grid.Row="6" Visibility="Collapsed" Opacity="0"
+                                                Background="#131E26" BorderBrush="#1F3444" BorderThickness="0,0,1,1" Padding="3,2">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border Background="#0369A1" CornerRadius="2" Padding="4,2" Margin="0,0,3,0"
+                                                        Cursor="Hand" Tag="2" MouseLeftButtonUp="AudioTrackBadge_Click"
+                                                        ToolTip="A3 Separated Audio Track for V3 videos">
+                                                    <TextBlock Text="A3" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
+                                                </Border>
+                                                <ToggleButton x:Name="TrackA3MuteButton" Tag="2" Style="{StaticResource TrackBadgeToggle}"
+                                                              Content="M" Width="17" Height="17"
+                                                              Click="TrackAudioMute_Click"
+                                                              ToolTip="Mute / unmute A3 track"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Row="7" BorderBrush="#2B2B2B" BorderThickness="0,0,1,1" Padding="3,4">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border Background="#1B7F79" CornerRadius="2" Padding="4,2" Margin="0,0,3,0"
+                                                        Cursor="Hand" Tag="3" MouseLeftButtonUp="AudioTrackBadge_Click"
+                                                        ToolTip="A4 Music &amp; External Audio Track (drop .mp3/.wav from Project Bin)">
+                                                    <TextBlock Text="A4" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
+                                                </Border>
+                                                <ToggleButton x:Name="TrackA4MuteButton" Tag="3" Style="{StaticResource TrackBadgeToggle}"
+                                                              Content="M" Width="17" Height="17"
+                                                              Click="TrackAudioMute_Click"
+                                                              ToolTip="Mute / unmute A4 music &amp; audio track"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Row="8" BorderBrush="#2B2B2B" BorderThickness="0,0,1,0"/>
+                                    </Grid>
+                                </ScrollViewer>
 
                                 <!-- Right Scrollable Track Canvas -->
                                 <ScrollViewer x:Name="TimelineScrollViewer" Grid.Column="1"
@@ -1062,7 +1158,7 @@
                                               ScrollChanged="TimelineScrollViewer_ScrollChanged"
                                               PreviewMouseWheel="TimelineScrollViewer_PreviewMouseWheel"
                                               SizeChanged="TimelineScrollViewer_SizeChanged">
-                                    <Grid x:Name="TimelineSurface" Height="296" Background="#141414"
+                                    <Grid x:Name="TimelineSurface" Height="226" Background="#141414"
                                           HorizontalAlignment="Left" VerticalAlignment="Top"
                                           AllowDrop="True"
                                           DragOver="Timeline_DragOver"
@@ -1075,55 +1171,84 @@
                                           LostMouseCapture="Timeline_LostMouseCapture">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="28"/>
-                                            <RowDefinition x:Name="TimelineV2Row" Height="70"/>
+                                            <RowDefinition x:Name="TimelineV3Row" Height="0"/>
+                                            <RowDefinition x:Name="TimelineV2Row" Height="0"/>
                                             <RowDefinition Height="90"/>
                                             <RowDefinition x:Name="TimelineA1Row" Height="60"/>
-                                            <RowDefinition x:Name="TimelineA2Row" Height="48"/>
+                                            <RowDefinition x:Name="TimelineA2Row" Height="0"/>
+                                            <RowDefinition x:Name="TimelineA3Row" Height="0"/>
+                                            <RowDefinition x:Name="TimelineA4Row" Height="48"/>
                                         </Grid.RowDefinitions>
 
                                         <!-- Time Ruler -->
                                         <Border Grid.Row="0" Background="#181818" BorderBrush="#2B2B2B" BorderThickness="0,0,0,1"/>
                                         <Canvas x:Name="TimelineRulerCanvas" Grid.Row="0" IsHitTestVisible="False"/>
 
-                                        <!-- V2 Overlay Video Track -->
-                                        <Border Grid.Row="1" Background="#13121A" BorderBrush="#262333" BorderThickness="0,0,0,1"/>
-                                        <Canvas x:Name="TimelineV2Canvas" Grid.Row="1" ClipToBounds="True"/>
+                                        <!-- Dynamic V3 Top Overlay Video Track -->
+                                        <Border x:Name="TimelineV3Bg" Grid.Row="1" Visibility="Collapsed" Opacity="0"
+                                                Background="#0D1620" BorderBrush="#1B3247" BorderThickness="0,0,0,1">
+                                            <TextBlock x:Name="TimelineV3DropHint" Text="V3 TOP LAYER — DROP VIDEO TO STACK ON TOP"
+                                                       Foreground="#4884B0" FontSize="9.5" FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       IsHitTestVisible="False" Visibility="Collapsed"/>
+                                        </Border>
+                                        <Canvas x:Name="TimelineV3Canvas" Grid.Row="1" ClipToBounds="True"/>
 
-                                        <!-- V1 Video Track -->
-                                        <Border Grid.Row="2" Background="#141414" BorderBrush="#252525" BorderThickness="0,0,0,1"/>
-                                        <Canvas x:Name="TimelineClipsCanvas" Grid.Row="2" ClipToBounds="True"/>
+                                        <!-- Dynamic V2 Overlay Video Track -->
+                                        <Border x:Name="TimelineV2Bg" Grid.Row="2" Visibility="Collapsed" Opacity="0"
+                                                Background="#101720" BorderBrush="#1E2F42" BorderThickness="0,0,0,1">
+                                            <TextBlock x:Name="TimelineV2DropHint" Text="V2 OVERLAY LAYER — DROP VIDEO TO STACK"
+                                                       Foreground="#3D6B8E" FontSize="9.5" FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       IsHitTestVisible="False" Visibility="Collapsed"/>
+                                        </Border>
+                                        <Canvas x:Name="TimelineV2Canvas" Grid.Row="2" ClipToBounds="True"/>
 
-                                        <!-- A1 Linked Audio Track -->
-                                        <Border Grid.Row="3" Background="#121212" BorderBrush="#252525" BorderThickness="0,0,0,1"/>
-                                        <Canvas x:Name="TimelineAudioCanvas" Grid.Row="3" ClipToBounds="True"/>
+                                        <!-- V1 Main Video Track -->
+                                        <Border Grid.Row="3" Background="#141414" BorderBrush="#2D3948" BorderThickness="0,0,0,2"/>
+                                        <Canvas x:Name="TimelineClipsCanvas" Grid.Row="3" ClipToBounds="True"/>
 
-                                        <!-- A2 Overlay Audio Track -->
-                                        <Border Grid.Row="4" Background="#101518" BorderBrush="#252525" BorderThickness="0,0,0,1"/>
-                                        <Canvas x:Name="TimelineAudio2Canvas" Grid.Row="4" ClipToBounds="True"/>
+                                        <!-- A1 Audio Track (V1 Audio) -->
+                                        <Border Grid.Row="4" Background="#121212" BorderBrush="#252525" BorderThickness="0,0,0,1"/>
+                                        <Canvas x:Name="TimelineAudioCanvas" Grid.Row="4" ClipToBounds="True"/>
 
-                                        <TextBlock x:Name="TimelineFramesHint" Grid.Row="2" Text=""
+                                        <!-- Dynamic A2 Audio Track (V2 Audio) -->
+                                        <Border x:Name="TimelineA2Bg" Grid.Row="5" Visibility="Collapsed" Opacity="0"
+                                                Background="#111A20" BorderBrush="#20323C" BorderThickness="0,0,0,1"/>
+                                        <Canvas x:Name="TimelineAudio2Canvas" Grid.Row="5" ClipToBounds="True"/>
+
+                                        <!-- Dynamic A3 Audio Track (V3 Audio) -->
+                                        <Border x:Name="TimelineA3Bg" Grid.Row="6" Visibility="Collapsed" Opacity="0"
+                                                Background="#0F1820" BorderBrush="#1C303F" BorderThickness="0,0,0,1"/>
+                                        <Canvas x:Name="TimelineAudio3Canvas" Grid.Row="6" ClipToBounds="True"/>
+
+                                        <!-- A4 Music & External Audio Overlay Track -->
+                                        <Border Grid.Row="7" Background="#101518" BorderBrush="#252525" BorderThickness="0,0,0,1"/>
+                                        <Canvas x:Name="TimelineAudio4Canvas" Grid.Row="7" ClipToBounds="True"/>
+
+                                        <TextBlock x:Name="TimelineFramesHint" Grid.Row="3" Text=""
                                                    Foreground="#8C8C8C" FontSize="10" FontWeight="SemiBold"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    IsHitTestVisible="False" Visibility="Collapsed"/>
 
                                         <!-- Premiere Blue Playhead + Razor Guide + Animated Drop Target -->
-                                        <Canvas x:Name="TimelineOverlayCanvas" Grid.RowSpan="5" IsHitTestVisible="False">
+                                        <Canvas x:Name="TimelineOverlayCanvas" Grid.RowSpan="8" IsHitTestVisible="False">
                                             <Border x:Name="MoveSlotPreviewRect" Visibility="Collapsed"
-                                                    Height="150" Canvas.Top="101" CornerRadius="3"
-                                                    Background="#1A2D8CFF" BorderBrush="#4EA1FF"
+                                                    Height="150" Canvas.Top="31" CornerRadius="3"
+                                                    Background="#2238BDF8" BorderBrush="#38BDF8"
                                                     BorderThickness="1.5"/>
-                                            <Line x:Name="RazorGuideLine" X1="0" X2="0" Y1="28" Y2="296"
+                                            <Line x:Name="RazorGuideLine" X1="0" X2="0" Y1="28" Y2="226"
                                                   Stroke="#F87171" StrokeThickness="1.5" StrokeDashArray="3,2"
                                                   Visibility="Collapsed"/>
-                                            <Rectangle x:Name="DropInsertionLine" Width="2.5" Height="268"
+                                            <Rectangle x:Name="DropInsertionLine" Width="2.5" Height="198"
                                                        Fill="#38BDF8" Canvas.Top="28" Visibility="Collapsed"/>
                                             <Polygon x:Name="PlayheadCap" Points="0,0 13,0 13,9 6.5,15 0,9"
                                                      Fill="#2D8CFF" Stroke="#7CC0FF" StrokeThickness="0.8"
                                                      Width="13" Height="15" Canvas.Left="0" Canvas.Top="13"/>
-                                            <Rectangle x:Name="PlayheadLine" Width="1.5" Height="270" Fill="#2D8CFF"
+                                            <Rectangle x:Name="PlayheadLine" Width="1.5" Height="200" Fill="#2D8CFF"
                                                        Canvas.Left="5.75" Canvas.Top="26"/>
                                             <Border x:Name="TimelineDragBadge" Visibility="Collapsed"
-                                                    Background="#EA12141A" BorderBrush="#2D8CFF" BorderThickness="1"
+                                                    Background="#EA12141A" BorderBrush="#38BDF8" BorderThickness="1"
                                                     CornerRadius="3" Padding="6,2" Canvas.Top="32">
                                                 <TextBlock x:Name="TimelineDragBadgeText" Text="00:00:00"
                                                            FontFamily="Consolas" FontSize="10" FontWeight="Bold"
