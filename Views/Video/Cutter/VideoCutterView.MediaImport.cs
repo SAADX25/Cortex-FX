@@ -216,14 +216,9 @@ public partial class VideoCutterView
 
                 if (!isAudio)
                 {
-                    if (explicitVideoLayer.HasValue)
-                        destVideoLayer = Math.Clamp(explicitVideoLayer.Value, 0, MontageProject.MaxVideoLayers - 1);
-                    else if (_project.Clips.Count == 0)
-                        destVideoLayer = 0;
-                    else if (_project.VideoOverlayClips.Count == 0)
-                        destVideoLayer = 1; // Automatically place 2nd video onto V2 overlay layer
-                    else
-                        destVideoLayer = 0;
+                    destVideoLayer = explicitVideoLayer.HasValue
+                        ? Math.Clamp(explicitVideoLayer.Value, 0, MontageProject.MaxVideoLayers - 1)
+                        : 0; // Append videos sequentially on V1 for clean cutting & merging (drag to V2/V3 for overlays)
                 }
                 else
                 {
@@ -373,9 +368,17 @@ public partial class VideoCutterView
 
         if (e.ClickCount == 2)
         {
-            int targetLayer = !asset.IsAudioOnly && _project.Clips.Count > 0 && _project.VideoOverlayClips.Count == 0 ? 1 : 0;
-            TimeSpan desired = _project.Clips.Count == 0 && !asset.IsAudioOnly ? TimeSpan.Zero : _montagePosition;
-            await InsertAssetAtTimelinePositionAsync(asset, desired, targetVideoLayer: targetLayer);
+            if (asset.IsAudioOnly)
+            {
+                var a4 = _project.GetAudioTrack(3);
+                TimeSpan desiredAudio = a4.Count > 0 ? a4[^1].TimelineEnd : _montagePosition;
+                await InsertAssetAtTimelinePositionAsync(asset, desiredAudio, targetAudioLayer: 3);
+            }
+            else
+            {
+                TimeSpan desiredVideo = _project.Clips.Count > 0 ? _project.Clips[^1].TimelineEnd : TimeSpan.Zero;
+                await InsertAssetAtTimelinePositionAsync(asset, desiredVideo, targetVideoLayer: 0);
+            }
         }
     }
 

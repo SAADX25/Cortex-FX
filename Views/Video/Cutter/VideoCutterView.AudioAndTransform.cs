@@ -38,7 +38,7 @@ public partial class VideoCutterView
         {
             _project.SelectClip(clickedClip);
             ApplyActiveFrameTransforms();
-            MontageClipItem? pairedAudio = _project.FindLinkedAudioClip(clickedClip);
+            MontageClipItem? pairedAudio = _project.FindAlignedAudioClip(clickedClip);
             _activeAudioTargetClip = pairedAudio ?? clickedClip;
 
             if (clickedClip.HasAudio || pairedAudio != null)
@@ -428,12 +428,35 @@ public partial class VideoCutterView
             "Split at Playhead",
             "S / Ctrl+B",
             () => _ = SplitAtPlayheadAsync(clip.TrackKind, clip.TrackLayer)));
+        menu.Items.Add(MakeItem(
+            "Ripple Trim Start to Playhead",
+            "Q",
+            () =>
+            {
+                _project.SelectClip(clip);
+                _ = RippleTrimToPlayheadAsync(trimStart: true);
+            }));
+        menu.Items.Add(MakeItem(
+            "Ripple Trim End to Playhead",
+            "W",
+            () =>
+            {
+                _project.SelectClip(clip);
+                _ = RippleTrimToPlayheadAsync(trimStart: false);
+            }));
+        if (_project.CanHealSplitWithNext(clip))
+        {
+            menu.Items.Add(MakeItem(
+                "Heal / Rejoin Split",
+                "",
+                () => _ = HealSplitClipAsync(clip)));
+        }
 
         if (clip.IsVideoClip)
         {
             menu.Items.Add(MakeItem(
                 "Frame / Motion Controls...",
-                "M",
+                "Shift+M",
                 () =>
                 {
                     _project.SelectClip(clip);
@@ -519,6 +542,8 @@ public partial class VideoCutterView
         menu.Items.Add(new Separator { Style = (Style)FindResource("StudioMenuSeparator") });
         menu.Items.Add(MakeItem("Restore Full Clip Edges", "", () => _ = RestoreClipBoundsAsync(clip), clip.IsTrimmed));
         menu.Items.Add(MakeItem("Duplicate Clip", "Ctrl+D", () => DuplicateClipItem(clip)));
+        if (_project.GetGaps(0).Count > 0)
+            menu.Items.Add(MakeItem("Close All Gaps / Join Clips", "Ctrl+Shift+G", () => _ = CloseAllGapsAsync()));
         menu.Items.Add(new Separator { Style = (Style)FindResource("StudioMenuSeparator") });
         menu.Items.Add(MakeItem("Delete Clip (Keep Gap)", "Del", () => _ = RemoveClipWithUiRefreshAsync(clip, ripple: false)));
         menu.Items.Add(MakeItem("Ripple Delete Clip", "Shift+Del", () => _ = RemoveClipWithUiRefreshAsync(clip, ripple: true)));

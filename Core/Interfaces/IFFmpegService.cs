@@ -115,6 +115,17 @@ public sealed record VideoMontageExportRequest(
     IReadOnlyList<VideoMontageClip>? VideoOverlayClips = null);
 
 /// <summary>
+/// Options controlling Video → GIF file size, smoothness, resolution, and optimization.
+/// </summary>
+public sealed record GifConversionOptions(
+    double QualityLevel = 75,
+    int? MaxWidth = null,
+    int? Fps = null,
+    int? MaxColors = null,
+    double? TargetMaxSizeMb = null,
+    bool ExtraCompression = true);
+
+/// <summary>
 /// FFmpeg jobs: convert, trim, cut segments, montage export, extract audio, make GIF.
 /// </summary>
 public interface IFFmpegService
@@ -154,7 +165,12 @@ public interface IFFmpegService
     Task ExtractAudioAsync(string inputFile, string outputFile, CancellationToken ct = default,
                            IProgress<double>? progress = null);
 
-    /// <summary>Make a GIF (palette pass included).</summary>
+    /// <summary>Make an optimized GIF (palette pass + inter-frame compression).</summary>
     Task ConvertToGifAsync(string inputFile, string outputFile, CancellationToken ct = default,
+                           IProgress<double>? progress = null);
+
+    /// <summary>Make an optimized GIF with explicit quality, resolution, FPS, color palette, and optional max size cap.</summary>
+    Task ConvertToGifAsync(string inputFile, string outputFile, GifConversionOptions? options,
+                           CancellationToken ct = default,
                            IProgress<double>? progress = null);
 }

@@ -335,6 +335,8 @@ public partial class VideoCutterView
         {
             _montagePosition = second.TimelineStart;
             _ = SyncPlayerToMontagePositionAsync(_montagePosition, autoPlay: false, forceExactSeek: true);
+            UpdateProjectHeaderAndHud();
+            UpdateTimeLabels();
             UpdateExportSummaryHint();
             RenderTimeline();
             ShowTimelineToast($"Split [{second.TrackLabel}] → Clip #{second.OrderIndex - 1} & #{second.OrderIndex}");
@@ -417,14 +419,15 @@ public partial class VideoCutterView
             if (pos.Y > TimelineRulerHeight && totalSec > 0)
             {
                 double pxPerSec = Math.Max(1.0, _currentTimelinePxPerSec);
+                double fps = _project.SequenceFps;
                 TimeSpan raw = TimeSpan.FromSeconds(Math.Clamp(pos.X / pxPerSec, 0, totalSec));
                 TimeSpan snapped = ApplyTimelineSnap(raw, totalW, totalSec, includePlayhead: true);
+                snapped = MontageProject.SnapToFrame(snapped, fps);
                 double snappedX = snapped.TotalSeconds * pxPerSec;
                 RazorGuideLine.X1 = snappedX;
                 RazorGuideLine.X2 = snappedX;
                 RazorGuideLine.Visibility = Visibility.Visible;
 
-                double fps = _project.SequenceFps;
                 long frameIdx = MontageProject.TimeToFrameIndex(snapped, fps);
                 ShowDragBadge($"✂ {MontageProject.FormatSmpteTimecode(snapped, fps)} · F{frameIdx}", snappedX, totalW);
             }
@@ -609,9 +612,10 @@ public partial class VideoCutterView
 
         Consider(TimeSpan.Zero);
         Consider(_montagePosition);
+        MontageClipItem? linkedPartner = _project.FindLinkedPartner(trimmedClip);
         foreach (MontageClipItem other in _project.AllClips)
         {
-            if (ReferenceEquals(other, trimmedClip)) continue;
+            if (ReferenceEquals(other, trimmedClip) || ReferenceEquals(other, linkedPartner)) continue;
             Consider(other.TimelineStart);
             Consider(other.TimelineEnd);
         }
@@ -673,7 +677,8 @@ public partial class VideoCutterView
 
             if (!clip.IsAudioClip)
             {
-                TimeSpan previewEnd = ClampMontageTime(clip.TimelineEnd - TimeSpan.FromMilliseconds(10));
+                double halfFrameMs = Math.Max(5.0, 500.0 / Math.Clamp(fps, 12.0, 120.0));
+                TimeSpan previewEnd = ClampMontageTime(clip.TimelineEnd - TimeSpan.FromMilliseconds(halfFrameMs));
                 _ = SyncPlayerToMontagePositionAsync(previewEnd, autoPlay: false, forceExactSeek: false);
             }
         }
@@ -704,19 +709,31 @@ public partial class VideoCutterView
         _movePxPerSec = _currentTimelinePxPerSec > 0 ? _currentTimelinePxPerSec : (totalSec > 0 ? totalW / totalSec : 10.0);
 
         RenderedTimelineClip? rendered = _renderedTimelineClips.FirstOrDefault(r => ReferenceEquals(r.Clip, draggedClip));
+        MontageClipItem? partner = _project.FindLinkedPartner(draggedClip);
+        bool movePartnerVisually = partner != null &&
+            (draggedClip.IsVideoClip
+                ? MontageProject.AreAudioVideoAligned(draggedClip, partner)
+                : MontageProject.AreAudioVideoAligned(partner, draggedClip));
+        RenderedTimelineClip? partnerRendered = movePartnerVisually && partner != null
+            ? _renderedTimelineClips.FirstOrDefault(r => ReferenceEquals(r.Clip, partner))
+            : null;
+
+        Border? videoBlock = rendered?.VideoBlock ?? partnerRendered?.VideoBlock;
+        Border? audioBlock = rendered?.AudioBlock ?? partnerRendered?.AudioBlock;
+
         double origLeft = draggedClip.TimelineStart.TotalSeconds * _movePxPerSec;
         double width = Math.Max(4, draggedClip.Duration.TotalSeconds * _movePxPerSec);
 
         _moveDragSnapshots = new List<MoveClipDragSnapshot>
         {
-            new(draggedClip, rendered?.VideoBlock, rendered?.AudioBlock, origLeft, width)
+            new(draggedClip, videoBlock, audioBlock, origLeft, width)
         };
         _moveResolvedTargetTime = draggedClip.TimelineStart;
         _moveTargetLayer = draggedClip.TrackLayer;
         _moveMouseOffsetX = Math.Clamp(mouseX - origLeft, 0, width);
 
-        ApplyLiftAnimation(rendered?.VideoBlock, liftY: -4.0);
-        ApplyLiftAnimation(rendered?.AudioBlock, liftY: -2.0);
+        ApplyLiftAnimation(videoBlock, liftY: -4.0);
+        ApplyLiftAnimation(audioBlock, liftY: -2.0);
 
         MoveSlotPreviewRect.BeginAnimation(Canvas.LeftProperty, null);
         MoveSlotPreviewRect.BeginAnimation(Canvas.TopProperty, null);
@@ -849,9 +866,10 @@ public partial class VideoCutterView
 
         TrySnapEdge(TimeSpan.Zero);
         TrySnapEdge(_montagePosition);
+        MontageClipItem? linkedPartner = _project.FindLinkedPartner(clip);
         foreach (MontageClipItem other in _project.AllClips)
         {
-            if (ReferenceEquals(other, clip)) continue;
+            if (ReferenceEquals(other, clip) || ReferenceEquals(other, linkedPartner)) continue;
             TrySnapEdge(other.TimelineStart);
             TrySnapEdge(other.TimelineEnd);
         }
@@ -905,8 +923,12 @@ public partial class VideoCutterView
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         var dur = TimeSpan.FromMilliseconds(140);
 
-        Border? activeBlock = dragged.VideoBlock ?? dragged.AudioBlock;
-        AnimateSettleClip(activeBlock, targetLeft, dur, ease, onCompleted: () =>
+        Border? primaryBlock = dragged.VideoBlock ?? dragged.AudioBlock;
+        Border? secondaryBlock = dragged.VideoBlock != null ? dragged.AudioBlock : null;
+        if (secondaryBlock != null)
+            AnimateSettleClip(secondaryBlock, targetLeft, dur, ease, onCompleted: null);
+
+        AnimateSettleClip(primaryBlock, targetLeft, dur, ease, onCompleted: () =>
         {
             if (settleGen == _moveSettleGeneration && _dragMode == TimelineDragMode.None)
                 RenderTimeline();
@@ -1028,7 +1050,7 @@ public partial class VideoCutterView
         double x = _project.TotalDuration > TimeSpan.Zero
             ? Math.Clamp(_montagePosition.TotalSeconds * pxPerSec, 0, totalW)
             : 0;
-        double capW = PlayheadCap.Width > 0 ? PlayheadCap.Width : 13.0;
+        double capW = PlayheadCap.Width > 0 ? PlayheadCap.Width : 15.0;
         Canvas.SetLeft(PlayheadCap, Math.Clamp(x - capW / 2.0, 0, Math.Max(0, totalW - capW)));
         Canvas.SetLeft(PlayheadLine, Math.Clamp(x - PlayheadLine.Width / 2.0, 0, Math.Max(0, totalW - PlayheadLine.Width)));
     }

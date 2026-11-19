@@ -210,7 +210,8 @@ public sealed class ConversionRouter : IConversionRouter
             // Video/audio → GIF
             if (target == "gif" && (MediaTypes.VideoExtensions.Contains(ext) || MediaTypes.AudioExtensions.Contains(ext)))
             {
-                await _ffmpeg.ConvertToGifAsync(job.InputPath, outputPath, ct, progress);
+                var gifOptions = job.GifOptions ?? new GifConversionOptions(QualityLevel: job.QualityLevel);
+                await _ffmpeg.ConvertToGifAsync(job.InputPath, outputPath, gifOptions, ct, progress);
                 progress?.Report(100);
                 return ConversionResult.Ok(outputPath);
             }

@@ -220,7 +220,11 @@ public sealed class RadialConversionService(IConversionRouter router, IAppConfig
             if (!_media.TryGetValue(executable, out engine!))
                 _media[executable] = engine = new FFmpegService(new WheelConfiguration(configuration, executable), processes, true);
         }
-        if (target == "gif") { await engine.ConvertToGifAsync(source, destination, ct, progress); return; }
+        if (target == "gif")
+        {
+            await engine.ConvertToGifAsync(source, destination, new GifConversionOptions(QualityLevel: settings.Quality), ct, progress);
+            return;
+        }
         if (RadialSelection.GetCategory(source) == "Video" && target == "mp3")
         { await engine.ExtractAudioAsync(source, destination, ct, progress); return; }
         double quality = compress ? Math.Min(45, settings.Quality) : settings.Quality;

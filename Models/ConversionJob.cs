@@ -24,6 +24,9 @@ public class ConversionJob
 
     /// <summary>Image-specific conversion options (null for non-image conversions).</summary>
     public ImageConversionOptions? ImageOptions { get; init; }
+
+    /// <summary>GIF-specific optimization options (null uses QualityLevel defaults).</summary>
+    public GifConversionOptions? GifOptions { get; init; }
 }
 
 /// <summary>

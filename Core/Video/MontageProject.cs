@@ -47,9 +47,15 @@ public sealed partial class MontageProject
     {
         get
         {
-            if (SelectedClip is { SourceFps: > 1 }) return SelectedClip.SourceFps;
-            MontageClipItem? first = AllVideoClips.FirstOrDefault(c => c.SourceFps > 1);
-            return first?.SourceFps ?? 30.0;
+            var validFps = AllVideoClips
+                .Select(c => c.SourceFps)
+                .Where(f => f >= 10 && f <= 120)
+                .ToList();
+            if (validFps.Count == 0) return 30.0;
+            double first = validFps[0];
+            if (validFps.All(f => Math.Abs(f - first) < 0.5))
+                return Math.Clamp(first, 15.0, 60.0);
+            return validFps.Any(f => f >= 50.0) ? 60.0 : 30.0;
         }
     }
 
@@ -104,6 +110,10 @@ public sealed partial class MontageProject
 
     public int TotalClipCount => AllClips.Count();
 
+    /// <summary>Logical clip count: video clips plus standalone/unlinked audio clips (linked V+A pair counts as 1).</summary>
+    public int LogicalClipCount =>
+        AllVideoClips.Count() + AllAudioClips.Count(a => FindLinkedVideoClip(a) == null);
+
     public void SelectClip(MontageClipItem? clip)
     {
         bool found = false;
@@ -131,11 +141,19 @@ public sealed partial class MontageProject
                 return direct;
         }
 
-        // Fall back to aligned audio on matching layer
+        return AllAudioClips.FirstOrDefault(a => a.LinkedClipId == videoClip.Id);
+    }
+
+    public MontageClipItem? FindAlignedAudioClip(MontageClipItem? videoClip)
+    {
+        if (videoClip == null || videoClip.TrackKind != TimelineTrackKind.Video)
+            return null;
+
+        if (FindLinkedAudioClip(videoClip) is { } linked)
+            return linked;
+
         ObservableCollection<MontageClipItem> track = GetAudioTrack(videoClip.TrackLayer);
-        return track.FirstOrDefault(a =>
-            a.LinkedClipId == videoClip.Id ||
-            AreAudioVideoAligned(videoClip, a));
+        return track.FirstOrDefault(a => AreAudioVideoAligned(videoClip, a));
     }
 
     public MontageClipItem? FindLinkedVideoClip(MontageClipItem? audioClip)
@@ -152,6 +170,11 @@ public sealed partial class MontageProject
 
         return AllVideoClips.FirstOrDefault(v => v.LinkedClipId == audioClip.Id);
     }
+
+    public MontageClipItem? FindLinkedPartner(MontageClipItem? clip) =>
+        clip == null
+            ? null
+            : (clip.IsVideoClip ? FindLinkedAudioClip(clip) : FindLinkedVideoClip(clip));
 
     public static bool AreAudioVideoAligned(MontageClipItem video, MontageClipItem audio) =>
         string.Equals(video.SourcePath, audio.SourcePath, StringComparison.OrdinalIgnoreCase) &&
@@ -249,12 +272,33 @@ public sealed partial class MontageProject
         TimeSpan cursor = TimeSpan.Zero;
         foreach (MontageClipItem c in track)
         {
-            if (c.TimelineStart - cursor >= TimeSpan.FromMilliseconds(40))
+            if (c.TimelineStart - cursor >= TimeSpan.FromMilliseconds(20))
                 gaps.Add((cursor, c.TimelineStart));
             if (c.TimelineEnd > cursor)
                 cursor = c.TimelineEnd;
         }
         return gaps;
+    }
+
+    public IReadOnlyList<TimeSpan> GetCutBoundaryTimes()
+    {
+        var points = new List<TimeSpan> { TimeSpan.Zero };
+        foreach (MontageClipItem c in AllClips)
+        {
+            points.Add(c.TimelineStart);
+            points.Add(c.TimelineEnd);
+        }
+        if (TotalDuration > TimeSpan.Zero)
+            points.Add(TotalDuration);
+
+        points.Sort();
+        var distinct = new List<TimeSpan>(points.Count);
+        foreach (TimeSpan p in points)
+        {
+            if (distinct.Count == 0 || (p - distinct[^1]).Duration() >= TimeSpan.FromMilliseconds(5))
+                distinct.Add(p);
+        }
+        return distinct;
     }
 
     public (MontageClipItem? Clip, int ClipIndex, TimeSpan SourceTime) MapMontageToSource(TimeSpan montageTime) =>

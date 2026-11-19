@@ -28,6 +28,7 @@ using System.Runtime.CompilerServices;
 
 using CortexFX.Core.Audio;
 using CortexFX.Core.Configuration;
+using CortexFX.Core.Services.Media;
 using CortexFX.Core.Constants;
 using CortexFX.Core.Interfaces;
 using CortexFX.Core.Services.Infrastructure;
@@ -1475,7 +1476,19 @@ public partial class MainWindow : Window
         SummaryModeText.Text = CurrentToolTitle?.Text ?? "-";
         SummaryFilesText.Text = fileCount.ToString();
         SummaryOutputText.Text = outputFormat;
-        SummaryEstimateText.Text = fileCount > 0 && outputFormat != "-" ? "Ready" : "Pending";
+
+        if (GifOptionsCard?.Visibility == Visibility.Visible)
+        {
+            var gifOpts = BuildCurrentGifOptions();
+            var profile = FFmpegService.ResolveGifProfile(gifOpts);
+            SummaryEstimateText.Text = gifOpts.TargetMaxSizeMb is double cap and > 0
+                ? $"≤ {cap:0.##} MB · {profile.Fps} fps"
+                : $"{profile.MaxDimension}px · {profile.Fps} fps";
+        }
+        else
+        {
+            SummaryEstimateText.Text = fileCount > 0 && outputFormat != "-" ? "Ready" : "Pending";
+        }
     }
 
     private void UpdateConvertButtonAvailability()
@@ -1518,6 +1531,93 @@ public partial class MainWindow : Window
             string.Equals(selected.Content?.ToString(), "PDF", StringComparison.OrdinalIgnoreCase);
         chkMergePdf.Visibility = mergeAvailable ? Visibility.Visible : Visibility.Collapsed;
         if (!mergeAvailable) chkMergePdf.IsChecked = false;
+
+        if (GifOptionsCard != null)
+        {
+            bool isGifTarget = FormatComboBox.SelectedItem is ComboBoxItem gifSel &&
+                string.Equals(gifSel.Content?.ToString(), "GIF", StringComparison.OrdinalIgnoreCase);
+            bool hasVideoInput = _filesToConvert.Any(file =>
+                MediaTypes.VideoExtensions.Contains(System.IO.Path.GetExtension(file.FullPath).ToLowerInvariant()));
+            bool showGifOptions = isGifTarget && !allRasterImages && (RadioVideo?.IsChecked == true || hasVideoInput);
+            GifOptionsCard.Visibility = showGifOptions ? Visibility.Visible : Visibility.Collapsed;
+            if (showGifOptions)
+                UpdateGifProfileSummary();
+        }
+    }
+
+    private GifConversionOptions BuildCurrentGifOptions()
+    {
+        double quality = QualitySlider?.Value ?? 75;
+        double? maxSizeMb = TryParseComboTagDouble(GifMaxSizeCombo);
+        int? maxWidth = TryParseComboTagInt(GifResolutionCombo);
+        int? fps = TryParseComboTagInt(GifFpsCombo);
+        int? maxColors = TryParseComboTagInt(GifColorsCombo);
+        bool extraCompression = GifExtraCompressionCheck?.IsChecked != false;
+
+        return new GifConversionOptions(
+            QualityLevel: quality,
+            MaxWidth: maxWidth,
+            Fps: fps,
+            MaxColors: maxColors,
+            TargetMaxSizeMb: maxSizeMb,
+            ExtraCompression: extraCompression);
+    }
+
+    private static int? TryParseComboTagInt(ComboBox? combo)
+    {
+        if (combo?.SelectedItem is ComboBoxItem item && item.Tag is string tag &&
+            int.TryParse(tag, out int value) && value > 0)
+            return value;
+        return null;
+    }
+
+    private static double? TryParseComboTagDouble(ComboBox? combo)
+    {
+        if (combo?.SelectedItem is ComboBoxItem item && item.Tag is string tag &&
+            double.TryParse(tag, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value) && value > 0)
+            return value;
+        return null;
+    }
+
+    private void UpdateGifProfileSummary()
+    {
+        if (QualityValueText != null && QualitySlider != null)
+            QualityValueText.Text = $"{Math.Round(QualitySlider.Value):0}%";
+
+        if (GifProfileSummaryText == null)
+            return;
+
+        var opts = BuildCurrentGifOptions();
+        var profile = FFmpegService.ResolveGifProfile(opts);
+        string capText = opts.TargetMaxSizeMb is double cap and > 0 ? $" · ≤{cap:0.##}MB" : string.Empty;
+        GifProfileSummaryText.Text = $"{profile.MaxDimension}px · {profile.Fps} fps · {profile.MaxColors}c{capText}";
+    }
+
+    private void QualitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (QualityValueText != null)
+            QualityValueText.Text = $"{Math.Round(e.NewValue):0}%";
+        if (GifOptionsCard?.Visibility == Visibility.Visible)
+        {
+            UpdateGifProfileSummary();
+            UpdateConversionSummary();
+        }
+    }
+
+    private void GifOption_Changed(object sender, RoutedEventArgs e)
+    {
+        if (GifOptionsCard?.Visibility == Visibility.Visible)
+        {
+            UpdateGifProfileSummary();
+            UpdateConversionSummary();
+        }
+    }
+
+    private static string FormatBytesReadable(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
     }
 
     private void SetConversionUiState(bool isConverting)
@@ -1537,6 +1637,8 @@ public partial class MainWindow : Window
         BackBtn.IsEnabled = !isConverting;
         DropZone.IsHitTestVisible = !isConverting;
         FormatComboBox.IsEnabled = isConverting ? false : _formatWasEnabledBeforeConversion;
+        if (QualitySlider != null) QualitySlider.IsEnabled = !isConverting;
+        if (GifOptionsCard != null) GifOptionsCard.IsEnabled = !isConverting;
 
         if (!isConverting)
         {
@@ -1783,6 +1885,8 @@ public partial class MainWindow : Window
             int processedFiles = 0;
             int successCount = 0;
             int errorCount = 0;
+            long totalOutputBytes = 0;
+            GifConversionOptions? gifOptions = targetFormat == "gif" ? BuildCurrentGifOptions() : null;
 
             foreach (var fileItem in files)
             {
@@ -1821,7 +1925,8 @@ public partial class MainWindow : Window
                         TargetFormat = targetFormat,
                         QualityLevel = qualityLevel,
                         CreateSubfolder = createSubfolder,
-                        ImageOptions = imageOptions
+                        ImageOptions = imageOptions,
+                        GifOptions = gifOptions
                     }, token, fileProgress);
 
                     if (!result.Success)
@@ -1837,6 +1942,10 @@ public partial class MainWindow : Window
                             ? result.OutputPath
                             : (System.IO.Path.GetDirectoryName(result.OutputPath) ?? _lastOutputFolder ?? outputDir);
                         _lastOutputFolder = resultFolder;
+                        if (File.Exists(result.OutputPath))
+                        {
+                            totalOutputBytes += new FileInfo(result.OutputPath).Length;
+                        }
                     }
 
                     UpdateFileStatus(fileItem, "Done", "#E11D2E");
@@ -1873,10 +1982,13 @@ public partial class MainWindow : Window
             UpdateConversionProgressUi(errorCount > 0 ? "Finished with warnings." : "Conversion complete.", files.Count, files.Count, 100);
             ConsoleLogger.Success("Conversion", $"Batch complete: {successCount} succeeded, {errorCount} failed.");
 
+            string sizeLine = totalOutputBytes > 0
+                ? $"\n{(successCount == 1 ? "Output size" : "Total output size")}: {FormatBytesReadable(totalOutputBytes)}"
+                : string.Empty;
             string? detail = failedMessages.Count > 0
-                ? $"Converted {successCount}/{files.Count} files.\n\n{string.Join("\n", failedMessages.Take(3))}" +
+                ? $"Converted {successCount}/{files.Count} files.{sizeLine}\n\n{string.Join("\n", failedMessages.Take(3))}" +
                   (failedMessages.Count > 3 ? $"\n...and {failedMessages.Count - 3} more. See logs for details." : "")
-                : $"Successfully converted {successCount}/{files.Count} files.\nSaved to: {_lastOutputFolder ?? outputDir}";
+                : $"Successfully converted {successCount}/{files.Count} files.{sizeLine}\nSaved to: {_lastOutputFolder ?? outputDir}";
             ShowConversionSummary(successCount, errorCount, files.Count, detail);
         }
         catch (OperationCanceledException)

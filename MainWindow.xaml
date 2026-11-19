@@ -1010,7 +1010,8 @@
                             </Border>
 
                             <!-- Middle: output and conversion options -->
-                            <Grid Grid.Column="1" Margin="0,0,6,0">
+                            <ScrollViewer Grid.Column="1" Margin="0,0,6,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
@@ -1059,14 +1060,94 @@
                                         <TextBlock Text="Output Format" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
                                         <ComboBox x:Name="FormatComboBox" AutomationProperties.Name="Output format" Height="34" SelectedIndex="0" SelectionChanged="FormatComboBox_SelectionChanged" Margin="0,0,0,14"/>
 
-                                        <TextBlock Text="Quality" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                        <Grid Margin="0,0,0,6">
+                                            <TextBlock Text="Quality" Foreground="{StaticResource TextSecondary}" FontSize="12" HorizontalAlignment="Left"/>
+                                            <TextBlock x:Name="QualityValueText" Text="75%" Foreground="{StaticResource AccentColor}" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                                        </Grid>
                                         <Slider x:Name="QualitySlider" AutomationProperties.Name="Output quality" Minimum="0" Maximum="100" Value="75"
-                                                AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" TickFrequency="5"/>
+                                                AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" TickFrequency="5"
+                                                ValueChanged="QualitySlider_ValueChanged"/>
                                         <Grid Margin="0,4,0,0">
                                             <TextBlock Text="Small" FontSize="10" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Left"/>
                                             <TextBlock Text="Balanced" FontSize="10" Foreground="{StaticResource AccentColor}" HorizontalAlignment="Center"/>
                                             <TextBlock Text="Best" FontSize="10" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right"/>
                                         </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="2" x:Name="GifOptionsCard" Visibility="Collapsed" Background="{StaticResource PanelBackgroundSubtle}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="12">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,10">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                                <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="{StaticResource AccentColor}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="GIF Size Optimization" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock x:Name="GifProfileSummaryText" Text="480px · 12 fps · 128c" Foreground="{StaticResource AccentColor}"
+                                                       FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="10"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="8"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                                <TextBlock Text="Max File Size" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="GifMaxSizeCombo" AutomationProperties.Name="GIF max file size" Height="30" SelectionChanged="GifOption_Changed">
+                                                    <ComboBoxItem Content="Auto (No cap)" Tag="" IsSelected="True"/>
+                                                    <ComboBoxItem Content="2 MB (Tiny)" Tag="2"/>
+                                                    <ComboBoxItem Content="5 MB (WhatsApp)" Tag="5"/>
+                                                    <ComboBoxItem Content="8 MB (Discord)" Tag="8"/>
+                                                    <ComboBoxItem Content="10 MB" Tag="10"/>
+                                                    <ComboBoxItem Content="15 MB" Tag="15"/>
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                                <TextBlock Text="Resolution" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="GifResolutionCombo" AutomationProperties.Name="GIF max dimension" Height="30" SelectionChanged="GifOption_Changed">
+                                                    <ComboBoxItem Content="Auto (Quality)" Tag="" IsSelected="True"/>
+                                                    <ComboBoxItem Content="320px (Small)" Tag="320"/>
+                                                    <ComboBoxItem Content="400px (Compact)" Tag="400"/>
+                                                    <ComboBoxItem Content="480px (Standard)" Tag="480"/>
+                                                    <ComboBoxItem Content="600px (HD)" Tag="600"/>
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Row="2" Grid.Column="0">
+                                                <TextBlock Text="Frame Rate" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="GifFpsCombo" AutomationProperties.Name="GIF frame rate" Height="30" SelectionChanged="GifOption_Changed">
+                                                    <ComboBoxItem Content="Auto (Quality)" Tag="" IsSelected="True"/>
+                                                    <ComboBoxItem Content="8 fps (Smallest)" Tag="8"/>
+                                                    <ComboBoxItem Content="10 fps (Standard)" Tag="10"/>
+                                                    <ComboBoxItem Content="12 fps (Smooth)" Tag="12"/>
+                                                    <ComboBoxItem Content="15 fps (High)" Tag="15"/>
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Row="2" Grid.Column="2">
+                                                <TextBlock Text="Color Palette" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="GifColorsCombo" AutomationProperties.Name="GIF color palette" Height="30" SelectionChanged="GifOption_Changed">
+                                                    <ComboBoxItem Content="Auto (Quality)" Tag="" IsSelected="True"/>
+                                                    <ComboBoxItem Content="64 colors (Small)" Tag="64"/>
+                                                    <ComboBoxItem Content="96 colors" Tag="96"/>
+                                                    <ComboBoxItem Content="128 colors" Tag="128"/>
+                                                    <ComboBoxItem Content="256 colors (Full)" Tag="256"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <CheckBox x:Name="GifExtraCompressionCheck" Content="Smart compression (smaller GIF size)"
+                                                  Foreground="{StaticResource TextSecondary}" FontSize="11.5" IsChecked="True"
+                                                  Checked="GifOption_Changed" Unchecked="GifOption_Changed"
+                                                  ToolTip="Smooths invisible video noise and optimizes frame transparency to drastically reduce GIF size."/>
                                     </StackPanel>
                                 </Border>
 
@@ -1110,6 +1191,7 @@
                                     </StackPanel>
                                 </Border>
                             </Grid>
+                            </ScrollViewer>
 
                             <!-- Right: action and summary -->
                             <Grid Grid.Column="2">

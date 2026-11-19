@@ -130,11 +130,11 @@ public partial class VideoCutterView
         ClipAudioVolumeHandle? AudioHandle);
 
     private const double TimelineTrailingRunwayPx = 110.0;
-    private const double TimelineRulerHeight = 28.0;
-    private const double TimelineOverlayVideoRowHeight = 68.0;
-    private const double TimelineV1RowHeight = 90.0;
-    private const double TimelineOverlayAudioRowHeight = 54.0;
-    private const double TimelineA4RowHeight = 48.0;
+    private const double TimelineRulerHeight = 34.0;
+    private const double TimelineOverlayVideoRowHeight = 72.0;
+    private const double TimelineV1RowHeight = 96.0;
+    private const double TimelineOverlayAudioRowHeight = 58.0;
+    private const double TimelineA4RowHeight = 54.0;
 
     private double CurrentV3RowHeight => Math.Clamp(V3TrackAnimatedHeight, 0.0, TimelineOverlayVideoRowHeight);
     private double CurrentV2RowHeight => Math.Clamp(V2TrackAnimatedHeight, 0.0, TimelineOverlayVideoRowHeight);
@@ -482,8 +482,8 @@ public partial class VideoCutterView
         }
 
         UpdateClipBlock(trimmedClip);
-        if (trimmedClip.IsVideoClip && _project.FindLinkedAudioClip(trimmedClip) is { } linkedAudio)
-            UpdateClipBlock(linkedAudio);
+        if (_project.FindLinkedPartner(trimmedClip) is { } linkedPartner)
+            UpdateClipBlock(linkedPartner);
     }
 
     private void ScheduleTimelineSettleRefresh()
@@ -638,48 +638,98 @@ public partial class VideoCutterView
     private Border BuildTimelineGapBlock(TimeSpan gapStart, TimeSpan gapEnd, double width)
     {
         TimeSpan gapDur = gapEnd - gapStart;
+
+        void CloseThisGap()
+        {
+            if (_project.RippleDeleteGap(gapStart, gapEnd, videoLayer: 0))
+            {
+                _montagePosition = ClampMontageTime(_montagePosition >= gapEnd ? _montagePosition - gapDur : gapStart);
+                _ = SyncPlayerToMontagePositionAsync(_montagePosition, autoPlay: false, forceExactSeek: true);
+                UpdateProjectHeaderAndHud();
+                UpdateTimeLabels();
+                UpdateExportSummaryHint();
+                RenderTimeline();
+                ShowTimelineToast($"Closed gap ({MontageProject.FormatShort(gapDur)}) — clips joined");
+            }
+        }
+
         var gapMenu = new ContextMenu { Style = (Style)FindResource("StudioContextMenu") };
         var rippleItem = new MenuItem
         {
             Header = $"Ripple Delete Gap ({MontageProject.FormatShort(gapDur)})",
             Style = (Style)FindResource("StudioMenuItem")
         };
-        rippleItem.Click += (_, _) =>
-        {
-            if (_project.RippleDeleteGap(gapStart, gapEnd, videoLayer: 0))
-            {
-                UpdateProjectHeaderAndHud();
-                UpdateTimeLabels();
-                UpdateExportSummaryHint();
-                RenderTimeline();
-                ShowTimelineToast("Gap closed");
-            }
-        };
+        rippleItem.Click += (_, _) => CloseThisGap();
         gapMenu.Items.Add(rippleItem);
 
         var gapBox = new Border
         {
             Width = width,
-            Height = 80,
-            CornerRadius = new CornerRadius(2),
+            Height = TimelineV1RowHeight - 10.0,
+            CornerRadius = new CornerRadius(3),
             Background = BrushFrom("#0F131A"),
             BorderBrush = BrushFrom("#2A3648"),
             BorderThickness = new Thickness(1),
             ContextMenu = gapMenu,
-            ToolTip = $"Empty black gap ({MontageProject.FormatShort(gapDur)}) — Right-click for Ripple Delete"
+            ToolTip = $"Empty black gap ({MontageProject.FormatShort(gapDur)}) — Double-click or click Close Gap to join clips"
         };
-        if (width >= 58)
+
+        gapBox.MouseLeftButtonDown += (_, e) =>
         {
-            gapBox.Child = new TextBlock
+            if (e.ClickCount == 2)
             {
-                Text = width >= 92 ? $"GAP · {MontageProject.FormatShort(gapDur)}" : "GAP",
-                Foreground = BrushFrom("#64748B"),
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 8.5,
-                FontWeight = FontWeights.SemiBold,
+                CloseThisGap();
+                e.Handled = true;
+            }
+        };
+
+        if (width >= 44)
+        {
+            var stack = new StackPanel
+            {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
+
+            if (width >= 60)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = width >= 104 ? $"GAP · {MontageProject.FormatShort(gapDur)}" : "GAP",
+                    Foreground = BrushFrom("#7C8DA6"),
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 9.5,
+                    FontWeight = FontWeights.SemiBold,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+            }
+
+            var closePill = new Border
+            {
+                Background = BrushFrom("#14332A"),
+                BorderBrush = BrushFrom("#2E8B64"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(width >= 82 ? 7 : 5, 2, width >= 82 ? 7 : 5, 2),
+                Margin = new Thickness(0, width >= 60 ? 5 : 0, 0, 0),
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip = "Close this gap and snap adjacent clips together",
+                Child = new TextBlock
+                {
+                    Text = width >= 82 ? "⇄ Close Gap" : "⇄",
+                    Foreground = BrushFrom("#6EE7B7"),
+                    FontSize = 9.5,
+                    FontWeight = FontWeights.SemiBold
+                }
+            };
+            closePill.MouseLeftButtonDown += (_, e) =>
+            {
+                CloseThisGap();
+                e.Handled = true;
+            };
+            stack.Children.Add(closePill);
+            gapBox.Child = stack;
         }
         return gapBox;
     }
@@ -691,10 +741,10 @@ public partial class VideoCutterView
         double pxPerFrame = pxPerSec * frameDur;
         int roundedFps = Math.Max(1, (int)Math.Round(fps));
 
-        var tickBrush = BrushFrom("#383838");
-        var majorBrush = BrushFrom("#6E7480");
-        var frameTickBrush = BrushFrom("#3B5575");
-        var textBrush = BrushFrom("#A4AAB5");
+        var tickBrush = BrushFrom("#3E4352");
+        var majorBrush = BrushFrom("#7C8598");
+        var frameTickBrush = BrushFrom("#46658D");
+        var textBrush = BrushFrom("#C5CEDB");
 
         double startSec = Math.Max(0, minX / Math.Max(1.0, pxPerSec));
         double endSec = Math.Max(startSec, maxX / Math.Max(1.0, pxPerSec));
@@ -705,7 +755,7 @@ public partial class VideoCutterView
             int majorFrames = frameCandidates[^1];
             foreach (int fc in frameCandidates)
             {
-                if (fc * pxPerFrame >= 76) { majorFrames = fc; break; }
+                if (fc * pxPerFrame >= 90) { majorFrames = fc; break; }
             }
 
             long firstFrame = (long)Math.Floor(startSec * fps);
@@ -719,23 +769,24 @@ public partial class VideoCutterView
                 {
                     X1 = x,
                     X2 = x,
-                    Y1 = isMajor ? 11 : 19,
-                    Y2 = 27,
+                    Y1 = isMajor ? 17 : 25,
+                    Y2 = 33,
                     Stroke = isMajor ? majorBrush : frameTickBrush,
                     StrokeThickness = isMajor ? 1.2 : 1.0
                 };
                 TimelineRulerCanvas.Children.Add(tick);
 
-                if (isMajor && x < totalWidth - 36)
+                if (isMajor && x < totalWidth - 44)
                 {
                     var label = new TextBlock
                     {
                         Text = MontageProject.FormatSmpteTimecode(TimeSpan.FromSeconds(f / fps), fps),
                         Foreground = textBrush,
                         FontFamily = new FontFamily("Consolas"),
-                        FontSize = 9.5
+                        FontSize = 11,
+                        FontWeight = FontWeights.SemiBold
                     };
-                    Canvas.SetLeft(label, x + 3);
+                    Canvas.SetLeft(label, x + 4);
                     Canvas.SetTop(label, 2);
                     TimelineRulerCanvas.Children.Add(label);
                 }
@@ -747,7 +798,7 @@ public partial class VideoCutterView
         double majorStep = candidates[^1];
         foreach (double c in candidates)
         {
-            if (c * pxPerSec >= 72) { majorStep = c; break; }
+            if (c * pxPerSec >= 86) { majorStep = c; break; }
         }
         double minorStep = majorStep >= 2 ? majorStep / 5.0 : majorStep / 4.0;
         double alignedStart = Math.Floor(startSec / minorStep) * minorStep;
@@ -763,14 +814,14 @@ public partial class VideoCutterView
             {
                 X1 = x,
                 X2 = x,
-                Y1 = isMajor ? 11 : 19,
-                Y2 = 27,
+                Y1 = isMajor ? 17 : 25,
+                Y2 = 33,
                 Stroke = isMajor ? majorBrush : tickBrush,
-                StrokeThickness = 1
+                StrokeThickness = isMajor ? 1.2 : 1.0
             };
             TimelineRulerCanvas.Children.Add(tick);
 
-            if (isMajor && x < totalWidth - 36)
+            if (isMajor && x < totalWidth - 44)
             {
                 TimeSpan ts = TimeSpan.FromSeconds(Math.Round(s, 3));
                 var label = new TextBlock
@@ -778,9 +829,10 @@ public partial class VideoCutterView
                     Text = ts.TotalHours >= 1 ? ts.ToString(@"h\:mm\:ss") : ts.ToString(@"mm\:ss\.f"),
                     Foreground = textBrush,
                     FontFamily = new FontFamily("Consolas"),
-                    FontSize = 9.5
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold
                 };
-                Canvas.SetLeft(label, x + 3);
+                Canvas.SetLeft(label, x + 4);
                 Canvas.SetTop(label, 2);
                 TimelineRulerCanvas.Children.Add(label);
             }
@@ -798,7 +850,7 @@ public partial class VideoCutterView
     {
         int layer = clip.TrackLayer;
         double blockHeight = layer > 0 ? TimelineOverlayVideoRowHeight - 6.0 : TimelineV1RowHeight - 6.0;
-        const double headerHeight = 16.0;
+        const double headerHeight = 20.0;
         double filmHeight = blockHeight - headerHeight;
         bool layerMuted = _isVideoTrackMuted[layer];
 
@@ -813,7 +865,7 @@ public partial class VideoCutterView
         {
             Width = clipWidth,
             Height = blockHeight,
-            CornerRadius = new CornerRadius(2),
+            CornerRadius = new CornerRadius(3),
             Background = BrushFrom(bgHex),
             BorderBrush = clip.IsSelected ? BrushFrom("#E6E6E6") : BrushFrom(idleBorder),
             BorderThickness = new Thickness(clip.IsSelected ? 1.5 : 1),
@@ -830,7 +882,7 @@ public partial class VideoCutterView
         var header = new Border
         {
             Background = BrushFrom(clip.IsSelected ? selHeader : idleHeader),
-            Padding = new Thickness(6, 0, 6, 0),
+            Padding = new Thickness(7, 0, 7, 0),
             Cursor = Cursors.SizeAll,
             Tag = new ClipMoveGrip(clip),
             ToolTip = $"[{clip.TrackLabel}] {clip.SourceFileName} · Left-click to open audio controls · Drag up/down to switch V1/V2/V3 layers"
@@ -848,9 +900,9 @@ public partial class VideoCutterView
                 var grip = new TextBlock
                 {
                     Text = "⋮⋮",
-                    FontSize = 9,
-                    Foreground = BrushFrom("#B5FFFFFF"),
-                    Margin = new Thickness(0, 0, 4, 0),
+                    FontSize = 10,
+                    Foreground = BrushFrom("#C2FFFFFF"),
+                    Margin = new Thickness(0, 0, 5, 0),
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 Grid.SetColumn(grip, 0);
@@ -861,7 +913,7 @@ public partial class VideoCutterView
             var titleTb = new TextBlock
             {
                 Text = $"{trackPrefix}{clip.SourceFileName} · {clip.DisplayDuration}",
-                FontSize = 9,
+                FontSize = 10.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -875,15 +927,15 @@ public partial class VideoCutterView
                 string pillText = clip.HasCustomTransform ? clip.ScalePercentLabel : "TRIM";
                 var pill = new Border
                 {
-                    Background = BrushFrom("#35000000"),
+                    Background = BrushFrom("#3B000000"),
                     CornerRadius = new CornerRadius(2),
-                    Padding = new Thickness(4, 0, 4, 0),
-                    Margin = new Thickness(4, 1, 0, 1),
+                    Padding = new Thickness(5, 1, 5, 1),
+                    Margin = new Thickness(5, 1, 0, 1),
                     VerticalAlignment = VerticalAlignment.Center,
                     Child = new TextBlock
                     {
                         Text = pillText,
-                        FontSize = 7.5,
+                        FontSize = 8.5,
                         FontWeight = FontWeights.Bold,
                         Foreground = BrushFrom(clip.HasCustomTransform ? pillFg : "#FDE68A")
                     }
@@ -1062,7 +1114,7 @@ public partial class VideoCutterView
             RenderTimeline();
     }
 
-    private double GetAudioTrackRowHeight() => _isAudioExpanded ? 92.0 : 60.0;
+    private double GetAudioTrackRowHeight() => _isAudioExpanded ? 102.0 : 68.0;
 
     private const double AudioUnityBottomRatio = 0.65;
 
@@ -1105,7 +1157,7 @@ public partial class VideoCutterView
     {
         int trackLayer = clip.TrackLayer;
         double blockHeight = GetAudioTrackRowHeightForLayer(trackLayer) - 6.0;
-        const double headerHeight = 14;
+        const double headerHeight = 18;
         double waveHeight = Math.Max(18, blockHeight - headerHeight);
 
         bool trackMuted = _isAudioTrackMuted[trackLayer];
@@ -1123,7 +1175,7 @@ public partial class VideoCutterView
         {
             Width = clipWidth,
             Height = blockHeight,
-            CornerRadius = new CornerRadius(2),
+            CornerRadius = new CornerRadius(3),
             Background = BrushFrom(bgHex),
             BorderBrush = isActiveHighlight
                 ? BrushFrom(clip.IsSelected ? "#E6E6E6" : "#FBBF24")
@@ -1142,7 +1194,7 @@ public partial class VideoCutterView
         var header = new Border
         {
             Background = BrushFrom(isActiveHighlight ? selHeader : idleHeader),
-            Padding = new Thickness(6, 0, 5, 0),
+            Padding = new Thickness(7, 0, 6, 0),
             Cursor = Cursors.SizeAll,
             Tag = new ClipMoveGrip(clip),
             ToolTip = $"[{clip.TrackLabel}] {clip.SourceFileName} · Drag up/down between A1..A4 or left/right · Trim edges freely"
@@ -1158,7 +1210,7 @@ public partial class VideoCutterView
             var titleBlock = new TextBlock
             {
                 Text = multiSource ? $"{clip.SourceFileName} [{clip.TrackLabel}]" : $"#{clip.OrderIndex} {clip.SourceFileName} [{clip.TrackLabel}]",
-                FontSize = 8.5,
+                FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = BrushFrom("#EBF7FA"),
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -1172,7 +1224,7 @@ public partial class VideoCutterView
                 headerDbText = new TextBlock
                 {
                     Text = clip.AudioVolumeDbLabel,
-                    FontSize = 8,
+                    FontSize = 9,
                     FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                     Foreground = BrushFrom(clip.AudioVolume <= 0.005
@@ -1181,10 +1233,10 @@ public partial class VideoCutterView
                 };
                 var dbTriggerPill = new Border
                 {
-                    Background = BrushFrom("#400A141A"),
+                    Background = BrushFrom("#450A141A"),
                     CornerRadius = new CornerRadius(2),
-                    Padding = new Thickness(4, 0, 4, 0),
-                    Margin = new Thickness(4, 1, 0, 1),
+                    Padding = new Thickness(5, 0, 5, 0),
+                    Margin = new Thickness(5, 1, 0, 1),
                     Cursor = Cursors.Hand,
                     Tag = new ClipAudioStripTrigger(clip),
                     ToolTip = $"Click to edit {clip.TrackLabel} audio volume strip",
@@ -1434,13 +1486,13 @@ public partial class VideoCutterView
 
         double w = JogWheelBorder.ActualWidth > 0 ? JogWheelBorder.ActualWidth : JogWheelBorder.Width;
         double h = JogWheelBorder.ActualHeight > 0 ? JogWheelBorder.ActualHeight : JogWheelBorder.Height;
-        if (w <= 0) w = 168;
-        if (h <= 0) h = 20;
+        if (w <= 0) w = 226;
+        if (h <= 0) h = 28;
 
-        const double spacing = 8.0;
+        const double spacing = 9.0;
         double phase = ((offsetPx % spacing) + spacing) % spacing;
-        var minorTick = BrushFrom("#343947");
-        var majorTick = BrushFrom("#4C5468");
+        var minorTick = BrushFrom("#383E4F");
+        var majorTick = BrushFrom("#5B657E");
 
         int index = 0;
         for (double x = phase; x < w; x += spacing)
@@ -1450,10 +1502,10 @@ public partial class VideoCutterView
             {
                 X1 = x,
                 X2 = x,
-                Y1 = isMajor ? 2 : 5,
-                Y2 = h - (isMajor ? 2 : 5),
+                Y1 = isMajor ? 3 : 7,
+                Y2 = h - (isMajor ? 3 : 7),
                 Stroke = isMajor ? majorTick : minorTick,
-                StrokeThickness = 1
+                StrokeThickness = isMajor ? 1.2 : 1.0
             });
             index++;
         }
@@ -1483,12 +1535,12 @@ public partial class VideoCutterView
             double x = Math.Clamp((sec / totalSec) * w, 2, w - 2);
             var tick = new Rectangle
             {
-                Width = 1.5,
-                Height = 8,
+                Width = 2.0,
+                Height = 12,
                 Fill = markerBrush,
-                Opacity = 0.72
+                Opacity = 0.78
             };
-            Canvas.SetLeft(tick, x - 0.75);
+            Canvas.SetLeft(tick, x - 1.0);
             Canvas.SetTop(tick, 1);
             ProgramClipMarkersCanvas.Children.Add(tick);
         }

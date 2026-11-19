@@ -113,7 +113,7 @@ public partial class VideoCutterView
                 _isPlaying = true;
                 _uiTimer.Start();
                 UpdatePlayPauseUi(true);
-                SyncAllAuxiliaryChannels(_montagePosition, autoPlay: true, forceSeek: false);
+                SyncAllAuxiliaryChannels(_montagePosition, autoPlay: true, forceSeek: true);
             }
             else
             {
@@ -417,13 +417,14 @@ public partial class VideoCutterView
             onActiveChanged: null);
     }
 
-    private static TimeSpan ClampMediaSeekTarget(Unosquare.FFME.MediaElement media, TimeSpan target)
+    private static TimeSpan ToMediaPosition(Unosquare.FFME.MediaElement media, TimeSpan relativeSourceTime)
     {
         TimeSpan minPos = media.PlaybackStartTime ?? TimeSpan.Zero;
+        TimeSpan target = minPos + (relativeSourceTime > TimeSpan.Zero ? relativeSourceTime : TimeSpan.Zero);
         if (target < minPos)
             target = minPos;
 
-        TimeSpan? endLimit = media.PlaybackEndTime ?? media.NaturalDuration;
+        TimeSpan? endLimit = media.PlaybackEndTime ?? (media.NaturalDuration.HasValue ? minPos + media.NaturalDuration.Value : null);
         if (endLimit.HasValue && endLimit.Value > minPos + TimeSpan.FromMilliseconds(40))
         {
             TimeSpan maxPos = endLimit.Value - TimeSpan.FromMilliseconds(20);
@@ -433,15 +434,22 @@ public partial class VideoCutterView
         return target;
     }
 
+    private static TimeSpan FromMediaPosition(Unosquare.FFME.MediaElement media, TimeSpan mediaPosition)
+    {
+        TimeSpan minPos = media.PlaybackStartTime ?? TimeSpan.Zero;
+        TimeSpan rel = mediaPosition - minPos;
+        return rel > TimeSpan.Zero ? rel : TimeSpan.Zero;
+    }
+
     private static async Task SafeSeekMediaAsync(
         Unosquare.FFME.MediaElement media,
-        TimeSpan target,
+        TimeSpan relativeSourceTarget,
         bool skipIfNearCurrent = false)
     {
-        TimeSpan safeTarget = ClampMediaSeekTarget(media, target);
+        TimeSpan safeTarget = ToMediaPosition(media, relativeSourceTarget);
         bool isStoppedOrEnded = media.MediaState == MediaPlaybackState.Stop || media.HasMediaEnded;
         if (skipIfNearCurrent && !isStoppedOrEnded &&
-            Math.Abs((media.Position - safeTarget).TotalMilliseconds) < 30)
+            Math.Abs((media.Position - safeTarget).TotalMilliseconds) < 25)
         {
             return;
         }
@@ -655,6 +663,7 @@ public partial class VideoCutterView
 
                 if (needOpen)
                 {
+                    bool hadOpenSource = !string.IsNullOrEmpty(_activePlayerSourcePath);
                     _activePlayerSourcePath = clip.SourcePath;
                     _mediaReady = false;
                     _pendingSeekOnOpen = sourceTime;
@@ -662,8 +671,15 @@ public partial class VideoCutterView
                     _pendingPlayOnOpen = autoPlay;
                     _transitionGuardUntil = DateTime.UtcNow.AddMilliseconds(400);
 
-                    PreviewPlaceholder.Text = "Loading clip...";
-                    PreviewPlaceholder.Visibility = Visibility.Visible;
+                    // Keep auxiliary channels paused while switching source files so A4/overlays never run ahead during open.
+                    if (autoPlay)
+                        SyncAllAuxiliaryChannels(targetMontage, autoPlay: false, forceSeek: false);
+
+                    if (!hadOpenSource)
+                    {
+                        PreviewPlaceholder.Text = "Loading clip...";
+                        PreviewPlaceholder.Visibility = Visibility.Visible;
+                    }
 
                     try
                     {
@@ -708,7 +724,7 @@ public partial class VideoCutterView
         if (!_isPlaying || (_dragMode != TimelineDragMode.None && _dragMode != TimelineDragMode.DragAudioVolume)) return;
         if (DateTime.UtcNow < _transitionGuardUntil) return;
         if (_playingClip == null) return;
-        HandleActivePlaybackPosition(e.Position);
+        HandleActivePlaybackPosition(FromMediaPosition(PreviewMedia, e.Position));
     }
 
     private void UiTimer_Tick(object? sender, EventArgs e)
@@ -723,7 +739,7 @@ public partial class VideoCutterView
         }
 
         if (!_mediaReady) return;
-        HandleActivePlaybackPosition(PreviewMedia.Position);
+        HandleActivePlaybackPosition(FromMediaPosition(PreviewMedia, PreviewMedia.Position));
     }
 
     private void HandleGapOrOverlayPlaybackTick()
@@ -823,7 +839,7 @@ public partial class VideoCutterView
         if (sinceSeekMs < 650)
             return false;
 
-        TimeSpan expected = ClampMediaSeekTarget(media, expectedSourceTime);
+        TimeSpan expected = ToMediaPosition(media, expectedSourceTime);
         double driftMs = Math.Abs((media.Position - expected).TotalMilliseconds);
         if (media.MediaState != MediaPlaybackState.Play)
         {
@@ -854,13 +870,16 @@ public partial class VideoCutterView
         UpdatePlayheadVisual();
         EnsureOverlayPlayersSyncedDuringPlayback();
 
-        if (sourcePos >= clip.End - TimeSpan.FromMilliseconds(35))
+        double fps = clip.SourceFps > 1 ? clip.SourceFps : _project.SequenceFps;
+        TimeSpan endLead = TimeSpan.FromMilliseconds(Math.Clamp(1000.0 / Math.Clamp(fps, 15.0, 120.0), 12.0, 30.0));
+
+        if (sourcePos >= clip.End - endLead)
         {
             int nextIndex = _playingClipIndex + 1;
             if (nextIndex >= 0 && nextIndex < _project.Clips.Count)
             {
                 MontageClipItem nextClip = _project.Clips[nextIndex];
-                if (nextClip.TimelineStart - clip.TimelineEnd > TimeSpan.FromMilliseconds(45))
+                if (nextClip.TimelineStart - clip.TimelineEnd > TimeSpan.FromMilliseconds(35))
                 {
                     _transitionGuardUntil = DateTime.UtcNow.AddMilliseconds(180);
                     _montagePosition = clip.TimelineEnd;
@@ -873,13 +892,27 @@ public partial class VideoCutterView
                     MonitorMediaHudText.Text = $"GAP · {MontageProject.FormatShort(nextClip.TimelineStart - clip.TimelineEnd)}";
                     _uiTimer.Start();
                 }
+                else if (string.Equals(nextClip.SourcePath, clip.SourcePath, StringComparison.OrdinalIgnoreCase) &&
+                         Math.Abs((nextClip.Start - clip.End).TotalMilliseconds) < 40)
+                {
+                    // Seamless zero-stutter handoff across contiguous splits from the same source video.
+                    _playingClip = nextClip;
+                    _playingClipIndex = nextIndex;
+                    _montagePosition = _project.MapSourceToMontage(nextClip, sourcePos);
+                    ApplyActiveFrameTransforms();
+                    ApplyPlayerAudioAndSpeed();
+                    UpdateProjectHeaderAndHud();
+                    UpdateTimeLabels();
+                    UpdatePlayheadVisual();
+                }
                 else
                 {
-                    _transitionGuardUntil = DateTime.UtcNow.AddMilliseconds(260);
+                    bool sameSource = string.Equals(nextClip.SourcePath, clip.SourcePath, StringComparison.OrdinalIgnoreCase);
+                    _transitionGuardUntil = DateTime.UtcNow.AddMilliseconds(sameSource ? 190 : 350);
                     _ = SyncPlayerToMontagePositionAsync(nextClip.TimelineStart, autoPlay: true, forceExactSeek: true);
                 }
             }
-            else if (_project.TotalDuration - clip.TimelineEnd > TimeSpan.FromMilliseconds(45))
+            else if (_project.TotalDuration - clip.TimelineEnd > TimeSpan.FromMilliseconds(35))
             {
                 _transitionGuardUntil = DateTime.UtcNow.AddMilliseconds(180);
                 _montagePosition = clip.TimelineEnd;
@@ -900,7 +933,7 @@ public partial class VideoCutterView
             else
             {
                 _montagePosition = _project.TotalDuration;
-                _ = PausePlaybackAsync();
+                _ = PausePlaybackAsync(syncPositionFromFrame: false);
                 UpdateTimeLabels();
                 UpdatePlayheadVisual();
             }
@@ -952,8 +985,9 @@ public partial class VideoCutterView
         await SyncPlayerToMontagePositionAsync(_montagePosition, autoPlay: true, forceExactSeek: true);
     }
 
-    private async Task PausePlaybackAsync()
+    private async Task PausePlaybackAsync(bool syncPositionFromFrame = true)
     {
+        bool wasPlaying = _isPlaying;
         _isPlaying = false;
         _pendingPlayOnOpen = false;
         _queuedAutoPlay = false;
@@ -980,6 +1014,21 @@ public partial class VideoCutterView
             await SafePauseAsync(GetVideoOverlayMediaElement(i + 1), _videoOverlayChannels[i].MediaReady);
         for (int i = 0; i < _audioChannels.Length; i++)
             await SafePauseAsync(GetAudioMediaElement(i), _audioChannels[i].MediaReady);
+
+        // Lock playhead & timecode to the exact visible paused video frame so pressing Split cuts precisely on what you see.
+        if (syncPositionFromFrame && wasPlaying && _playingClip != null && _mediaReady &&
+            string.Equals(_playingClip.SourcePath, _activePlayerSourcePath, StringComparison.OrdinalIgnoreCase))
+        {
+            TimeSpan rawPos = PreviewMedia.FramePosition > TimeSpan.Zero ? PreviewMedia.FramePosition : PreviewMedia.Position;
+            TimeSpan pausedSource = FromMediaPosition(PreviewMedia, rawPos);
+            if (pausedSource >= _playingClip.Start - TimeSpan.FromMilliseconds(50) &&
+                pausedSource <= _playingClip.End + TimeSpan.FromMilliseconds(50))
+            {
+                _montagePosition = ClampMontageTime(_project.MapSourceToMontage(_playingClip, pausedSource));
+                UpdateTimeLabels();
+                UpdatePlayheadVisual();
+            }
+        }
 
         UpdatePlayPauseUi(false);
     }
@@ -1010,6 +1059,41 @@ public partial class VideoCutterView
 
         _jogVisualOffset += frameDelta * 7.0;
         RenderJogTicks(_jogVisualOffset);
+
+        // Fast native FFME single-frame step inside the same already-open V1 clip (avoids full keyframe re-decode).
+        if (Math.Abs(frameDelta) == 1 && !_seekLoopRunning && _mediaReady && PreviewMedia.IsOpen &&
+            _playingClip != null &&
+            string.Equals(_playingClip.SourcePath, _activePlayerSourcePath, StringComparison.OrdinalIgnoreCase) &&
+            target >= _playingClip.TimelineStart + TimeSpan.FromSeconds(frameDur * 0.25) &&
+            target <= _playingClip.TimelineEnd - TimeSpan.FromSeconds(frameDur * 0.5))
+        {
+            TimeSpan beforePos = PreviewMedia.FramePosition > TimeSpan.Zero ? PreviewMedia.FramePosition : PreviewMedia.Position;
+            try
+            {
+                bool stepped = frameDelta > 0
+                    ? await PreviewMedia.StepForward()
+                    : await PreviewMedia.StepBackward();
+                if (stepped)
+                {
+                    TimeSpan afterPos = PreviewMedia.FramePosition > TimeSpan.Zero ? PreviewMedia.FramePosition : PreviewMedia.Position;
+                    if (Math.Abs((afterPos - beforePos).TotalMilliseconds) >= 2.0)
+                    {
+                        TimeSpan relSource = FromMediaPosition(PreviewMedia, afterPos);
+                        if (relSource >= _playingClip.Start && relSource < _playingClip.End)
+                        {
+                            _montagePosition = ClampMontageTime(_project.MapSourceToMontage(_playingClip, relSource));
+                            SyncAllAuxiliaryChannels(_montagePosition, autoPlay: false, forceSeek: true);
+                            ApplyActiveFrameTransforms();
+                            UpdateTimeLabels();
+                            UpdatePlayheadVisual();
+                            EnsurePlayheadVisible();
+                            return;
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
 
         await SyncPlayerToMontagePositionAsync(target, autoPlay: false, forceExactSeek: true);
         EnsurePlayheadVisible();
@@ -1072,7 +1156,7 @@ public partial class VideoCutterView
     private void EndJogDrag()
     {
         _isDraggingJog = false;
-        JogWheelBorder.BorderBrush = BrushFrom("#353945");
+        JogWheelBorder.BorderBrush = BrushFrom("#373E4F");
         if (JogWheelBorder.IsMouseCaptured)
             JogWheelBorder.ReleaseMouseCapture();
     }

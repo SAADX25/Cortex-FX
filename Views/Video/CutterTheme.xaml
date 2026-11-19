@@ -38,14 +38,14 @@
 
     <Style x:Key="CutterButton" TargetType="Button">
         <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
-        <Setter Property="Background" Value="#2A2A2A"/>
-        <Setter Property="Foreground" Value="#E2E2E2"/>
-        <Setter Property="BorderBrush" Value="#3D3D3D"/>
+        <Setter Property="Background" Value="#2A2D35"/>
+        <Setter Property="Foreground" Value="#E8ECF2"/>
+        <Setter Property="BorderBrush" Value="#3E4350"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Padding" Value="9,4"/>
-        <Setter Property="MinHeight" Value="26"/>
+        <Setter Property="Padding" Value="11,5"/>
+        <Setter Property="MinHeight" Value="30"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Effect" Value="{x:Null}"/>
         <Setter Property="Template">
@@ -54,16 +54,16 @@
                     <Border x:Name="Chrome" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            CornerRadius="4" Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="#353535"/>
-                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#555555"/>
+                            <Setter TargetName="Chrome" Property="Background" Value="#363B47"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#555E70"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="#222222"/>
+                            <Setter TargetName="Chrome" Property="Background" Value="#20232B"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.38"/>
@@ -75,20 +75,20 @@
     </Style>
 
     <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource CutterButton}">
-        <Setter Property="Background" Value="#232323"/>
-        <Setter Property="BorderBrush" Value="#343434"/>
+        <Setter Property="Background" Value="#242730"/>
+        <Setter Property="BorderBrush" Value="#363B47"/>
     </Style>
 
     <Style x:Key="PremiereIconButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
-        <Setter Property="Padding" Value="5,3"/>
-        <Setter Property="MinWidth" Value="26"/>
-        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="Padding" Value="7,4"/>
+        <Setter Property="MinWidth" Value="32"/>
+        <Setter Property="MinHeight" Value="30"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="#2F2F2F"/>
-                <Setter Property="BorderBrush" Value="#424242"/>
+                <Setter Property="Background" Value="#2F3440"/>
+                <Setter Property="BorderBrush" Value="#485063"/>
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -96,12 +96,12 @@
     <Style x:Key="PremiereRepeatIconButton" TargetType="RepeatButton">
         <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="#E2E2E2"/>
+        <Setter Property="Foreground" Value="#E8ECF2"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="6,3"/>
-        <Setter Property="MinWidth" Value="26"/>
-        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="MinWidth" Value="34"/>
+        <Setter Property="MinHeight" Value="30"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -109,13 +109,13 @@
                     <Border x:Name="Chrome" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            CornerRadius="4" Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="#2F2F2F"/>
-                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#424242"/>
+                            <Setter TargetName="Chrome" Property="Background" Value="#2F3440"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#485063"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="#1E4B85"/>
@@ -135,9 +135,9 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Foreground" Value="#B0B0B0"/>
-        <Setter Property="Width" Value="28"/>
-        <Setter Property="Height" Value="28"/>
+        <Setter Property="Foreground" Value="#B6BECB"/>
+        <Setter Property="Width" Value="38"/>
+        <Setter Property="Height" Value="36"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -145,17 +145,19 @@
                     <Border x:Name="ToolBg" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3">
+                            CornerRadius="5">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="ToolBg" Property="Background" Value="#1E4B85"/>
-                            <Setter TargetName="ToolBg" Property="BorderBrush" Value="#2D8CFF"/>
-                            <Setter Property="Foreground" Value="#FFFFFF"/>
-                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ToolBg" Property="Background" Value="#2E2E2E"/>
+                            <Setter TargetName="ToolBg" Property="Background" Value="#2D313C"/>
+                            <Setter TargetName="ToolBg" Property="BorderBrush" Value="#454C5E"/>
+                            <Setter Property="Foreground" Value="#E8ECF2"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="ToolBg" Property="Background" Value="#1D4B86"/>
+                            <Setter TargetName="ToolBg" Property="BorderBrush" Value="#3B9EFF"/>
+                            <Setter Property="Foreground" Value="#FFFFFF"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -167,19 +169,23 @@
         <Setter Property="Background" Value="#2172D4"/>
         <Setter Property="BorderBrush" Value="#4CA1FF"/>
         <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Padding" Value="13,5"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Chrome" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            CornerRadius="5" Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="#2B84EF"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#6BB6FF"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="#1B5CAE"/>
@@ -194,16 +200,16 @@
     </Style>
 
     <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource CutterButton}">
-        <Setter Property="Background" Value="#2D1E20"/>
-        <Setter Property="BorderBrush" Value="#5C3237"/>
+        <Setter Property="Background" Value="#301D20"/>
+        <Setter Property="BorderBrush" Value="#66343B"/>
         <Setter Property="Foreground" Value="#FCA5A5"/>
     </Style>
 
     <Style x:Key="TinyClipButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
-        <Setter Property="Padding" Value="4,1"/>
-        <Setter Property="MinWidth" Value="20"/>
-        <Setter Property="MinHeight" Value="20"/>
-        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Padding" Value="7,2"/>
+        <Setter Property="MinWidth" Value="26"/>
+        <Setter Property="MinHeight" Value="26"/>
+        <Setter Property="FontSize" Value="11.5"/>
     </Style>
 
     <Style x:Key="ModeChipRadio" TargetType="RadioButton">
@@ -240,25 +246,28 @@
     <Style x:Key="LoopToggleStyle" TargetType="ToggleButton">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
-        <Setter Property="Foreground" Value="#A0A0A0"/>
-        <Setter Property="FontSize" Value="10.5"/>
+        <Setter Property="Foreground" Value="#B6BECB"/>
+        <Setter Property="FontSize" Value="11.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Padding" Value="7,3"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="MinHeight" Value="28"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Bg" Background="#232323" BorderBrush="#353535"
-                            BorderThickness="1" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                    <Border x:Name="Bg" Background="#23262F" BorderBrush="#363B48"
+                            BorderThickness="1" CornerRadius="4" Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bg" Property="Background" Value="#1B3C68"/>
-                            <Setter TargetName="Bg" Property="BorderBrush" Value="#2D8CFF"/>
-                            <Setter Property="Foreground" Value="#FFFFFF"/>
-                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bg" Property="BorderBrush" Value="#525252"/>
+                            <Setter TargetName="Bg" Property="Background" Value="#2D323E"/>
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="#525A6D"/>
+                            <Setter Property="Foreground" Value="#E8ECF2"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="#1B3F6E"/>
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="#3B9EFF"/>
+                            <Setter Property="Foreground" Value="#FFFFFF"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -268,26 +277,28 @@
 
     <Style x:Key="TrackBadgeToggle" TargetType="ToggleButton">
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="Foreground" Value="#A0A0A0"/>
-        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Foreground" Value="#B4BCC8"/>
+        <Setter Property="FontSize" Value="10.5"/>
         <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="Width" Value="20"/>
-        <Setter Property="Height" Value="18"/>
+        <Setter Property="Width" Value="23"/>
+        <Setter Property="Height" Value="22"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Bg" Background="#282828" BorderBrush="#3D3D3D"
-                            BorderThickness="1" CornerRadius="2">
+                    <Border x:Name="Bg" Background="#262933" BorderBrush="#3D4252"
+                            BorderThickness="1" CornerRadius="3">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="#323745"/>
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="#5E667A"/>
+                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                        </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Bg" Property="Background" Value="#992B2B"/>
                             <Setter TargetName="Bg" Property="BorderBrush" Value="#E05555"/>
                             <Setter Property="Foreground" Value="#FFFFFF"/>
-                        </Trigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bg" Property="BorderBrush" Value="#606060"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -301,8 +312,8 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
-                    <Grid Height="18" VerticalAlignment="Center">
-                        <Border Background="#323232" Height="3" CornerRadius="1.5" VerticalAlignment="Center"/>
+                    <Grid Height="22" VerticalAlignment="Center">
+                        <Border Background="#313643" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
                         <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
                                Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
                                Orientation="Horizontal">
@@ -310,16 +321,28 @@
                                 <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
                                     <RepeatButton.Template>
                                         <ControlTemplate TargetType="RepeatButton">
-                                            <Border Background="#2D8CFF" Height="3" CornerRadius="1.5"/>
+                                            <Grid Height="16" Background="Transparent">
+                                                <Border Background="#2D8CFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </ControlTemplate>
                                     </RepeatButton.Template>
                                 </RepeatButton>
                             </Track.DecreaseRepeatButton>
                             <Track.Thumb>
-                                <Thumb Width="10" Height="10" Cursor="Hand">
+                                <Thumb Width="13" Height="13" Cursor="Hand">
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
-                                            <Ellipse Fill="#D8D8D8" Stroke="#2D8CFF" StrokeThickness="1.2"/>
+                                            <Ellipse x:Name="Knob" Fill="#EEF2F8" Stroke="#2D8CFF" StrokeThickness="1.8"/>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Knob" Property="Fill" Value="#FFFFFF"/>
+                                                    <Setter TargetName="Knob" Property="Stroke" Value="#6BB6FF"/>
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="Knob" Property="Fill" Value="#FFFFFF"/>
+                                                    <Setter TargetName="Knob" Property="Stroke" Value="#88C6FF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Thumb.Template>
                                 </Thumb>
@@ -328,7 +351,76 @@
                                 <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
                                     <RepeatButton.Template>
                                         <ControlTemplate TargetType="RepeatButton">
-                                            <Border Background="Transparent" Height="12"/>
+                                            <Border Background="Transparent" Height="16"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ProgramScrubSliderStyle" TargetType="Slider">
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid Height="24" VerticalAlignment="Center" Cursor="Hand">
+                        <Border Background="#262B36" BorderBrush="#363D4C" BorderThickness="0,1,0,1"
+                                Height="6" CornerRadius="3" VerticalAlignment="Center"/>
+                        <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                               Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                               Orientation="Horizontal">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Grid Height="18" Background="Transparent">
+                                                <Border Height="6" CornerRadius="3" VerticalAlignment="Center">
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                            <GradientStop Color="#1E6AD0" Offset="0"/>
+                                                            <GradientStop Color="#4DA8FF" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
+                                                </Border>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Width="16" Height="16" Cursor="Hand">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Grid>
+                                                <Ellipse x:Name="KnobOuter" Fill="#FFFFFF" Stroke="#2D8CFF" StrokeThickness="2.2"/>
+                                                <Ellipse x:Name="KnobCore" Width="4" Height="4" Fill="#2D8CFF"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="KnobOuter" Property="Stroke" Value="#6EC0FF"/>
+                                                    <Setter TargetName="KnobCore" Property="Fill" Value="#1E6AD0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="KnobOuter" Property="Stroke" Value="#88CCFF"/>
+                                                    <Setter TargetName="KnobCore" Property="Fill" Value="#0F52B0"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Background="Transparent" Height="18"/>
                                         </ControlTemplate>
                                     </RepeatButton.Template>
                                 </RepeatButton>
@@ -345,9 +437,9 @@
         <Setter Property="Background" Value="#161616"/>
         <Setter Property="BorderBrush" Value="#363636"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="11.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Height" Value="26"/>
+        <Setter Property="Height" Value="30"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{StaticResource CutterFocusVisual}"/>
         <Setter Property="Template">
@@ -518,14 +610,14 @@
     </Style>
 
     <Style x:Key="StudioMenuItem" TargetType="MenuItem">
-        <Setter Property="Foreground" Value="#E2E5EB"/>
-        <Setter Property="FontSize" Value="11.5"/>
-        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Foreground" Value="#E6EAF0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="12,7"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
-                    <Border x:Name="Bg" Background="Transparent" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                    <Border x:Name="Bg" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -533,8 +625,8 @@
                             </Grid.ColumnDefinitions>
                             <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="1" Text="{TemplateBinding InputGestureText}"
-                                       Foreground="#7F8796" FontFamily="Consolas" FontSize="10"
-                                       Margin="18,0,0,0" VerticalAlignment="Center"/>
+                                       Foreground="#8690A2" FontFamily="Consolas" FontSize="10.5"
+                                       Margin="20,0,0,0" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>

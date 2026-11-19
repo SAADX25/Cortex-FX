@@ -347,17 +347,41 @@ public sealed partial class MontageProject
         if ((targetStart - clip.TimelineStart).Duration() < TimeSpan.FromMilliseconds(2))
             return false;
 
-        MontageClipItem? linkedAudio = clip.IsVideoClip ? FindLinkedAudioClip(clip) : null;
-        bool moveAudioWithVideo = linkedAudio != null && AreAudioVideoAligned(clip, linkedAudio);
+        MontageClipItem? partner = FindLinkedPartner(clip);
+        bool movePartnerWithClip = partner != null && (clip.IsVideoClip
+            ? AreAudioVideoAligned(clip, partner)
+            : AreAudioVideoAligned(partner, clip));
 
         ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
         clip.TimelineStart = targetStart;
+        clip.TimelineEnd = targetStart + clip.Duration;
 
-        if (moveAudioWithVideo && linkedAudio != null)
+        if (movePartnerWithClip && partner != null)
         {
-            ObservableCollection<MontageClipItem> aTrack = GetAudioTrack(linkedAudio.TrackLayer);
-            if (IsRangeFree(aTrack, targetStart, linkedAudio.Duration, ignore: linkedAudio))
-                linkedAudio.TimelineStart = targetStart;
+            ObservableCollection<MontageClipItem> partnerTrack = GetTrackCollection(partner);
+            if (IsRangeFree(partnerTrack, targetStart, partner.Duration, ignore: partner))
+            {
+                partner.TimelineStart = targetStart;
+                partner.TimelineEnd = targetStart + partner.Duration;
+            }
+            else if (partner.IsAudioClip)
+            {
+                // Try another free audio track (A1..A3) to preserve exact A/V sync
+                for (int candidate = 0; candidate < MaxVideoLayers; candidate++)
+                {
+                    if (candidate == partner.TrackLayer) continue;
+                    ObservableCollection<MontageClipItem> altTrack = GetAudioTrack(candidate);
+                    if (IsRangeFree(altTrack, targetStart, partner.Duration, ignore: partner))
+                    {
+                        partnerTrack.Remove(partner);
+                        partner.TrackLayer = candidate;
+                        partner.TimelineStart = targetStart;
+                        partner.TimelineEnd = targetStart + partner.Duration;
+                        altTrack.Add(partner);
+                        break;
+                    }
+                }
+            }
         }
 
         RecalculateTimeline();
@@ -490,13 +514,14 @@ public sealed partial class MontageProject
     public bool RippleDeleteGap(TimeSpan gapStart, TimeSpan gapEnd, int videoLayer = 0, bool recordUndo = true)
     {
         TimeSpan delta = gapEnd - gapStart;
-        if (delta < TimeSpan.FromMilliseconds(20)) return false;
+        if (delta < TimeSpan.FromMilliseconds(15)) return false;
         ObservableCollection<MontageClipItem> track = GetVideoTrack(videoLayer);
         if (track.Count == 0) return false;
 
         ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
         bool moved = false;
-        foreach (MontageClipItem c in track)
+        var ordered = track.OrderBy(c => c.TimelineStart).ToList();
+        foreach (MontageClipItem c in ordered)
         {
             if (c.TimelineStart >= gapEnd - TimeSpan.FromMilliseconds(15))
             {
@@ -505,11 +530,15 @@ public sealed partial class MontageProject
 
                 TimeSpan nextStart = c.TimelineStart > delta ? c.TimelineStart - delta : TimeSpan.Zero;
                 c.TimelineStart = nextStart;
+                c.TimelineEnd = nextStart + c.Duration;
                 if (shiftLinked && linkedAudio != null)
                 {
                     ObservableCollection<MontageClipItem> aTrack = GetTrackCollection(linkedAudio);
                     if (IsRangeFree(aTrack, nextStart, linkedAudio.Duration, ignore: linkedAudio))
+                    {
                         linkedAudio.TimelineStart = nextStart;
+                        linkedAudio.TimelineEnd = nextStart + linkedAudio.Duration;
+                    }
                 }
                 moved = true;
             }
@@ -519,6 +548,218 @@ public sealed partial class MontageProject
         RecalculateTimeline();
         if (checkpoint != null) PushUndoSnapshot(checkpoint);
         return true;
+    }
+
+    /// <summary>Close all leading and intermediate gaps on the target video track, snapping clips flush together with linked audio synced.</summary>
+    public (bool Changed, int GapsClosed) CloseAllGaps(int videoLayer = 0, bool recordUndo = true)
+    {
+        ObservableCollection<MontageClipItem> track = GetVideoTrack(videoLayer);
+        if (track.Count == 0) return (false, 0);
+
+        var ordered = track.OrderBy(c => c.TimelineStart).ToList();
+        int gapsFound = 0;
+        TimeSpan probeCursor = TimeSpan.Zero;
+        foreach (MontageClipItem c in ordered)
+        {
+            if (c.TimelineStart - probeCursor >= TimeSpan.FromMilliseconds(15))
+                gapsFound++;
+            probeCursor = c.TimelineEnd > probeCursor ? c.TimelineEnd : probeCursor + c.Duration;
+        }
+        if (gapsFound == 0)
+            return (false, 0);
+
+        ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
+        TimeSpan cursor = TimeSpan.Zero;
+        foreach (MontageClipItem c in ordered)
+        {
+            MontageClipItem? linkedAudio = FindLinkedAudioClip(c);
+            bool shiftLinked = linkedAudio != null && AreAudioVideoAligned(c, linkedAudio);
+
+            c.TimelineStart = cursor;
+            c.TimelineEnd = cursor + c.Duration;
+
+            if (shiftLinked && linkedAudio != null)
+            {
+                ObservableCollection<MontageClipItem> aTrack = GetTrackCollection(linkedAudio);
+                if (IsRangeFree(aTrack, cursor, linkedAudio.Duration, ignore: linkedAudio))
+                {
+                    linkedAudio.TimelineStart = cursor;
+                    linkedAudio.TimelineEnd = cursor + linkedAudio.Duration;
+                }
+            }
+
+            cursor = c.TimelineEnd;
+        }
+
+        RecalculateTimeline();
+        if (checkpoint != null) PushUndoSnapshot(checkpoint);
+        return (true, gapsFound);
+    }
+
+    public bool CanHealSplitWithNext(MontageClipItem clip)
+    {
+        ObservableCollection<MontageClipItem> track = GetTrackCollection(clip);
+        int idx = track.IndexOf(clip);
+        if (idx < 0 || idx >= track.Count - 1) return false;
+        MontageClipItem next = track[idx + 1];
+        return AreContiguousSameSource(clip, next);
+    }
+
+    private static bool AreContiguousSameSource(MontageClipItem left, MontageClipItem right) =>
+        string.Equals(left.SourcePath, right.SourcePath, StringComparison.OrdinalIgnoreCase) &&
+        Math.Abs((left.TimelineEnd - right.TimelineStart).TotalMilliseconds) < 35 &&
+        Math.Abs((left.End - right.Start).TotalMilliseconds) < 35 &&
+        Math.Abs(left.AudioVolume - right.AudioVolume) < 0.01 &&
+        Math.Abs(left.VideoScale - right.VideoScale) < 0.01 &&
+        Math.Abs(left.VideoOffsetX - right.VideoOffsetX) < 0.005 &&
+        Math.Abs(left.VideoOffsetY - right.VideoOffsetY) < 0.005 &&
+        Math.Abs(left.VideoOpacity - right.VideoOpacity) < 0.01;
+
+    /// <summary>Rejoin two contiguous split clips from the same source into a single continuous clip (plus linked partner).</summary>
+    public bool HealSplitClip(MontageClipItem clip, bool recordUndo = true)
+    {
+        ObservableCollection<MontageClipItem> track = GetTrackCollection(clip);
+        int idx = track.IndexOf(clip);
+        if (idx < 0 || idx >= track.Count - 1) return false;
+
+        MontageClipItem next = track[idx + 1];
+        if (!AreContiguousSameSource(clip, next)) return false;
+
+        ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
+
+        MontageClipItem? leftPartner = FindLinkedPartner(clip);
+        MontageClipItem? rightPartner = FindLinkedPartner(next);
+
+        clip.End = next.End;
+        clip.TimelineEnd = clip.TimelineStart + clip.Duration;
+        track.RemoveAt(idx + 1);
+
+        if (leftPartner != null && rightPartner != null &&
+            ReferenceEquals(GetTrackCollection(leftPartner), GetTrackCollection(rightPartner)) &&
+            AreContiguousSameSource(leftPartner, rightPartner))
+        {
+            ObservableCollection<MontageClipItem> pTrack = GetTrackCollection(leftPartner);
+            leftPartner.End = rightPartner.End;
+            leftPartner.TimelineEnd = leftPartner.TimelineStart + leftPartner.Duration;
+            pTrack.Remove(rightPartner);
+            clip.LinkedClipId = leftPartner.Id;
+            leftPartner.LinkedClipId = clip.Id;
+        }
+
+        RecalculateTimeline();
+        RefreshClipThumbnail(clip);
+        SelectClip(clip);
+        if (checkpoint != null) PushUndoSnapshot(checkpoint);
+        return true;
+    }
+
+    /// <summary>Premiere-style Q / W Ripple Trim to Playhead: trims Start or End of the active clip to playhead and closes the gap.</summary>
+    public (bool Success, MontageClipItem? Clip, TimeSpan NewPlayhead) RippleTrimToPlayhead(
+        TimeSpan montageTime,
+        bool trimStart,
+        TimelineTrackKind? preferredKind = null,
+        int? preferredLayer = null,
+        bool recordUndo = true)
+    {
+        TimeSpan clamped = Clamp(montageTime, TimeSpan.Zero, TotalDuration);
+        MontageClipItem? target = FindClipCoveringTime(clamped, preferredKind, preferredLayer);
+        if (target == null)
+            return (false, null, montageTime);
+
+        TimeSpan sourceTime = target.Start + (clamped - target.TimelineStart);
+        if (trimStart)
+        {
+            if (sourceTime - target.Start < TimeSpan.FromMilliseconds(15) ||
+                target.End - sourceTime < MinimumClipDuration)
+                return (false, null, montageTime);
+        }
+        else
+        {
+            if (target.End - sourceTime < TimeSpan.FromMilliseconds(15) ||
+                sourceTime - target.Start < MinimumClipDuration)
+                return (false, null, montageTime);
+        }
+
+        ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
+        TimeSpan gapStart;
+        TimeSpan gapEnd;
+        TimeSpan newPlayhead;
+
+        if (trimStart)
+        {
+            gapStart = target.TimelineStart;
+            gapEnd = clamped;
+            if (!TrimClipStart(target, sourceTime, recordUndo: false))
+                return (false, null, montageTime);
+            newPlayhead = gapStart;
+        }
+        else
+        {
+            gapStart = clamped;
+            gapEnd = target.TimelineEnd;
+            if (!TrimClipEnd(target, sourceTime, recordUndo: false))
+                return (false, null, montageTime);
+            newPlayhead = clamped;
+        }
+
+        TimeSpan delta = gapEnd - gapStart;
+        if (delta >= TimeSpan.FromMilliseconds(15))
+        {
+            if (target.IsVideoClip)
+            {
+                RippleDeleteGap(gapStart, gapEnd, target.TrackLayer, recordUndo: false);
+            }
+            else
+            {
+                ObservableCollection<MontageClipItem> aTrack = GetTrackCollection(target);
+                foreach (MontageClipItem c in aTrack.OrderBy(x => x.TimelineStart).ToList())
+                {
+                    if (c.TimelineStart >= gapEnd - TimeSpan.FromMilliseconds(15))
+                    {
+                        TimeSpan nextStart = c.TimelineStart > delta ? c.TimelineStart - delta : TimeSpan.Zero;
+                        c.TimelineStart = nextStart;
+                        c.TimelineEnd = nextStart + c.Duration;
+                    }
+                }
+                RecalculateTimeline();
+            }
+        }
+
+        SelectClip(target);
+        if (checkpoint != null) PushUndoSnapshot(checkpoint);
+        return (true, target, Clamp(newPlayhead, TimeSpan.Zero, TotalDuration));
+    }
+
+    public MontageClipItem? FindClipCoveringTime(
+        TimeSpan montageTime,
+        TimelineTrackKind? preferredKind = null,
+        int? preferredLayer = null)
+    {
+        TimeSpan clamped = Clamp(montageTime, TimeSpan.Zero, TotalDuration);
+
+        MontageClipItem? SearchTrack(ObservableCollection<MontageClipItem> tr) =>
+            tr.FirstOrDefault(c => clamped > c.TimelineStart && clamped < c.TimelineEnd);
+
+        if (preferredKind.HasValue && preferredLayer.HasValue)
+        {
+            ObservableCollection<MontageClipItem> pref = preferredKind.Value == TimelineTrackKind.Audio
+                ? GetAudioTrack(preferredLayer.Value)
+                : GetVideoTrack(preferredLayer.Value);
+            if (SearchTrack(pref) is { } direct)
+                return direct;
+        }
+
+        for (int v = 0; v < MaxVideoLayers; v++)
+        {
+            if (SearchTrack(GetVideoTrack(v)) is { } hit)
+                return hit;
+        }
+        for (int a = 0; a < MaxAudioTracks; a++)
+        {
+            if (SearchTrack(GetAudioTrack(a)) is { } hit)
+                return hit;
+        }
+        return null;
     }
 
     public (bool Success, MontageClipItem? SecondClip) SplitAtMontageTime(
@@ -556,27 +797,26 @@ public sealed partial class MontageProject
 
         ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
 
-        MontageClipItem? linkedAudio = clip.IsVideoClip ? FindLinkedAudioClip(clip) : null;
-        bool splitLinkedAudio = linkedAudio != null &&
-                                AreAudioVideoAligned(clip, linkedAudio) &&
-                                clamped > linkedAudio.TimelineStart + MinimumClipDuration &&
-                                clamped < linkedAudio.TimelineEnd - MinimumClipDuration;
+        MontageClipItem? partner = FindLinkedPartner(clip);
+        bool splitPartner = partner != null &&
+                            clamped > partner.TimelineStart + MinimumClipDuration &&
+                            clamped < partner.TimelineEnd - MinimumClipDuration;
 
         MontageClipItem second = SplitSingleClipInTrack(track, index, sourceTime);
 
-        if (splitLinkedAudio && linkedAudio != null)
+        if (splitPartner && partner != null)
         {
-            ObservableCollection<MontageClipItem> aTrack = GetTrackCollection(linkedAudio);
-            int aIdx = aTrack.IndexOf(linkedAudio);
-            if (aIdx >= 0)
+            ObservableCollection<MontageClipItem> pTrack = GetTrackCollection(partner);
+            int pIdx = pTrack.IndexOf(partner);
+            if (pIdx >= 0)
             {
-                TimeSpan aSourceTime = linkedAudio.Start + (clamped - linkedAudio.TimelineStart);
-                if (aSourceTime - linkedAudio.Start >= MinimumClipDuration &&
-                    linkedAudio.End - aSourceTime >= MinimumClipDuration)
+                TimeSpan pSourceTime = partner.Start + (clamped - partner.TimelineStart);
+                if (pSourceTime - partner.Start >= MinimumClipDuration &&
+                    partner.End - pSourceTime >= MinimumClipDuration)
                 {
-                    MontageClipItem secondAudio = SplitSingleClipInTrack(aTrack, aIdx, aSourceTime);
-                    second.LinkedClipId = secondAudio.Id;
-                    secondAudio.LinkedClipId = second.Id;
+                    MontageClipItem secondPartner = SplitSingleClipInTrack(pTrack, pIdx, pSourceTime);
+                    second.LinkedClipId = secondPartner.Id;
+                    secondPartner.LinkedClipId = second.Id;
                 }
             }
         }
@@ -593,6 +833,7 @@ public sealed partial class MontageProject
         TimeSpan originalEnd = clip.End;
         TimeSpan splitTimelinePos = clip.TimelineStart + (sourceTime - clip.Start);
         clip.End = sourceTime;
+        clip.TimelineEnd = splitTimelinePos;
 
         var second = new MontageClipItem(
             sourcePath: clip.SourcePath,
@@ -691,9 +932,7 @@ public sealed partial class MontageProject
         TimeSpan removedEnd = clip.TimelineEnd;
         TimeSpan removedDur = clip.Duration;
 
-        MontageClipItem? linkedPartner = clip.IsVideoClip
-            ? FindLinkedAudioClip(clip)
-            : FindLinkedVideoClip(clip);
+        MontageClipItem? linkedPartner = FindLinkedPartner(clip);
 
         bool shouldAlsoRemoveLinkedAudio =
             removeLinkedAudio &&
@@ -706,27 +945,52 @@ public sealed partial class MontageProject
         if (linkedPartner != null && !shouldAlsoRemoveLinkedAudio && linkedPartner.LinkedClipId == clip.Id)
             linkedPartner.LinkedClipId = null;
 
-        if (ripple && removedDur > TimeSpan.Zero)
-        {
-            foreach (MontageClipItem c in track)
-            {
-                if (c.TimelineStart >= removedEnd - TimeSpan.FromMilliseconds(15))
-                    c.TimelineStart = c.TimelineStart > removedDur ? c.TimelineStart - removedDur : TimeSpan.Zero;
-            }
-        }
-
         if (shouldAlsoRemoveLinkedAudio && linkedPartner != null)
         {
             ObservableCollection<MontageClipItem> aTrack = GetTrackCollection(linkedPartner);
-            TimeSpan aRemovedEnd = linkedPartner.TimelineEnd;
-            TimeSpan aRemovedDur = linkedPartner.Duration;
             aTrack.Remove(linkedPartner);
-            if (ripple && aRemovedDur > TimeSpan.Zero)
+        }
+
+        if (ripple && removedDur > TimeSpan.Zero)
+        {
+            var shiftedAudio = new HashSet<Guid>();
+            foreach (MontageClipItem c in track.OrderBy(x => x.TimelineStart).ToList())
             {
-                foreach (MontageClipItem ac in aTrack)
+                if (c.TimelineStart >= removedEnd - TimeSpan.FromMilliseconds(15))
                 {
-                    if (ac.TimelineStart >= aRemovedEnd - TimeSpan.FromMilliseconds(15))
-                        ac.TimelineStart = ac.TimelineStart > aRemovedDur ? ac.TimelineStart - aRemovedDur : TimeSpan.Zero;
+                    MontageClipItem? cPartner = c.IsVideoClip ? FindLinkedAudioClip(c) : null;
+                    bool shiftPartner = cPartner != null && AreAudioVideoAligned(c, cPartner);
+
+                    TimeSpan nextStart = c.TimelineStart > removedDur ? c.TimelineStart - removedDur : TimeSpan.Zero;
+                    c.TimelineStart = nextStart;
+                    c.TimelineEnd = nextStart + c.Duration;
+
+                    if (shiftPartner && cPartner != null)
+                    {
+                        ObservableCollection<MontageClipItem> pTrack = GetTrackCollection(cPartner);
+                        if (IsRangeFree(pTrack, nextStart, cPartner.Duration, ignore: cPartner))
+                        {
+                            cPartner.TimelineStart = nextStart;
+                            cPartner.TimelineEnd = nextStart + cPartner.Duration;
+                            shiftedAudio.Add(cPartner.Id);
+                        }
+                    }
+                }
+            }
+
+            if (shouldAlsoRemoveLinkedAudio && linkedPartner != null)
+            {
+                ObservableCollection<MontageClipItem> aTrack = GetTrackCollection(linkedPartner);
+                foreach (MontageClipItem ac in aTrack.OrderBy(x => x.TimelineStart).ToList())
+                {
+                    if (shiftedAudio.Contains(ac.Id)) continue;
+                    if (ac.TimelineStart >= removedEnd - TimeSpan.FromMilliseconds(15) &&
+                        FindLinkedVideoClip(ac) == null)
+                    {
+                        TimeSpan nextStart = ac.TimelineStart > removedDur ? ac.TimelineStart - removedDur : TimeSpan.Zero;
+                        ac.TimelineStart = nextStart;
+                        ac.TimelineEnd = nextStart + ac.Duration;
+                    }
                 }
             }
         }
@@ -758,27 +1022,52 @@ public sealed partial class MontageProject
         TimeSpan prevEnd = idx > 0 ? track[idx - 1].TimelineEnd : TimeSpan.Zero;
         TimeSpan minStartByNeighbor = clip.Start - (clip.TimelineStart - prevEnd);
         TimeSpan minStart = minStartByNeighbor > TimeSpan.Zero ? minStartByNeighbor : TimeSpan.Zero;
+
+        TimeSpan origStart = clip.Start;
+        TimeSpan origTimelineStart = clip.TimelineStart;
+        MontageClipItem? partner = FindLinkedPartner(clip);
+        bool syncPartnerStart = partner != null &&
+                                string.Equals(partner.SourcePath, clip.SourcePath, StringComparison.OrdinalIgnoreCase) &&
+                                Math.Abs((partner.Start - origStart).TotalMilliseconds) < 35 &&
+                                Math.Abs((partner.TimelineStart - origTimelineStart).TotalMilliseconds) < 35;
+
+        if (syncPartnerStart && partner != null)
+        {
+            ObservableCollection<MontageClipItem> pTrack = GetTrackCollection(partner);
+            int pIdx = pTrack.IndexOf(partner);
+            if (pIdx >= 0)
+            {
+                TimeSpan pPrevEnd = pIdx > 0 ? pTrack[pIdx - 1].TimelineEnd : TimeSpan.Zero;
+                TimeSpan pMinByNeighbor = partner.Start - (partner.TimelineStart - pPrevEnd);
+                if (pMinByNeighbor > minStart) minStart = pMinByNeighbor;
+                TimeSpan pMaxStart = partner.End - MinimumClipDuration;
+                if (pMaxStart < maxStart) maxStart = pMaxStart;
+            }
+            else
+            {
+                syncPartnerStart = false;
+            }
+        }
+
         if (minStart > maxStart) minStart = maxStart;
 
         TimeSpan clamped = Clamp(newStart, minStart, maxStart);
         if (clamped == clip.Start) return false;
-
-        TimeSpan origStart = clip.Start;
-        TimeSpan origTimelineStart = clip.TimelineStart;
-        MontageClipItem? linkedAudio = clip.IsVideoClip ? FindLinkedAudioClip(clip) : null;
-        bool syncLinkedAudioStart = linkedAudio != null &&
-                                    string.Equals(linkedAudio.SourcePath, clip.SourcePath, StringComparison.OrdinalIgnoreCase) &&
-                                    Math.Abs((linkedAudio.Start - origStart).TotalMilliseconds) < 35 &&
-                                    Math.Abs((linkedAudio.TimelineStart - origTimelineStart).TotalMilliseconds) < 35;
 
         ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
         TimeSpan delta = clamped - clip.Start;
         clip.Start = clamped;
         TimeSpan nextTimelineStart = clip.TimelineStart + delta;
         clip.TimelineStart = nextTimelineStart < prevEnd ? prevEnd : nextTimelineStart;
+        clip.TimelineEnd = clip.TimelineStart + clip.Duration;
 
-        if (syncLinkedAudioStart && linkedAudio != null)
-            TrimClipStart(linkedAudio, clamped, recordUndo: false);
+        if (syncPartnerStart && partner != null)
+        {
+            partner.Start = clamped;
+            partner.TimelineStart = clip.TimelineStart;
+            partner.TimelineEnd = partner.TimelineStart + partner.Duration;
+            RefreshClipThumbnail(partner);
+        }
 
         RecalculateTimeline();
         RefreshClipThumbnail(clip);
@@ -802,22 +1091,48 @@ public sealed partial class MontageProject
             if (maxEndByNeighbor < maxEnd)
                 maxEnd = maxEndByNeighbor;
         }
+
+        TimeSpan origEnd = clip.End;
+        MontageClipItem? partner = FindLinkedPartner(clip);
+        bool syncPartnerEnd = partner != null &&
+                              (clip.IsVideoClip ? AreAudioVideoAligned(clip, partner) : AreAudioVideoAligned(partner, clip)) &&
+                              Math.Abs((partner.End - origEnd).TotalMilliseconds) < 35;
+
+        if (syncPartnerEnd && partner != null)
+        {
+            ObservableCollection<MontageClipItem> pTrack = GetTrackCollection(partner);
+            int pIdx = pTrack.IndexOf(partner);
+            if (pIdx >= 0)
+            {
+                if (pIdx < pTrack.Count - 1)
+                {
+                    TimeSpan pMaxByNeighbor = partner.Start + (pTrack[pIdx + 1].TimelineStart - partner.TimelineStart);
+                    if (pMaxByNeighbor < maxEnd) maxEnd = pMaxByNeighbor;
+                }
+                TimeSpan pMinEnd = partner.Start + MinimumClipDuration;
+                if (pMinEnd > minEnd) minEnd = pMinEnd;
+            }
+            else
+            {
+                syncPartnerEnd = false;
+            }
+        }
+
         if (maxEnd < minEnd) maxEnd = minEnd;
 
         TimeSpan clamped = Clamp(newEnd, minEnd, maxEnd);
         if (clamped == clip.End) return false;
 
-        TimeSpan origEnd = clip.End;
-        MontageClipItem? linkedAudio = clip.IsVideoClip ? FindLinkedAudioClip(clip) : null;
-        bool syncLinkedAudioEnd = linkedAudio != null &&
-                                  AreAudioVideoAligned(clip, linkedAudio) &&
-                                  Math.Abs((linkedAudio.End - origEnd).TotalMilliseconds) < 35;
-
         ProjectSnapshot? checkpoint = recordUndo ? CaptureSnapshot() : null;
         clip.End = clamped;
+        clip.TimelineEnd = clip.TimelineStart + clip.Duration;
 
-        if (syncLinkedAudioEnd && linkedAudio != null)
-            TrimClipEnd(linkedAudio, clamped, recordUndo: false);
+        if (syncPartnerEnd && partner != null)
+        {
+            partner.End = clamped;
+            partner.TimelineEnd = partner.TimelineStart + partner.Duration;
+            RefreshClipThumbnail(partner);
+        }
 
         RecalculateTimeline();
         RefreshClipThumbnail(clip);
@@ -834,6 +1149,26 @@ public sealed partial class MontageProject
 
         TimeSpan prevEnd = idx > 0 ? track[idx - 1].TimelineEnd : TimeSpan.Zero;
         TimeSpan nextStart = idx < track.Count - 1 ? track[idx + 1].TimelineStart : TimeSpan.MaxValue;
+
+        MontageClipItem? partner = FindLinkedPartner(clip);
+        bool syncPartner = partner != null &&
+                           (clip.IsVideoClip ? AreAudioVideoAligned(clip, partner) : AreAudioVideoAligned(partner, clip));
+        if (syncPartner && partner != null)
+        {
+            ObservableCollection<MontageClipItem> pTrack = GetTrackCollection(partner);
+            int pIdx = pTrack.IndexOf(partner);
+            if (pIdx >= 0)
+            {
+                TimeSpan pPrevEnd = pIdx > 0 ? pTrack[pIdx - 1].TimelineEnd : TimeSpan.Zero;
+                TimeSpan pNextStart = pIdx < pTrack.Count - 1 ? pTrack[pIdx + 1].TimelineStart : TimeSpan.MaxValue;
+                if (pPrevEnd > prevEnd) prevEnd = pPrevEnd;
+                if (pNextStart < nextStart) nextStart = pNextStart;
+            }
+            else
+            {
+                syncPartner = false;
+            }
+        }
 
         TimeSpan desiredStart = TimeSpan.Zero;
         TimeSpan desiredTimelineStart = clip.TimelineStart - clip.Start;
@@ -853,6 +1188,17 @@ public sealed partial class MontageProject
         clip.Start = desiredStart;
         clip.End = desiredEnd;
         clip.TimelineStart = desiredTimelineStart;
+        clip.TimelineEnd = desiredTimelineStart + clip.Duration;
+
+        if (syncPartner && partner != null)
+        {
+            partner.Start = desiredStart;
+            partner.End = desiredEnd;
+            partner.TimelineStart = desiredTimelineStart;
+            partner.TimelineEnd = desiredTimelineStart + partner.Duration;
+            RefreshClipThumbnail(partner);
+        }
+
         RecalculateTimeline();
         RefreshClipThumbnail(clip);
         if (checkpoint != null) PushUndoSnapshot(checkpoint);

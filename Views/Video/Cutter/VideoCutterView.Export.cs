@@ -57,11 +57,24 @@ public partial class VideoCutterView
         if (!HasAnyTimelineClips()) return;
         await PausePlaybackAsync();
 
-        MontageClipItem? sel = _project.SelectedClip;
-        TimelineTrackKind kind = explicitKind ?? sel?.TrackKind ?? TimelineTrackKind.Video;
-        int layer = explicitLayer ?? sel?.TrackLayer ?? 0;
-
         TimeSpan snapped = MontageProject.SnapToFrame(_montagePosition, _project.SequenceFps);
+        TimelineTrackKind kind;
+        int layer;
+
+        if (explicitKind.HasValue && explicitLayer.HasValue)
+        {
+            kind = explicitKind.Value;
+            layer = explicitLayer.Value;
+        }
+        else
+        {
+            MontageClipItem? sel = _project.SelectedClip;
+            MontageClipItem? hit = _project.FindClipCoveringTime(snapped, sel?.TrackKind, sel?.TrackLayer)
+                ?? _project.FindClipCoveringTime(_montagePosition, sel?.TrackKind, sel?.TrackLayer);
+            kind = hit?.TrackKind ?? sel?.TrackKind ?? TimelineTrackKind.Video;
+            layer = hit?.TrackLayer ?? sel?.TrackLayer ?? 0;
+        }
+
         var (ok, second) = _project.SplitAtMontageTime(snapped, kind, layer);
         if (!ok || second == null)
             (ok, second) = _project.SplitAtMontageTime(_montagePosition, kind, layer);
@@ -84,6 +97,94 @@ public partial class VideoCutterView
         RenderTimeline();
         EnsurePlayheadVisible();
         ShowTimelineToast($"Split [{second.TrackLabel}] → Clip #{second.OrderIndex - 1} & #{second.OrderIndex}");
+    }
+
+    private async void CloseAllGaps_Click(object sender, RoutedEventArgs e) =>
+        await CloseAllGapsAsync();
+
+    private async Task CloseAllGapsAsync()
+    {
+        if (!HasAnyTimelineClips()) return;
+        await PausePlaybackAsync();
+
+        var (changed, closedCount) = _project.CloseAllGaps(videoLayer: 0, recordUndo: true);
+        if (!changed)
+        {
+            ShowTimelineToast("Clips are already joined with zero gaps");
+            return;
+        }
+
+        _montagePosition = ClampMontageTime(_montagePosition);
+        await SyncPlayerToMontagePositionAsync(_montagePosition, autoPlay: false, forceExactSeek: true);
+        UpdateProjectHeaderAndHud();
+        UpdateTimeLabels();
+        UpdateExportSummaryHint();
+        RenderTimeline();
+        ShowTimelineToast($"Joined clips — closed {closedCount} gap{(closedCount == 1 ? "" : "s")}");
+    }
+
+    private async Task HealSplitClipAsync(MontageClipItem clip)
+    {
+        await PausePlaybackAsync();
+        if (!_project.HealSplitClip(clip, recordUndo: true))
+            return;
+
+        _montagePosition = ClampMontageTime(_montagePosition);
+        await SyncPlayerToMontagePositionAsync(_montagePosition, autoPlay: false, forceExactSeek: true);
+        UpdateProjectHeaderAndHud();
+        UpdateTimeLabels();
+        UpdateExportSummaryHint();
+        RenderTimeline();
+        ShowTimelineToast($"Rejoined {clip.TrackLabel} Clip #{clip.OrderIndex}");
+    }
+
+    private async Task RippleTrimToPlayheadAsync(bool trimStart)
+    {
+        if (!HasAnyTimelineClips()) return;
+        await PausePlaybackAsync();
+
+        MontageClipItem? sel = _project.SelectedClip;
+        TimeSpan snapped = MontageProject.SnapToFrame(_montagePosition, _project.SequenceFps);
+        var (ok, trimmed, newPlayhead) = _project.RippleTrimToPlayhead(snapped, trimStart, sel?.TrackKind, sel?.TrackLayer);
+        if (!ok || trimmed == null)
+        {
+            ShowTimelineToast("Move playhead inside a clip to ripple-trim");
+            return;
+        }
+
+        _montagePosition = newPlayhead;
+        await SyncPlayerToMontagePositionAsync(_montagePosition, autoPlay: false, forceExactSeek: true);
+        UpdateProjectHeaderAndHud();
+        UpdateTimeLabels();
+        UpdateExportSummaryHint();
+        RenderTimeline();
+        EnsurePlayheadVisible();
+        ShowTimelineToast(trimStart
+            ? $"Ripple trimmed start → {trimmed.TrackLabel} #{trimmed.OrderIndex}"
+            : $"Ripple trimmed end → {trimmed.TrackLabel} #{trimmed.OrderIndex}");
+    }
+
+    private async Task JumpToCutBoundaryAsync(bool forward)
+    {
+        if (!HasAnyTimelineClips()) return;
+        IReadOnlyList<TimeSpan> points = _project.GetCutBoundaryTimes();
+        if (points.Count == 0) return;
+
+        TimeSpan eps = TimeSpan.FromMilliseconds(10);
+        TimeSpan? target = forward
+            ? points.FirstOrDefault(p => p > _montagePosition + eps)
+            : points.LastOrDefault(p => p < _montagePosition - eps);
+
+        if (!forward && _montagePosition <= eps)
+            target = TimeSpan.Zero;
+        else if (forward && _montagePosition >= _project.TotalDuration - eps)
+            target = _project.TotalDuration;
+
+        if (!target.HasValue)
+            return;
+
+        await SyncPlayerToMontagePositionAsync(target.Value, autoPlay: _isPlaying, forceExactSeek: true);
+        EnsurePlayheadVisible();
     }
 
     private async Task RestoreClipBoundsAsync(MontageClipItem clip)
@@ -177,8 +278,10 @@ public partial class VideoCutterView
     private void UpdateProjectHeaderAndHud()
     {
         int binCount = _project.MediaBin.Count;
-        int clipCount = TotalTimelineClipCount();
+        int clipCount = _project.LogicalClipCount;
         TimeSpan total = _project.TotalDuration;
+
+        UpdateGapUiIndicators();
 
         if (binCount == 0 && clipCount == 0)
         {
@@ -222,7 +325,7 @@ public partial class VideoCutterView
                     ? asset.Info.VideoCodec.ToUpperInvariant()
                     : "";
                 string audio = active.IsVideoClip
-                    ? (_project.FindLinkedAudioClip(active) != null ? "Audio" : (active.HasAudio ? "Audio Off" : "Silent"))
+                    ? (_project.FindAlignedAudioClip(active) != null ? "Audio" : (active.HasAudio ? "Audio Off" : "Silent"))
                     : "Audio";
                 string scaleTag = active.IsVideoClip && active.HasCustomTransform ? active.ScalePercentLabel : "";
                 MonitorMediaHudText.Text = string.Join(" · ",
@@ -232,6 +335,20 @@ public partial class VideoCutterView
         }
         SyncAudioGainStripUi();
         SyncTransformInspectorUi();
+    }
+
+    private void UpdateGapUiIndicators()
+    {
+        var gaps = _project.GetGaps(0);
+        bool hasGaps = gaps.Count > 0;
+        if (JoinGapsHeaderButton != null)
+        {
+            JoinGapsHeaderButton.Visibility = hasGaps ? Visibility.Visible : Visibility.Collapsed;
+            if (hasGaps && JoinGapsHeaderText != null)
+                JoinGapsHeaderText.Text = gaps.Count == 1 ? "Join Gap" : $"Join Gaps ({gaps.Count})";
+        }
+        if (CloseGapsToolButton != null)
+            CloseGapsToolButton.IsEnabled = hasGaps;
     }
 
     private void UpdateTimeLabels()
@@ -303,7 +420,7 @@ public partial class VideoCutterView
         return (fmt, res, fit, mode);
     }
 
-    private (List<VideoMontageClip> V1, List<VideoMontageClip> VideoOverlays, List<VideoMontageClip> AudioOverlays, bool IsSingleLosslessEligible) BuildExportTrackLists()
+    private (List<VideoMontageClip> V1, List<VideoMontageClip> VideoOverlays, List<VideoMontageClip> AudioOverlays, bool IsLosslessEligible) BuildExportTrackLists()
     {
         // Filter out muted V2/V3 layers if muted by eye/M toggle
         var v2Active = _isVideoTrackMuted[1] ? Enumerable.Empty<MontageClipItem>() : _project.VideoOverlayClips;
@@ -321,58 +438,72 @@ public partial class VideoCutterView
             }
         }
 
-        // Fast-copy eligibility check: single V1 clip aligned 1:1 with single untouched A1 clip (no V2/V3 or extra audio)
-        bool simpleSingleV1AudioMatch =
-            _project.Clips.Count == 1 &&
-            videoOverlayItems.Count == 0 &&
-            _project.Audio2Clips.Count == 0 &&
-            _project.Audio3Clips.Count == 0 &&
-            _project.AudioOverlayClips.Count == 0 &&
-            _project.AudioClips.Count == 1 &&
-            !_isAudioTrackMuted[0] &&
-            MontageProject.AreAudioVideoAligned(_project.Clips[0], _project.AudioClips[0]) &&
-            Math.Abs((_project.Clips[0].End - _project.AudioClips[0].End).TotalMilliseconds) < 35 &&
-            Math.Abs(_project.AudioClips[0].AudioVolume - 1.0) <= 0.01;
+        // Pair aligned V+A clips 1:1 directly so joined cuts decode each source ONCE and concat video+audio atomically with zero drift.
+        var consumedAudioIds = new HashSet<Guid>();
 
-        bool simpleSingleV1Muted =
-            _project.Clips.Count == 1 &&
-            videoOverlayItems.Count == 0 &&
-            activeAudioList.Count == 0;
-
-        if (simpleSingleV1AudioMatch)
+        MontageClipItem? TakeAlignedAudio(MontageClipItem vClip)
         {
-            MontageClipItem c = _project.Clips[0];
-            MontageClipItem a = _project.AudioClips[0];
-            return (
-                new List<VideoMontageClip> { c.ToExportClip(overrideHasAudio: a.HasAudio, overrideVolume: a.AudioVolume) },
-                new List<VideoMontageClip>(),
-                new List<VideoMontageClip>(),
-                true);
+            MontageClipItem? linked = _project.FindLinkedAudioClip(vClip);
+            if (linked != null &&
+                !consumedAudioIds.Contains(linked.Id) &&
+                activeAudioList.Contains(linked) &&
+                MontageProject.AreAudioVideoAligned(vClip, linked) &&
+                Math.Abs((vClip.End - linked.End).TotalMilliseconds) < 35)
+            {
+                consumedAudioIds.Add(linked.Id);
+                return linked;
+            }
+
+            MontageClipItem? aligned = activeAudioList.FirstOrDefault(a =>
+                !consumedAudioIds.Contains(a.Id) &&
+                MontageProject.AreAudioVideoAligned(vClip, a) &&
+                Math.Abs((vClip.End - a.End).TotalMilliseconds) < 35);
+            if (aligned != null)
+                consumedAudioIds.Add(aligned.Id);
+            return aligned;
         }
 
-        if (simpleSingleV1Muted)
+        var v1Export = new List<VideoMontageClip>(_project.Clips.Count);
+        foreach (MontageClipItem vClip in _project.Clips)
         {
-            return (
-                new List<VideoMontageClip> { _project.Clips[0].ToExportClip(overrideHasAudio: false, overrideVolume: 0.0) },
-                new List<VideoMontageClip>(),
-                new List<VideoMontageClip>(),
-                true);
+            MontageClipItem? pairedAudio = TakeAlignedAudio(vClip);
+            v1Export.Add(pairedAudio != null
+                ? vClip.ToExportClip(overrideHasAudio: true, overrideVolume: pairedAudio.AudioVolume)
+                : vClip.ToExportClip(overrideHasAudio: false, overrideVolume: 0.0));
         }
 
-        // Multi-layer / separated audio tracks: video streams export silent, all A1..A4 clips mix accurately
-        var v1Export = _project.Clips.Select(c => c.ToExportClip(overrideHasAudio: false, overrideVolume: 0.0)).ToList();
-        var vOvExport = videoOverlayItems.Select(c => c.ToExportClip(overrideHasAudio: false, overrideVolume: 0.0)).ToList();
-        var aOvExport = activeAudioList.Select(a => a.ToExportClip(overrideHasAudio: true, overrideVolume: a.AudioVolume)).ToList();
+        var vOvExport = new List<VideoMontageClip>(videoOverlayItems.Count);
+        foreach (MontageClipItem ovClip in videoOverlayItems)
+        {
+            MontageClipItem? pairedAudio = TakeAlignedAudio(ovClip);
+            vOvExport.Add(pairedAudio != null
+                ? ovClip.ToExportClip(overrideHasAudio: true, overrideVolume: pairedAudio.AudioVolume)
+                : ovClip.ToExportClip(overrideHasAudio: false, overrideVolume: 0.0));
+        }
 
-        return (v1Export, vOvExport, aOvExport, false);
+        var aOvExport = activeAudioList
+            .Where(a => !consumedAudioIds.Contains(a.Id))
+            .Select(a => a.ToExportClip(overrideHasAudio: true, overrideVolume: a.AudioVolume))
+            .ToList();
+
+        bool losslessEligible =
+            v1Export.Count > 0 &&
+            vOvExport.Count == 0 &&
+            aOvExport.Count == 0 &&
+            _project.GetGaps(0).Count == 0 &&
+            v1Export.Select(c => c.SourcePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1 &&
+            v1Export.All(c => (!c.HasAudio || Math.Abs(c.AudioVolume - 1.0) <= 0.01) && c.HasAudio == v1Export[0].HasAudio) &&
+            !_project.Clips.Any(c => c.HasCustomTransform);
+
+        return (v1Export, vOvExport, aOvExport, losslessEligible);
     }
 
     private void UpdateExportSummaryHint()
     {
         if (ExportSummaryHint == null) return;
         var (fmt, res, fit, mode) = ReadExportSettings();
+        var (_, _, _, losslessEligible) = BuildExportTrackLists();
 
-        bool multiSource = _project.Clips.Select(c => c.SourcePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
         string resLabel = (ResolutionCombo?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Original";
         if (_project.Clips.Count > 0)
         {
@@ -384,38 +515,44 @@ public partial class VideoCutterView
         }
         string fitLabel = fit == VideoAspectFitMode.FillCrop ? "Crop Fill" : "Fit Pad";
 
-        bool hasCustomTransform = _project.AllVideoClips.Any(c => c.HasCustomTransform);
-        bool hasMultiTrackOrGaps =
-            _project.VideoOverlayClips.Count > 0 ||
-            _project.VideoOverlay3Clips.Count > 0 ||
-            _project.Audio2Clips.Count > 0 ||
-            _project.Audio3Clips.Count > 0 ||
-            _project.AudioOverlayClips.Count > 0 ||
-            _project.GetGaps(0).Count > 0 ||
-            hasCustomTransform;
-
         if (mode == VideoCutMode.FastLossless)
         {
-            ExportSummaryHint.Text = multiSource || hasMultiTrackOrGaps || res != VideoResolutionPreset.Original
-                ? $"{fmt.ToUpperInvariant()} · {resLabel} ({fitLabel}) · Auto smart-render for layers/transforms/audio"
-                : $"{fmt.ToUpperInvariant()} · Original · Instant stream copy (keyframe snapped)";
+            ExportSummaryHint.Text = !losslessEligible || res != VideoResolutionPreset.Original
+                ? $"{fmt.ToUpperInvariant()} · {resLabel} ({fitLabel}) · Auto Smart Render (multi-source / layers / audio)"
+                : $"{fmt.ToUpperInvariant()} · Original · Stream copy (snaps to nearest keyframe ±2–10s)";
         }
         else
         {
-            ExportSummaryHint.Text = $"{fmt.ToUpperInvariant()} · {resLabel} · {fitLabel} · Frame-accurate";
+            ExportSummaryHint.Text = $"{fmt.ToUpperInvariant()} · {resLabel} · {fitLabel} · Frame-accurate exact cut & seamless join";
         }
 
-        int totalClipCount = TotalTimelineClipCount();
+        int logicalClips = _project.LogicalClipCount;
         if (StartExportButtonLabel != null)
-            StartExportButtonLabel.Text = totalClipCount > 1 ? "Export Montage" : "Export Cut";
+            StartExportButtonLabel.Text = logicalClips > 1 ? "Export Montage" : "Export Cut";
         if (ExportButton != null)
-            ExportButton.ToolTip = totalClipCount > 1 ? "Export Montage" : "Export Cut";
+            ExportButton.ToolTip = logicalClips > 1 ? "Export Montage" : "Export Cut";
         if (ExportSequenceInfoText != null)
         {
             double fps = _project.SequenceFps;
-            ExportSequenceInfoText.Text = totalClipCount > 0
-                ? $"{totalClipCount} clip{(totalClipCount == 1 ? "" : "s")} · Total {MontageProject.FormatSmpteTimecode(_project.TotalDuration, fps)} · {fps:0.##} fps"
+            ExportSequenceInfoText.Text = logicalClips > 0
+                ? $"{logicalClips} clip{(logicalClips == 1 ? "" : "s")} · Total {MontageProject.FormatSmpteTimecode(_project.TotalDuration, fps)} · {fps:0.##} fps"
                 : string.Empty;
+        }
+
+        if (ExportGapsWarningBanner != null && ExportGapsWarningText != null)
+        {
+            var gaps = _project.GetGaps(0);
+            if (gaps.Count > 0)
+            {
+                TimeSpan totalGap = TimeSpan.FromTicks(gaps.Sum(g => (g.End - g.Start).Ticks));
+                ExportGapsWarningText.Text =
+                    $"Timeline has {gaps.Count} empty gap{(gaps.Count == 1 ? "" : "s")} ({MontageProject.FormatShort(totalGap)}) that will export as black video.";
+                ExportGapsWarningBanner.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ExportGapsWarningBanner.Visibility = Visibility.Collapsed;
+            }
         }
     }
 
@@ -513,10 +650,11 @@ public partial class VideoCutterView
         ExportResultStage.Visibility = stage == ExportStage.Result ? Visibility.Visible : Visibility.Collapsed;
         ExportModalCloseBtn.Visibility = stage == ExportStage.Progress ? Visibility.Collapsed : Visibility.Visible;
 
+        int logicalCount = _project.LogicalClipCount;
         ExportModalTitleText.Text = stage switch
         {
-            ExportStage.Options => TotalTimelineClipCount() > 1 ? "Export Montage Settings" : "Export Cut Settings",
-            ExportStage.Progress => TotalTimelineClipCount() > 1 ? "Exporting Montage..." : "Exporting Cut...",
+            ExportStage.Options => logicalCount > 1 ? "Export Montage Settings" : "Export Cut Settings",
+            ExportStage.Progress => logicalCount > 1 ? "Exporting Montage..." : "Exporting Cut...",
             ExportStage.Result => "Export Complete",
             _ => "Export Settings"
         };
@@ -586,7 +724,7 @@ public partial class VideoCutterView
         BackgroundJobBadge.Visibility = Visibility.Visible;
         ExportProgress.Value = 0;
         ProgressPercentText.Text = "0%";
-        bool simpleLossless = mode == VideoCutMode.FastLossless && losslessEligible && !_project.Clips.Any(c => c.HasCustomTransform);
+        bool simpleLossless = mode == VideoCutMode.FastLossless && losslessEligible && res == VideoResolutionPreset.Original;
         ProgressStatusText.Text = simpleLossless
             ? "Exporting lossless cut..."
             : $"Rendering {totalClipCount} clip{(totalClipCount == 1 ? "" : "s")}...";
@@ -750,6 +888,26 @@ public partial class VideoCutterView
                 await StepFrameAsync(shift ? 5 : 1);
                 e.Handled = true;
                 break;
+            case Key.Up:
+                await JumpToCutBoundaryAsync(forward: false);
+                e.Handled = true;
+                break;
+            case Key.Down:
+                await JumpToCutBoundaryAsync(forward: true);
+                e.Handled = true;
+                break;
+            case Key.Q when !ctrl:
+                await RippleTrimToPlayheadAsync(trimStart: true);
+                e.Handled = true;
+                break;
+            case Key.W when !ctrl:
+                await RippleTrimToPlayheadAsync(trimStart: false);
+                e.Handled = true;
+                break;
+            case Key.G when ctrl && shift:
+                await CloseAllGapsAsync();
+                e.Handled = true;
+                break;
             case Key.V:
                 SetActiveTool(TimelineToolMode.Select);
                 e.Handled = true;
@@ -802,6 +960,11 @@ public partial class VideoCutterView
                 break;
             case Key.Delete:
                 DeleteSelectedClip_Click(sender, e);
+                e.Handled = true;
+                break;
+            case Key.Back:
+                if ((_project.SelectedClip ?? _playingClip) is { } backTarget)
+                    await RemoveClipWithUiRefreshAsync(backTarget, ripple: true);
                 e.Handled = true;
                 break;
             case Key.Home:
