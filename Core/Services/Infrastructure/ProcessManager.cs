@@ -34,26 +34,33 @@ public sealed class ProcessManager : IProcessManager
 
         ConsoleLogger.Info("Process", $"Starting {Path.GetFileName(exePath)}.");
         process.Start();
-        TrackProcess(process.Id);
+        int pid = process.Id;
+        TrackProcess(pid);
 
         Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
         Task<string> stderrTask = process.StandardError.ReadToEndAsync(ct);
 
+        string stdout;
+        string stderr;
         try
         {
             await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            stdout = await stdoutTask.ConfigureAwait(false);
+            stderr = await stderrTask.ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             KillSafe(process);
-            UntrackProcess(process.Id);
+            ObserveFaults(stdoutTask);
+            ObserveFaults(stderrTask);
             ConsoleLogger.Warning("Process", $"Cancelled {Path.GetFileName(exePath)}.");
             throw;
         }
+        finally
+        {
+            UntrackProcess(pid);
+        }
 
-        string stdout = await stdoutTask.ConfigureAwait(false);
-        string stderr = await stderrTask.ConfigureAwait(false);
-        UntrackProcess(process.Id);
         var result = new ProcessResult(process.ExitCode, stdout, stderr);
 
         if (result.ExitCode != 0)
@@ -104,7 +111,8 @@ public sealed class ProcessManager : IProcessManager
         try
         {
             using var proc = Process.GetProcessById(pid);
-            if (!proc.HasExited && proc.StartTime == startTime.Value) proc.Kill();
+            if (!proc.HasExited && proc.StartTime == startTime.Value)
+                proc.Kill(entireProcessTree: true);
         }
         catch { /* Already exited or access denied. */ }
     }
@@ -161,11 +169,14 @@ public sealed class ProcessManager : IProcessManager
         try
         {
             if (!process.HasExited)
-                process.Kill();
+                process.Kill(entireProcessTree: true);
         }
         catch
         {
             // Already exited
         }
     }
+
+    private static void ObserveFaults(Task task) =>
+        _ = task.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
 }

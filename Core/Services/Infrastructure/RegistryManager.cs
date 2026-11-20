@@ -67,5 +67,47 @@ namespace CortexFX.Core.Services.Infrastructure
                 throw new Exception($"Failed to unregister context menu: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// Best-effort HKCU registration of the .cfxproj video montage file extension
+        /// so double-clicking a saved project opens Cortex FX directly in Video Cutter.
+        /// </summary>
+        public static void EnsureProjectFileAssociation()
+        {
+            try
+            {
+                string? exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if (string.IsNullOrWhiteSpace(exePath))
+                    return;
+
+                string exeName = System.IO.Path.GetFileName(exePath);
+                if (!string.Equals(exeName, "CortexFX.exe", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                const string progId = "CortexFX.VideoProject";
+                string command = $"\"{exePath}\" \"%1\"";
+
+                using (RegistryKey? extKey = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.cfxproj"))
+                {
+                    extKey?.SetValue(null, progId, RegistryValueKind.String);
+                }
+
+                using (RegistryKey? progKey = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{progId}"))
+                {
+                    if (progKey == null) return;
+                    progKey.SetValue(null, "Cortex FX Video Project", RegistryValueKind.String);
+
+                    using (RegistryKey? iconKey = progKey.CreateSubKey("DefaultIcon"))
+                        iconKey?.SetValue(null, $"\"{exePath}\",0", RegistryValueKind.String);
+
+                    using (RegistryKey? cmdKey = progKey.CreateSubKey(@"shell\open\command"))
+                        cmdKey?.SetValue(null, command, RegistryValueKind.String);
+                }
+            }
+            catch
+            {
+                // File association is best-effort and must never interrupt startup.
+            }
+        }
     }
 }

@@ -107,24 +107,28 @@ public partial class VideoCutterView
             _transitionGuardUntil = DateTime.UtcNow.AddMilliseconds(250);
             await SafeSeekMediaAsync(PreviewMedia, seekTarget, skipIfNearCurrent: true);
 
-            if (shouldPlay && _isPlaying)
+            try
             {
-                await PreviewMedia.Play();
-                _isPlaying = true;
-                _uiTimer.Start();
-                UpdatePlayPauseUi(true);
-                SyncAllAuxiliaryChannels(_montagePosition, autoPlay: true, forceSeek: true);
+                if (shouldPlay && _isPlaying)
+                {
+                    await PreviewMedia.Play();
+                    _isPlaying = true;
+                    _uiTimer.Start();
+                    UpdatePlayPauseUi(true);
+                    SyncAllAuxiliaryChannels(_montagePosition, autoPlay: true, forceSeek: true);
+                }
+                else
+                {
+                    await PreviewMedia.Pause();
+                    _isPlaying = false;
+                    UpdatePlayPauseUi(false);
+                }
             }
-            else
-            {
-                await PreviewMedia.Pause();
-                _isPlaying = false;
-                UpdatePlayPauseUi(false);
-            }
+            catch { }
         }
         else
         {
-            await PreviewMedia.Pause();
+            try { await PreviewMedia.Pause(); } catch { }
             UpdatePlayPauseUi(false);
         }
 
@@ -1186,6 +1190,7 @@ public partial class VideoCutterView
         SyncMuteUi();
         ApplyPlayerAudioAndSpeed();
         RenderTimeline();
+        MarkProjectDirty(scheduleAutoSave: true);
     }
 
     private void TrackVideoMute_Click(object sender, RoutedEventArgs e)
@@ -1198,6 +1203,7 @@ public partial class VideoCutterView
             _ = SyncAudioChannelAsync(layer, _montagePosition, autoPlay: _isPlaying, forceSeek: true);
         ApplyPlayerAudioAndSpeed();
         RenderTimeline();
+        MarkProjectDirty(scheduleAutoSave: true);
     }
 
     private void TrackAudioMute_Click(object sender, RoutedEventArgs e)
@@ -1209,6 +1215,7 @@ public partial class VideoCutterView
         _ = SyncAudioChannelAsync(trackIdx, _montagePosition, autoPlay: _isPlaying, forceSeek: true);
         ApplyPlayerAudioAndSpeed();
         RenderTimeline();
+        MarkProjectDirty(scheduleAutoSave: true);
     }
 
     private void SyncMuteUi()

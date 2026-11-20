@@ -38,7 +38,7 @@ public sealed class MagickService : IMagickService
             throw new FileNotFoundException($"Input file not found: {inputFile}");
 
         // Route: Large files go through CLI to avoid OOM
-        if (fileInfo.Length > LargeFileThreshold)
+        if (fileInfo.Length > LargeFileThreshold && File.Exists(_config.MagickPath))
         {
             await ConvertViaCliAsync(inputFile, outputFile, options, ct);
             return;

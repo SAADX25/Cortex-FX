@@ -44,6 +44,7 @@ public static class ConsoleLogger
                 "Cortex FX",
                 "Logs");
             Directory.CreateDirectory(LogDirectory);
+            PruneOldLogs(LogDirectory);
             _logFilePath = Path.Combine(LogDirectory, $"cortexfx-{DateTime.Now:yyyyMMdd}.log");
 
             if (_enabled)
@@ -122,6 +123,28 @@ public static class ConsoleLogger
         catch
         {
             return path;
+        }
+    }
+
+    private static void PruneOldLogs(string logDirectory)
+    {
+        try
+        {
+            DateTime cutoff = DateTime.UtcNow.AddDays(-14);
+            var files = new DirectoryInfo(logDirectory)
+                .EnumerateFiles("cortexfx-*.log")
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .Skip(10)
+                .Where(f => f.LastWriteTimeUtc < cutoff);
+
+            foreach (FileInfo file in files)
+            {
+                try { file.Delete(); } catch { }
+            }
+        }
+        catch
+        {
+            // Best-effort log rotation must never block startup.
         }
     }
 }

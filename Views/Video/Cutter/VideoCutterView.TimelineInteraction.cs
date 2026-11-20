@@ -120,6 +120,7 @@ public partial class VideoCutterView
     {
         _isSnapEnabled = SnapToggle?.IsChecked == true;
         ShowTimelineToast(_isSnapEnabled ? "Snapping ON" : "Snapping OFF");
+        MarkProjectDirty(scheduleAutoSave: true);
     }
 
     private void SelectTool_Click(object sender, RoutedEventArgs e) => SetActiveTool(TimelineToolMode.Select);

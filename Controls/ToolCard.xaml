@@ -16,28 +16,29 @@
 
     <UserControl.Resources>
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="CornerRadius" Value="11"/>
+            <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#30262E"/>
+            <Setter Property="BorderBrush" Value="#25222E"/>
             <Setter Property="Background">
                 <Setter.Value>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#19151B" Offset="0"/>
-                        <GradientStop Color="#101115" Offset="1"/>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#161620" Offset="0"/>
+                        <GradientStop Color="#0E0F16" Offset="1"/>
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <DataTrigger Binding="{Binding IsMouseOver, ElementName=CardRoot}" Value="True">
+                <DataTrigger Binding="{Binding IsFeatured, ElementName=CardRoot}" Value="True">
+                    <Setter Property="BorderBrush" Value="#572436"/>
                     <Setter Property="Background">
                         <Setter.Value>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#211B23" Offset="0"/>
-                                <GradientStop Color="#16151B" Offset="1"/>
+                                <GradientStop Color="#1E141D" Offset="0"/>
+                                <GradientStop Color="#121119" Offset="0.55"/>
+                                <GradientStop Color="#1A1017" Offset="1"/>
                             </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
-                    <Setter Property="BorderBrush" Value="#67414D"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -51,30 +52,125 @@
                 <TranslateTransform x:Name="CardTranslation"/>
             </TransformGroup>
         </Grid.RenderTransform>
+
         <Border Style="{StaticResource CardStyle}">
-            <!-- Fixed slots keep every icon aligned, including two-line titles. -->
-            <Grid Margin="12,25,12,18">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="48"/>
-                    <RowDefinition Height="12"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Border x:Name="IconContainer" Width="48" Height="48" CornerRadius="12"
-                        HorizontalAlignment="Center"
-                        Background="{Binding IconBackground, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                    <Path Data="{Binding IconData, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                          Fill="{Binding IconForeground, RelativeSource={RelativeSource AncestorType=UserControl}}" Stretch="Uniform" Margin="12"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.28" Color="Black"/>
+            </Border.Effect>
+            <Grid ClipToBounds="True">
+                <!-- Persistent Soft Ambient Glow for Featured Cards (e.g. Video Cutter Studio) -->
+                <Border CornerRadius="11" IsHitTestVisible="False">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsFeatured, ElementName=CardRoot}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Border.Background>
+                        <RadialGradientBrush Center="0.5,0.18" GradientOrigin="0.5,0.12" RadiusX="0.88" RadiusY="0.72">
+                            <GradientStop Color="#2EE11D2E" Offset="0"/>
+                            <GradientStop Color="#00E11D2E" Offset="1"/>
+                        </RadialGradientBrush>
+                    </Border.Background>
                 </Border>
-                <TextBlock Grid.Row="2" Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                           Foreground="#F1F1F4" FontWeight="SemiBold" FontSize="14"
-                           LineHeight="20" LineStackingStrategy="BlockLineHeight"
-                           TextAlignment="Center" TextWrapping="Wrap"
-                           HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+
+                <!-- Subtle Top Crimson Ambient Hover Glow -->
+                <Border x:Name="HoverGlowOverlay" CornerRadius="11" Opacity="0">
+                    <Border.Background>
+                        <RadialGradientBrush Center="0.5,0.1" GradientOrigin="0.5,0.05" RadiusX="0.9" RadiusY="0.75">
+                            <GradientStop Color="#44E11D2E" Offset="0"/>
+                            <GradientStop Color="#00E11D2E" Offset="1"/>
+                        </RadialGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <!-- Optional Top-Right Status Badge (e.g. BETA) -->
+                <Border x:Name="BadgePill" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="0,9,9,0" CornerRadius="5" Padding="6,1.5"
+                        BorderThickness="1" BorderBrush="#B4691E">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#2B1D0F" Offset="0"/>
+                            <GradientStop Color="#1F130B" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding BadgeText, ElementName=CardRoot}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding BadgeText, ElementName=CardRoot}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="4.5" Height="4.5" Fill="#FBBF24" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding BadgeText, ElementName=CardRoot}"
+                                   Foreground="#FCD34D" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Fixed slots keep every icon aligned, including two-line titles. -->
+                <Grid Margin="12,26,12,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="52"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <ScaleTransform x:Name="IconScale" ScaleX="1" ScaleY="1"/>
+                        </Grid.RenderTransform>
+                        <!-- Soft Crimson Icon Bloom on Featured Card -->
+                        <Border Width="52" Height="52" CornerRadius="14" Background="#E11D2E" Opacity="0.34" IsHitTestVisible="False">
+                            <Border.Effect><BlurEffect Radius="14"/></Border.Effect>
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFeatured, ElementName=CardRoot}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                        <Border x:Name="IconContainer" Width="50" Height="50" CornerRadius="13"
+                                HorizontalAlignment="Center"
+                                Background="{Binding IconBackground, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.34" Color="Black"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Border CornerRadius="13" BorderThickness="0,1,0,0" BorderBrush="#38FFFFFF" IsHitTestVisible="False"/>
+                                <Path Data="{Binding IconData, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                      Fill="{Binding IconForeground, RelativeSource={RelativeSource AncestorType=UserControl}}" Stretch="Uniform" Margin="11"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                    <TextBlock Grid.Row="2" Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               Foreground="#F1F5F9" FontWeight="SemiBold" FontSize="13.5"
+                               LineHeight="19" LineStackingStrategy="BlockLineHeight"
+                               TextAlignment="Center" TextWrapping="Wrap"
+                               HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                </Grid>
             </Grid>
         </Border>
-        <Border x:Name="FocusRing" Margin="3" CornerRadius="8"
-                BorderThickness="1" BorderBrush="#F2ADB8">
+
+        <!-- Animated Crimson Hover Border Ring -->
+        <Border x:Name="HoverBorderOverlay" CornerRadius="12" BorderThickness="1.2" BorderBrush="#E11D2E" Opacity="0"/>
+
+        <Border x:Name="FocusRing" Margin="3" CornerRadius="9"
+                BorderThickness="1" BorderBrush="#FF5C70">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Opacity" Value="0"/>

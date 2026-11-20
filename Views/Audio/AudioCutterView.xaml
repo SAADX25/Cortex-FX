@@ -143,15 +143,15 @@
       </Border>
       <StackPanel Grid.Column="1" Margin="12,0,20,0">
         <StackPanel Orientation="Horizontal">
-          <TextBlock x:Name="AudioToolHeading" Text="Audio Cutter" Foreground="#F2F7FC" FontSize="21" FontWeight="SemiBold" />
+          <TextBlock x:Name="AudioToolHeading" Text="{DynamicResource Loc_Tool_AudioCutter}" Foreground="#F2F7FC" FontSize="21" FontWeight="SemiBold" />
           <Border Background="#19342F" CornerRadius="5" Padding="6,2" Margin="10,4,0,0" VerticalAlignment="Top">
-            <TextBlock Text="LOCAL" FontSize="9" Foreground="#8FE0BE" FontWeight="Bold" />
+            <TextBlock Text="{DynamicResource Loc_AC_Local}" FontSize="9" Foreground="#8FE0BE" FontWeight="Bold" />
           </Border>
         </StackPanel>
         <TextBlock x:Name="AudioEditorFileNameText" Text="Choose an audio file" Foreground="#94A8BB" FontSize="12" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
       </StackPanel>
       <StackPanel Grid.Column="2" VerticalAlignment="Center">
-        <TextBlock Text="PLAYHEAD" Style="{StaticResource Caption}" HorizontalAlignment="Right" />
+        <TextBlock Text="{DynamicResource Loc_AC_Playhead}" Style="{StaticResource Caption}" HorizontalAlignment="Right" />
         <TextBlock x:Name="CurrentTimeDisplay" Text="00:00.000" FontFamily="Consolas" FontSize="20" Foreground="#80DDF4" FontWeight="SemiBold" Margin="0,2,0,0" />
       </StackPanel>
     </Grid>
@@ -167,10 +167,10 @@
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid Margin="0,0,0,10">
-          <TextBlock Text="WAVEFORM" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+          <TextBlock Text="{DynamicResource Loc_AC_Waveform}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <CheckBox x:Name="LoopSelectionToggle" Content="Loop" Foreground="#A6BBCD" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Repeat the selected range" />
-            <Button Content="Select all" Style="{StaticResource StudioButton}" Padding="10,4" MinHeight="28" Click="SelectAll_Click" ToolTip="Select the entire file (Ctrl+A)" />
+            <CheckBox x:Name="LoopSelectionToggle" Content="{DynamicResource Loc_AC_Loop}" Foreground="#A6BBCD" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Repeat the selected range" />
+            <Button Content="{DynamicResource Loc_AC_SelectAll}" Style="{StaticResource StudioButton}" Padding="10,4" MinHeight="28" Click="SelectAll_Click" ToolTip="Select the entire file (Ctrl+A)" />
           </StackPanel>
         </Grid>
         <Border Grid.Row="1" Background="#0C1825" BorderBrush="#294356" BorderThickness="1" CornerRadius="12" ClipToBounds="True">
@@ -206,8 +206,8 @@
         </Border>
         <Border Grid.Row="2" Background="#0C1520" BorderBrush="#223647" BorderThickness="1" CornerRadius="10" Margin="0,8,0,0" ClipToBounds="True">
           <Grid>
-            <TextBlock Text="LIVE SPECTRUM" Style="{StaticResource Caption}" FontSize="9" Margin="10,6,0,0" VerticalAlignment="Top" />
-            <TextBlock x:Name="SpectrumStatusText" Text="Play to see the frequency spectrum" FontSize="11" Foreground="#8098AD" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+            <TextBlock Text="{DynamicResource Loc_AC_LiveSpectrum}" Style="{StaticResource Caption}" FontSize="9" Margin="10,6,0,0" VerticalAlignment="Top" />
+            <TextBlock x:Name="SpectrumStatusText" Text="{DynamicResource Loc_AC_PlaySpectrum}" FontSize="11" Foreground="#8098AD" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
             <Grid x:Name="SpectrumHost" Margin="10,21,10,6" SizeChanged="SpectrumCanvas_SizeChanged">
               <Canvas x:Name="SpectrumCanvas" IsHitTestVisible="False" />
             </Grid>
@@ -220,15 +220,15 @@
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
           <StackPanel>
-            <TextBlock Text="IN POINT" Style="{StaticResource Caption}" />
+            <TextBlock Text="{DynamicResource Loc_AC_InPoint}" Style="{StaticResource Caption}" />
             <TextBlock x:Name="StartTimeDisplay" Text="00:00.000" Style="{StaticResource TimeValue}" Foreground="#65DBE3" />
           </StackPanel>
           <StackPanel Grid.Column="1">
-            <TextBlock Text="OUT POINT" Style="{StaticResource Caption}" />
+            <TextBlock Text="{DynamicResource Loc_AC_OutPoint}" Style="{StaticResource Caption}" />
             <TextBlock x:Name="EndTimeDisplay" Text="00:00.000" Style="{StaticResource TimeValue}" Foreground="#B8A9FF" />
           </StackPanel>
           <StackPanel Grid.Column="2">
-            <TextBlock Text="SELECTED" Style="{StaticResource Caption}" />
+            <TextBlock Text="{DynamicResource Loc_AC_Selected}" Style="{StaticResource Caption}" />
             <TextBlock x:Name="DurationTimeDisplay" Text="00:00.000" Style="{StaticResource TimeValue}" />
           </StackPanel>
         </Grid>
@@ -251,11 +251,11 @@
           <Button x:Name="PlaySelectionBtn" Style="{StaticResource StudioButton}" Click="PlaySelection_Click" Background="#246F88" BorderBrush="#52B1CA" Foreground="White" MinWidth="100" Height="40" ToolTip="Play selection (Space)">
             <StackPanel Orientation="Horizontal">
               <TextBlock x:Name="PlaybackButtonIcon" Text="" FontFamily="Segoe MDL2 Assets" Margin="0,0,8,0" VerticalAlignment="Center" />
-              <TextBlock x:Name="PlaybackButtonLabel" Text="Play" />
+              <TextBlock x:Name="PlaybackButtonLabel" Text="{DynamicResource Loc_AC_Play}" />
             </StackPanel>
           </Button>
-          <Button x:Name="SetStartBtn" Grid.Column="1" Content="Set in" Click="SetStart_Click" Style="{StaticResource StudioButton}" Foreground="#77DFE7" Margin="8,0,0,0" MinWidth="78" ToolTip="Set in point at the playhead (I)" />
-          <Button x:Name="SetEndBtn" Grid.Column="2" Content="Set out" Click="SetEnd_Click" Style="{StaticResource StudioButton}" Foreground="#BEAEFF" Margin="8,0,0,0" MinWidth="78" ToolTip="Set out point at the playhead (O)" />
+          <Button x:Name="SetStartBtn" Grid.Column="1" Content="{DynamicResource Loc_AC_SetIn}" Click="SetStart_Click" Style="{StaticResource StudioButton}" Foreground="#77DFE7" Margin="8,0,0,0" MinWidth="78" ToolTip="Set in point at the playhead (I)" />
+          <Button x:Name="SetEndBtn" Grid.Column="2" Content="{DynamicResource Loc_AC_SetOut}" Click="SetEnd_Click" Style="{StaticResource StudioButton}" Foreground="#BEAEFF" Margin="8,0,0,0" MinWidth="78" ToolTip="Set out point at the playhead (O)" />
           <Grid Grid.Column="3" Margin="16,0,18,0" VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
@@ -271,7 +271,7 @@
             <Slider x:Name="AudioGainSlider" Style="{StaticResource StudioVolumeSlider}" Grid.Column="1" Minimum="0" Maximum="100" Value="100" Margin="9,0,8,0" VerticalAlignment="Center" ValueChanged="AudioGainSlider_ValueChanged" AutomationProperties.Name="Preview volume" ToolTip="Preview volume; exported audio keeps its original level" />
             <TextBlock x:Name="AudioGainText" Grid.Column="2" Text="100%" FontSize="11" Foreground="#AEBED0" VerticalAlignment="Center" HorizontalAlignment="Right" />
           </Grid>
-          <Button x:Name="SaveSelectionBtn" Grid.Column="4" Content="Export cut" Style="{StaticResource StudioButton}" Click="SaveSelection_Click" Background="#DCEAF3" Foreground="#102332" BorderBrush="#DCEAF3" MinWidth="128" ToolTip="Save the selected range as a new audio file" />
+          <Button x:Name="SaveSelectionBtn" Grid.Column="4" Content="{DynamicResource Loc_AC_ExportCut}" Style="{StaticResource StudioButton}" Click="SaveSelection_Click" Background="#DCEAF3" Foreground="#102332" BorderBrush="#DCEAF3" MinWidth="128" ToolTip="Save the selected range as a new audio file" />
         </Grid>
         <Grid Grid.Row="1" Margin="0,9,0,0">
           <TextBlock Text="Drag to select · Drag either edge to refine" Foreground="#8199AF" FontSize="10" />

@@ -63,6 +63,7 @@ public partial class MainWindow : Window
 
     // FFME
     private string _ffmpegBinPath = string.Empty;
+    private string? _pendingStartupProjectFile;
 
     #endregion
 
@@ -103,23 +104,35 @@ public partial class MainWindow : Window
             PopulateFormats("Document");
 
             Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.8.5";
+            VersionText.Text = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v1.9.5";
             ConsoleLogger.Info("UI", $"Version label set to {VersionText.Text}.");
 
-            // File passed from Explorer context menu
+            // File passed from Explorer context menu or .cfxproj launch
             if (!string.IsNullOrEmpty(startupFile) && File.Exists(startupFile))
             {
                 ConsoleLogger.Info("Startup", $"Startup file detected: {ConsoleLogger.ShortPath(startupFile)}");
-                AddFileToList(startupFile);
-                ShowConversionView();
+                if (IsVideoProjectFile(startupFile))
+                {
+                    _pendingStartupProjectFile = startupFile;
+                    SwitchToMode(AppMode.VideoCutter);
+                }
+                else
+                {
+                    AddFileToList(startupFile);
+                    ShowConversionView();
+                }
             }
 
             if (ContextMenuCheckBox != null)
             {
                 ContextMenuCheckBox.IsChecked = RegistryManager.IsRegistered();
             }
+            RegistryManager.EnsureProjectFileAssociation();
 
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
+            SyncLanguageSelectorUi();
+            Loc.LanguageChanged += OnLanguageChanged;
+            RefreshDynamicLocalizedText();
             UpdateConvertButtonAvailability();
 
             _trayIcon = new TrayIconService(this);
@@ -155,13 +168,187 @@ public partial class MainWindow : Window
         }
 
         ConsoleLogger.Info("Startup", $"File received from another launch: {ConsoleLogger.ShortPath(filePath)}");
+        if (IsVideoProjectFile(filePath))
+        {
+            SwitchToMode(AppMode.VideoCutter);
+            VideoCutterEditor?.OpenProjectFile(filePath);
+            return;
+        }
+
         AddFileToList(filePath);
         ShowConversionView();
     }
 
+    private static bool IsVideoProjectFile(string path) =>
+        string.Equals(System.IO.Path.GetExtension(path), CortexFX.Core.Video.MontageProjectStorage.FileExtension, StringComparison.OrdinalIgnoreCase);
+
+    private bool _cleanedUpOnExit;
+
+    internal void FlushSessionStateOnExit() => CleanupResourcesOnExit();
+
+    internal void CleanupResourcesOnExit()
+    {
+        if (_cleanedUpOnExit)
+            return;
+        _cleanedUpOnExit = true;
+
+        try { VideoCutterEditor?.Shutdown(); } catch { }
+        try { VideoCompressorEditor?.Shutdown(); } catch { }
+
+        try
+        {
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+        }
+        catch { }
+
+        try
+        {
+            StopStemPreview();
+            CancelAudioSeparation();
+            CancelWaveformRender();
+            _playbackTimer?.Stop();
+            if (_waveOut != null)
+            {
+                _waveOut.Stop();
+                _waveOut.Dispose();
+                _waveOut = null;
+            }
+            if (_audioReader != null)
+            {
+                _audioReader.Dispose();
+                _audioReader = null;
+            }
+        }
+        catch { }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        Loc.LanguageChanged -= OnLanguageChanged;
+        CleanupResourcesOnExit();
+        base.OnClosed(e);
+    }
+
+    private void SyncLanguageSelectorUi()
+    {
+        if (LangEnRadio != null) LangEnRadio.IsChecked = !Loc.IsArabic;
+        if (LangArRadio != null) LangArRadio.IsChecked = Loc.IsArabic;
+    }
+
+    private void LanguageOption_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton rb && rb.Tag is string langCode)
+        {
+            Loc.SetLanguage(langCode, save: true);
+        }
+    }
+
+    private void OnLanguageChanged()
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(OnLanguageChanged);
+            return;
+        }
+
+        SyncLanguageSelectorUi();
+        RefreshDynamicLocalizedText();
+    }
+
+    private static bool IsFormatPlaceholder(ComboBoxItem? item)
+    {
+        if (item == null) return true;
+        if (Equals(item.Tag, "PLACEHOLDER")) return true;
+        string text = item.Content?.ToString() ?? string.Empty;
+        return string.IsNullOrWhiteSpace(text) ||
+               text.Contains("Ready", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("No common", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ComboBoxItem CreateFormatPlaceholderItem(string resourceKey) =>
+        new() { Content = Loc.T(resourceKey), Tag = "PLACEHOLDER" };
+
+    private string GetLocalizedCategoryModeTitle(string category) => category switch
+    {
+        "Image" => Loc.T("Loc_Mode_Image"),
+        "Video" => Loc.T("Loc_Mode_Video"),
+        "Audio" => Loc.T("Loc_Mode_Audio"),
+        "Document" => Loc.T("Loc_Mode_Document"),
+        "Archive" => Loc.T("Loc_Mode_Archive"),
+        "Ebook" => Loc.T("Loc_Mode_Ebook"),
+        _ => Loc.T("Loc_Mode_Universal")
+    };
+
+    private string GetLocalizedModeTitle()
+    {
+        if (_currentMode == AppMode.Universal)
+        {
+            if (_universalFilterMode != null)
+                return GetLocalizedCategoryModeTitle(_universalFilterMode);
+
+            if (_filesToConvert.Count > 0)
+            {
+                string ext = System.IO.Path.GetExtension(_filesToConvert[0].FullPath).ToLowerInvariant();
+                string category = MediaTypes.GetCategory(ext);
+                if (category != "Unknown")
+                    return GetLocalizedCategoryModeTitle(category);
+                if (!string.IsNullOrEmpty(ext))
+                    return Loc.F("Loc_Mode_ExtConverter", ext.TrimStart('.').ToUpperInvariant());
+            }
+
+            return Loc.T("Loc_Mode_Universal");
+        }
+
+        return _currentMode switch
+        {
+            AppMode.Dashboard => Loc.T("Loc_Mode_SelectTool"),
+            AppMode.PdfToWord => Loc.T("Loc_Tool_PdfToWord"),
+            AppMode.WordToPdf => Loc.T("Loc_Tool_WordToPdf"),
+            AppMode.PdfToPpt => Loc.T("Loc_Tool_PdfToPpt"),
+            AppMode.PptToPdf => Loc.T("Loc_Tool_PptToPdf"),
+            AppMode.ExcelToPdf => Loc.T("Loc_Tool_ExcelToPdf"),
+            AppMode.PdfToImage => Loc.T("Loc_Tool_PdfToImage"),
+            AppMode.VideoCompressor => Loc.T("Loc_Tool_VideoCompressor"),
+            AppMode.VideoCutter => Loc.T("Loc_Tool_VideoCutter"),
+            AppMode.AudioTrimmer => _audioSeparationMode ? Loc.T("Loc_Tool_AudioSeparator") : Loc.T("Loc_Tool_AudioCutter"),
+            _ => Loc.T("Loc_Mode_Universal")
+        };
+    }
+
+    private void RefreshDynamicLocalizedText()
+    {
+        if (CurrentToolTitle != null)
+            CurrentToolTitle.Text = GetLocalizedModeTitle();
+
+        if (FormatComboBox?.Items.Count == 1 && FormatComboBox.Items[0] is ComboBoxItem placeholder && IsFormatPlaceholder(placeholder))
+        {
+            string key = _filesToConvert.Count == 0 ? "Loc_Format_ReadyAny" : "Loc_Format_NoCommon";
+            placeholder.Content = Loc.T(key);
+        }
+
+        if (MaximizeButton != null)
+            MaximizeButton.ToolTip = WindowState == WindowState.Maximized ? Loc.T("Loc_Tip_Restore") : Loc.T("Loc_Tip_Maximize");
+
+        if (!_isConverting && StatusText != null)
+            StatusText.Text = Loc.T("Loc_Status_ToolsReady");
+
+        if (UpdateStatusText != null && CheckForUpdatesButton?.IsEnabled == true)
+            UpdateStatusText.Text = Loc.T("Loc_Settings_UpdatesDefault");
+
+        if (ConvertButton != null)
+        {
+            ConvertButton.Tag = _isConverting ? "CANCEL" : "CONVERT";
+            ConvertButton.Content = Loc.T(_isConverting ? "Loc_Conv_CancelBtn" : "Loc_Conv_ConvertBtn");
+        }
+
+        UpdateConversionSummary();
+    }
+
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        StatusText.Text = "Checking local tools...";
+        StatusText.Text = Loc.T("Loc_Status_CheckingTools");
         ConsoleLogger.Info("Startup", "Background startup checks started.");
 
         try
@@ -170,21 +357,29 @@ public partial class MainWindow : Window
             if (!resourceStatus.IsReady)
             {
                 ConsoleLogger.Warning("Resources", BuildResourceStatusMessage(resourceStatus));
-                StatusText.Text = "Some local tools are missing. Open Settings for logs.";
+                StatusText.Text = Loc.T("Loc_Status_MissingTools");
                 ShowToolStatus();
             }
             else
             {
                 ConsoleLogger.Success("Resources", $"Core tools ready at {ConsoleLogger.ShortPath(resourceStatus.ResourcesDirectory)}.");
-                StatusText.Text = "Local tools ready.";
+                StatusText.Text = Loc.T("Loc_Status_ToolsReady");
             }
 
             await LoadFfmeAsync();
+
+            if (!string.IsNullOrWhiteSpace(_pendingStartupProjectFile) && File.Exists(_pendingStartupProjectFile))
+            {
+                string projectPath = _pendingStartupProjectFile;
+                _pendingStartupProjectFile = null;
+                SwitchToMode(AppMode.VideoCutter);
+                VideoCutterEditor?.OpenProjectFile(projectPath);
+            }
         }
         catch (Exception ex)
         {
             ConsoleLogger.Error("Startup", $"Startup checks failed: {ex}");
-            StatusText.Text = "Startup checks failed. Open Settings for logs.";
+            StatusText.Text = Loc.T("Loc_Status_StartupFailed");
         }
     }
 
@@ -205,7 +400,7 @@ public partial class MainWindow : Window
         catch (Exception ffmpegEx)
         {
             ConsoleLogger.Error("Engine", $"FFME load failed from {targetFolder}: {ffmpegEx.Message}");
-            StatusText.Text = "Video preview engine is unavailable. Conversion can still work if ffmpeg.exe is present.";
+            StatusText.Text = Loc.T("Loc_Status_FfmeUnavailable");
         }
     }
 
@@ -273,6 +468,14 @@ public partial class MainWindow : Window
         if (!wasVisible)
         {
             AnimateContentIn(activeView);
+            if (ReferenceEquals(activeView, ConversionView))
+            {
+                AnimateConversionColumnsIn();
+            }
+            else if (ReferenceEquals(activeView, DashboardView))
+            {
+                AnimateDashboardCardsIn();
+            }
         }
     }
 
@@ -323,20 +526,111 @@ public partial class MainWindow : Window
         }
 
         view.Opacity = 0;
-        transform.Y = 6;
+        transform.Y = 10;
 
-        var easing = new QuadraticEase { EasingMode = EasingMode.EaseOut };
-        var duration = TimeSpan.FromMilliseconds(180);
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(220);
 
         view.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration)
         {
             EasingFunction = easing
         });
 
-        transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(6, 0, duration)
+        transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, duration)
         {
             EasingFunction = easing
         });
+    }
+
+    private void AnimateConversionColumnsIn()
+    {
+        FrameworkElement?[] columns = [ConversionColLeft, ConversionColMid, ConversionColRight];
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            foreach (FrameworkElement? col in columns)
+            {
+                if (col == null) continue;
+                col.BeginAnimation(UIElement.OpacityProperty, null);
+                col.Opacity = 1;
+                if (col.RenderTransform is TranslateTransform t && !t.IsFrozen)
+                {
+                    t.BeginAnimation(TranslateTransform.YProperty, null);
+                    t.Y = 0;
+                }
+            }
+            return;
+        }
+
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        for (int i = 0; i < columns.Length; i++)
+        {
+            FrameworkElement? col = columns[i];
+            if (col == null) continue;
+
+            if (col.RenderTransform is not TranslateTransform translate || translate.IsFrozen)
+            {
+                translate = new TranslateTransform();
+                col.RenderTransform = translate;
+            }
+
+            var delay = TimeSpan.FromMilliseconds(i * 55);
+            var duration = TimeSpan.FromMilliseconds(260);
+
+            col.Opacity = 0;
+            translate.Y = 14;
+
+            col.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration)
+            {
+                BeginTime = delay,
+                EasingFunction = easing
+            }, HandoffBehavior.SnapshotAndReplace);
+
+            translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(14, 0, duration)
+            {
+                BeginTime = delay,
+                EasingFunction = easing
+            }, HandoffBehavior.SnapshotAndReplace);
+        }
+    }
+
+    private void AnimateDashboardCardsIn()
+    {
+        if (PopularToolsPanel == null || !SystemParameters.ClientAreaAnimation)
+        {
+            return;
+        }
+
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        int index = 0;
+        foreach (UIElement child in PopularToolsPanel.Children)
+        {
+            if (child is not FrameworkElement card) continue;
+
+            if (card.RenderTransform is not TranslateTransform translate || translate.IsFrozen)
+            {
+                translate = new TranslateTransform();
+                card.RenderTransform = translate;
+            }
+
+            var delay = TimeSpan.FromMilliseconds(Math.Min(index * 22, 220));
+            var duration = TimeSpan.FromMilliseconds(240);
+
+            card.Opacity = 0;
+            translate.Y = 12;
+
+            card.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration)
+            {
+                BeginTime = delay,
+                EasingFunction = easing
+            }, HandoffBehavior.SnapshotAndReplace);
+
+            translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(12, 0, duration)
+            {
+                BeginTime = delay,
+                EasingFunction = easing
+            }, HandoffBehavior.SnapshotAndReplace);
+            index++;
+        }
     }
 
     public enum AppMode
@@ -375,7 +669,7 @@ public partial class MainWindow : Window
             SwitchToMode(AppMode.Universal);
 
             // Update Title specifically for the category
-            CurrentToolTitle.Text = $"{category} Converter Mode";
+            CurrentToolTitle.Text = GetLocalizedCategoryModeTitle(category);
 
             // Pre-populate formats for this category
             PopulateFormats(category);
@@ -386,6 +680,8 @@ public partial class MainWindow : Window
                 FormatComboBox.SelectedIndex = 0;
                 FormatComboBox.IsEnabled = true;
             }
+
+            UpdateConversionSummary();
         }
     }
 
@@ -399,19 +695,19 @@ public partial class MainWindow : Window
             if (tool == "VideoCompressor")
             {
                 if (VideoCompressorEditor != null) ShowMainContent(VideoCompressorEditor);
-                CurrentToolTitle.Text = "Video Compressor";
+                CurrentToolTitle.Text = Loc.T("Loc_Tool_VideoCompressor");
                 BackBtn.Visibility = Visibility.Collapsed; // The compressor has its own session-aware Back button.
             }
             else if (tool == "VideoCutter")
             {
                 if (VideoCutterEditor != null) ShowMainContent(VideoCutterEditor);
-                CurrentToolTitle.Text = "Video Cutter";
+                CurrentToolTitle.Text = Loc.T("Loc_Tool_VideoCutter");
                 BackBtn.Visibility = Visibility.Collapsed; // Video Cutter has its own session-aware Back button in the studio header.
             }
             else if (tool == "AudioCutter")
             {
                 if (AudioEditorGrid != null) ShowMainContent(AudioEditorGrid);
-                CurrentToolTitle.Text = "Audio Cutter";
+                CurrentToolTitle.Text = Loc.T("Loc_Tool_AudioCutter");
                 BackBtn.Visibility = Visibility.Visible;
             }
         }
@@ -420,7 +716,7 @@ public partial class MainWindow : Window
             _currentMode = AppMode.Dashboard;
             ShowMainContent(DashboardView);
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
-            CurrentToolTitle.Text = "Select Tool";
+            CurrentToolTitle.Text = Loc.T("Loc_Mode_SelectTool");
             BackBtn.Visibility = Visibility.Collapsed;
         }
     }
@@ -428,9 +724,6 @@ public partial class MainWindow : Window
     private void SwitchToMode(AppMode mode)
     {
         _currentMode = mode;
-        // Reset filter if not switching via Category Click (which sets it before calling this)
-        // But we need to be careful not to reset it if we just called it from Category_Click
-        // Simple way: Only reset if mode is NOT Universal, or if we want to clear it when going back to dashboard.
 
         if (mode != AppMode.Universal)
         {
@@ -440,7 +733,7 @@ public partial class MainWindow : Window
         if (mode == AppMode.Dashboard)
         {
             ShowMainContent(DashboardView);
-            CurrentToolTitle.Text = "Select Tool";
+            CurrentToolTitle.Text = Loc.T("Loc_Mode_SelectTool");
             FormatComboBox.IsEnabled = true;
             BackBtn.Visibility = Visibility.Collapsed;
 
@@ -465,15 +758,12 @@ public partial class MainWindow : Window
 
             if (_universalFilterMode == null)
             {
-                CurrentToolTitle.Text = "Universal Smart Converter";
+                CurrentToolTitle.Text = Loc.T("Loc_Mode_Universal");
                 FormatComboBox.Items.Clear();
-                FormatComboBox.Items.Add(new ComboBoxItem { Content = "Ready for any file..." });
+                FormatComboBox.Items.Add(CreateFormatPlaceholderItem("Loc_Format_ReadyAny"));
                 FormatComboBox.SelectedIndex = 0;
                 FormatComboBox.IsEnabled = false; // Disabled until file drop
             }
-
-            // Keep the file list when switching tabs
-            // _filesToConvert.Clear();
         }
         else if (mode == AppMode.VideoCompressor)
         {
@@ -497,21 +787,20 @@ public partial class MainWindow : Window
             if (TopNavPanel != null) TopNavPanel.Visibility = Visibility.Collapsed;
 
             // Configure UI based on mode
-            string from = "Unknown", to = "Unknown";
             string category = "Document";
             string? strictTarget = null;
 
             switch (mode)
             {
-                case AppMode.PdfToWord: from = "PDF"; to = "DOCX"; strictTarget = "DOCX"; break;
-                case AppMode.WordToPdf: from = "Word"; to = "PDF"; strictTarget = "PDF"; break;
-                case AppMode.PdfToPpt: from = "PDF"; to = "PPTX"; strictTarget = "PPTX"; break;
-                case AppMode.PptToPdf: from = "PowerPoint"; to = "PDF"; strictTarget = "PDF"; break;
-                case AppMode.ExcelToPdf: from = "Excel"; to = "PDF"; strictTarget = "PDF"; break;
-                case AppMode.PdfToImage: from = "PDF"; to = "JPG"; strictTarget = "JPG"; category = "Image"; break;
+                case AppMode.PdfToWord: strictTarget = "DOCX"; break;
+                case AppMode.WordToPdf: strictTarget = "PDF"; break;
+                case AppMode.PdfToPpt: strictTarget = "PPTX"; break;
+                case AppMode.PptToPdf: strictTarget = "PDF"; break;
+                case AppMode.ExcelToPdf: strictTarget = "PDF"; break;
+                case AppMode.PdfToImage: strictTarget = "JPG"; category = "Image"; break;
             }
 
-            CurrentToolTitle.Text = $"{from} to {to}";
+            CurrentToolTitle.Text = GetLocalizedModeTitle();
             PopulateFormats(category, strictTarget);
 
             // Auto-select and lock (if standard format)
@@ -521,6 +810,7 @@ public partial class MainWindow : Window
             }
 
             FormatComboBox.IsEnabled = false;
+            UpdateConversionSummary();
         }
     }
 
@@ -563,7 +853,7 @@ public partial class MainWindow : Window
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    if (VideoCutterEditor != null && !VideoCutterEditor.HasActiveSession)
+                    if (VideoCutterEditor != null && VideoCutterEditor.ShouldAutoOpenFilePicker)
                         VideoCutterEditor.OpenFilePicker();
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
@@ -621,14 +911,14 @@ public partial class MainWindow : Window
         if (!string.IsNullOrEmpty(_currentAudioFile) && File.Exists(_currentAudioFile))
         {
             ShowMainContent(_audioSeparationMode ? AudioSeparatorEditor : AudioEditorGrid);
-            CurrentToolTitle.Text = _audioSeparationMode ? "AI Audio Separator" : "Audio Cutter";
+            CurrentToolTitle.Text = _audioSeparationMode ? Loc.T("Loc_Tool_AudioSeparator") : Loc.T("Loc_Tool_AudioCutter");
             BackBtn.Visibility = Visibility.Visible;
             return;
         }
 
         var dlg = new OpenFileDialog
         {
-            Title = "Select an Audio File",
+            Title = Loc.T("Loc_Picker_SelectAudio"),
             Filter = "Audio Files|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.wma;*.opus;*.aiff;*.aif|All Files|*.*"
         };
 
@@ -664,10 +954,10 @@ public partial class MainWindow : Window
             else
             {
                 FormatComboBox.Items.Clear();
-                FormatComboBox.Items.Add(new ComboBoxItem { Content = "Ready for any file..." });
+                FormatComboBox.Items.Add(CreateFormatPlaceholderItem("Loc_Format_ReadyAny"));
                 FormatComboBox.SelectedIndex = 0;
                 FormatComboBox.IsEnabled = false;
-                CurrentToolTitle.Text = "Universal Smart Converter";
+                CurrentToolTitle.Text = Loc.T("Loc_Mode_Universal");
             }
             return;
         }
@@ -700,7 +990,7 @@ public partial class MainWindow : Window
 
         if (visibleFormats.Count == 0)
         {
-            FormatComboBox.Items.Add(new ComboBoxItem { Content = "No common output" });
+            FormatComboBox.Items.Add(CreateFormatPlaceholderItem("Loc_Format_NoCommon"));
             FormatComboBox.SelectedIndex = 0;
             FormatComboBox.IsEnabled = false;
             return;
@@ -718,8 +1008,8 @@ public partial class MainWindow : Window
         {
             string category = MediaTypes.GetCategory(selectedExtensions[0]);
             CurrentToolTitle.Text = category == "Unknown"
-                ? "Universal Smart Converter"
-                : $"{category} Converter";
+                ? Loc.T("Loc_Mode_Universal")
+                : GetLocalizedCategoryModeTitle(category);
         }
     }
 
@@ -788,7 +1078,7 @@ public partial class MainWindow : Window
         if (MaximizeButton != null)
         {
             MaximizeButton.Content = isMaximized ? "\uE923" : "\uE922";
-            MaximizeButton.ToolTip = isMaximized ? "Restore" : "Maximize";
+            MaximizeButton.ToolTip = isMaximized ? Loc.T("Loc_Tip_Restore") : Loc.T("Loc_Tip_Maximize");
         }
     }
 
@@ -808,11 +1098,11 @@ public partial class MainWindow : Window
 
         if (_filesToConvert.Count >= MaxBatchFiles)
         {
-            StatusText.Text = $"Batch limit reached ({MaxBatchFiles} files).";
+            StatusText.Text = Loc.F("Loc_Status_BatchLimit", MaxBatchFiles);
             AppDialog.ShowInfo(
                 this,
-                "Batch Limit",
-                $"Cortex FX can process up to {MaxBatchFiles} files in one batch. Start this batch first, then add more files.");
+                Loc.T("Loc_Alert_BatchLimitTitle"),
+                Loc.F("Loc_Alert_BatchLimitMsg", MaxBatchFiles));
             return;
         }
 
@@ -930,44 +1220,44 @@ public partial class MainWindow : Window
     {
         if (_isConverting)
         {
-            UpdateStatusText.Text = "Finish the current conversion before updating.";
+            UpdateStatusText.Text = Loc.T("Loc_Upd_Busy");
             return;
         }
 
         CheckForUpdatesButton.IsEnabled = false;
         try
         {
-            UpdateStatusText.Text = "Checking GitHub Releases...";
-            Version installedVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 7, 0);
+            UpdateStatusText.Text = Loc.T("Loc_Upd_Checking");
+            Version installedVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 9, 5);
             UpdateRelease? release = await _updateService.CheckAsync(installedVersion);
             if (release == null)
             {
-                UpdateStatusText.Text = "You already have the latest version.";
+                UpdateStatusText.Text = Loc.T("Loc_Upd_UpToDate");
                 return;
             }
 
-            UpdateStatusText.Text = $"Version {release.Tag} is available.";
+            UpdateStatusText.Text = Loc.F("Loc_Upd_Available", release.Tag);
             if (!AppDialog.Confirm(
                     this,
-                    "Cortex FX Update",
-                    $"Download and install Cortex FX {release.Tag}? The app will close while Setup replaces the installed version.",
-                    confirmText: "Install Update",
-                    cancelText: "Later",
+                    Loc.T("Loc_Upd_DialogTitle"),
+                    Loc.F("Loc_Upd_ConfirmMsg", release.Tag),
+                    confirmText: Loc.T("Loc_Upd_InstallBtn"),
+                    cancelText: Loc.T("Loc_Upd_LaterBtn"),
                     tone: DialogTone.Question))
                 return;
 
             var progress = new Progress<double>(percent =>
-                UpdateStatusText.Text = $"Downloading {release.Tag}... {percent:0}%");
+                UpdateStatusText.Text = Loc.F("Loc_Upd_Downloading", release.Tag, $"{percent:0}"));
             string installer = await _updateService.DownloadInstallerAsync(release, progress);
-            UpdateStatusText.Text = "Starting installer...";
+            UpdateStatusText.Text = Loc.T("Loc_Upd_Starting");
             Process.Start(new ProcessStartInfo(installer) { UseShellExecute = true });
             _trayIcon?.ExitForUpdate();
         }
         catch (Exception ex)
         {
             ConsoleLogger.Error("Update", ex.ToString());
-            UpdateStatusText.Text = "Update failed. Check your connection or open GitHub Releases.";
-            AppDialog.ShowWarning(this, "Cortex FX Update", $"Could not install the update:\n{ex.Message}");
+            UpdateStatusText.Text = Loc.T("Loc_Upd_Failed");
+            AppDialog.ShowWarning(this, Loc.T("Loc_Upd_DialogTitle"), Loc.F("Loc_Upd_FailedDialog", ex.Message));
         }
         finally
         {
@@ -1015,7 +1305,7 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
-            AppDialog.ShowInfo(null, "Folder Not Found", "The folder is not available yet.");
+            AppDialog.ShowInfo(null, Loc.T("Loc_Alert_FolderNotFoundTitle"), Loc.T("Loc_Alert_FolderNotFoundMsg"));
             return;
         }
 
@@ -1031,7 +1321,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ConsoleLogger.Error("Shell", $"Could not open folder {ConsoleLogger.ShortPath(folderPath)}: {ex.Message}");
-            AppDialog.ShowWarning(null, "Open Folder Failed", $"Could not open the folder.\n\n{folderPath}");
+            AppDialog.ShowWarning(null, Loc.T("Loc_Alert_OpenFolderFailedTitle"), Loc.F("Loc_Alert_OpenFolderFailedMsg", folderPath));
         }
     }
 
@@ -1043,7 +1333,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            AppDialog.ShowError(this, "Registry Error", $"Error registering context menu: {ex.Message}");
+            AppDialog.ShowError(this, Loc.T("Loc_Alert_RegistryErrTitle"), Loc.F("Loc_Alert_RegAddErr", ex.Message));
             ContextMenuCheckBox.IsChecked = false;
         }
     }
@@ -1056,7 +1346,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            AppDialog.ShowError(this, "Registry Error", $"Error unregistering context menu: {ex.Message}");
+            AppDialog.ShowError(this, Loc.T("Loc_Alert_RegistryErrTitle"), Loc.F("Loc_Alert_RegRemErr", ex.Message));
         }
     }
 
@@ -1069,18 +1359,72 @@ public partial class MainWindow : Window
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy;
-            DropZone.BorderBrush = (Brush)FindResource("AccentColor");
+            SetDropZoneDragActive(true);
         }
     }
 
     private void DropZone_DragLeave(object sender, DragEventArgs e)
     {
-        DropZone.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#473039"));
+        SetDropZoneDragActive(false);
+    }
+
+    private void SetDropZoneDragActive(bool active)
+    {
+        if (DropZoneDashedRect != null)
+        {
+            DropZoneDashedRect.Stroke = active
+                ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E11D2E"))
+                : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C2532"));
+        }
+
+        double targetOverlay = active ? 1.0 : 0.0;
+        double targetScale = active ? 1.14 : 1.0;
+        double targetLift = active ? -5.0 : 0.0;
+
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            DropZoneHoverBorder?.BeginAnimation(UIElement.OpacityProperty, null);
+            if (DropZoneHoverBorder != null) DropZoneHoverBorder.Opacity = targetOverlay;
+            if (DropZoneIconScale != null)
+            {
+                DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                DropZoneIconScale.ScaleX = targetScale;
+                DropZoneIconScale.ScaleY = targetScale;
+            }
+            if (DropZoneIconTranslate != null)
+            {
+                DropZoneIconTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+                DropZoneIconTranslate.Y = targetLift;
+            }
+            return;
+        }
+
+        var duration = TimeSpan.FromMilliseconds(active ? 180 : 210);
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+        DropZoneHoverBorder?.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(targetOverlay, duration) { EasingFunction = easing },
+            HandoffBehavior.SnapshotAndReplace);
+
+        if (DropZoneIconScale != null)
+        {
+            DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                new DoubleAnimation(targetScale, duration) { EasingFunction = easing },
+                HandoffBehavior.SnapshotAndReplace);
+            DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(targetScale, duration) { EasingFunction = easing },
+                HandoffBehavior.SnapshotAndReplace);
+        }
+
+        DropZoneIconTranslate?.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(targetLift, duration) { EasingFunction = easing },
+            HandoffBehavior.SnapshotAndReplace);
     }
 
     private void DropZone_Drop(object sender, DragEventArgs e)
     {
-        DropZone.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#473039"));
+        SetDropZoneDragActive(false);
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             string[]? items = e.Data.GetData(DataFormats.FileDrop) as string[];
@@ -1118,11 +1462,11 @@ public partial class MainWindow : Window
                         FormatComboBox.IsEnabled = true;
 
                         // Update UI Title to reflect detection
-                        CurrentToolTitle.Text = $"{ext.ToUpper().TrimStart('.')} Converter";
+                        CurrentToolTitle.Text = Loc.F("Loc_Mode_ExtConverter", ext.ToUpper().TrimStart('.'));
                     }
                     else
                     {
-                        AppDialog.ShowInfo(this, "Not Supported", $"Universal Mode: Format '{ext}' is not supported yet.");
+                        AppDialog.ShowInfo(this, Loc.T("Loc_Alert_NotSupportedTitle"), Loc.F("Loc_Alert_NotSupportedMsg", ext));
                         return; // Reject drop
                     }
                 }
@@ -1148,7 +1492,7 @@ public partial class MainWindow : Window
 
                 if (invalidFound)
                 {
-                    AppDialog.ShowWarning(this, "Invalid File Type", $"Some files were skipped because they don't match the current tool mode ({_currentMode}).");
+                    AppDialog.ShowWarning(this, Loc.T("Loc_Alert_InvalidTypeTitle"), Loc.F("Loc_Alert_InvalidTypeMsg", GetLocalizedModeTitle()));
                 }
             }
         }
@@ -1182,7 +1526,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ConsoleLogger.Warning("Files", $"Skipped folder {ConsoleLogger.ShortPath(dirPath)}: {ex.Message}");
-            StatusText.Text = "Some folders could not be read. See logs for details.";
+            StatusText.Text = Loc.T("Loc_Status_FolderReadErr");
         }
     }
 
@@ -1260,7 +1604,7 @@ public partial class MainWindow : Window
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Select Files to Convert",
+            Title = Loc.T("Loc_Picker_SelectFiles"),
             Multiselect = true,
             Filter = GetFilterForCurrentMode()
         };
@@ -1416,7 +1760,7 @@ public partial class MainWindow : Window
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Select Output Folder",
+            Title = Loc.T("Loc_Picker_SelectOutput"),
             Multiselect = false
         };
 
@@ -1438,7 +1782,7 @@ public partial class MainWindow : Window
     private void CloseOverlay_Click(object sender, RoutedEventArgs e)
     {
         SuccessOverlay.Visibility = Visibility.Collapsed;
-        StatusText.Text = "Ready";
+        StatusText.Text = Loc.T("Loc_Conv_Ready");
         UpdateConvertButtonAvailability();
     }
 
@@ -1462,20 +1806,17 @@ public partial class MainWindow : Window
         int fileCount = _filesToConvert.Count;
         string outputFormat = "-";
 
-        if (FormatComboBox?.SelectedItem is ComboBoxItem item && item.Content != null)
+        if (FormatComboBox?.SelectedItem is ComboBoxItem item && item.Content != null && !IsFormatPlaceholder(item))
         {
-            string selectedFormat = item.Content.ToString() ?? string.Empty;
-            if (!selectedFormat.Contains("Ready", StringComparison.OrdinalIgnoreCase) &&
-                !selectedFormat.Contains("No common", StringComparison.OrdinalIgnoreCase))
-            {
-                outputFormat = selectedFormat.ToUpperInvariant();
-            }
+            outputFormat = (item.Content.ToString() ?? string.Empty).ToUpperInvariant();
         }
 
         SelectedFilesCountText.Text = fileCount.ToString();
-        SummaryModeText.Text = CurrentToolTitle?.Text ?? "-";
+        SummaryModeText.Text = string.IsNullOrWhiteSpace(CurrentToolTitle?.Text) ? "-" : CurrentToolTitle.Text;
         SummaryFilesText.Text = fileCount.ToString();
         SummaryOutputText.Text = outputFormat;
+
+        bool isReady = fileCount > 0 && outputFormat != "-";
 
         if (GifOptionsCard?.Visibility == Visibility.Visible)
         {
@@ -1484,10 +1825,20 @@ public partial class MainWindow : Window
             SummaryEstimateText.Text = gifOpts.TargetMaxSizeMb is double cap and > 0
                 ? $"≤ {cap:0.##} MB · {profile.Fps} fps"
                 : $"{profile.MaxDimension}px · {profile.Fps} fps";
+            SummaryEstimateText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6B7E"));
         }
         else
         {
-            SummaryEstimateText.Text = fileCount > 0 && outputFormat != "-" ? "Ready" : "Pending";
+            SummaryEstimateText.Text = isReady ? Loc.T("Loc_Conv_Ready") : Loc.T("Loc_Conv_Pending");
+            SummaryEstimateText.Foreground = isReady
+                ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"))
+                : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8C94A6"));
+        }
+
+        if (StatusIndicatorDot != null)
+        {
+            string dotHex = _isConverting ? "#E11D2E" : (isReady ? "#34D399" : "#6E7586");
+            StatusIndicatorDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(dotHex));
         }
     }
 
@@ -1510,11 +1861,11 @@ public partial class MainWindow : Window
         bool hasOutput = !string.IsNullOrWhiteSpace(OutputPathBox?.Text);
         bool hasFormat = FormatComboBox?.SelectedItem is ComboBoxItem item &&
                          item.Content != null &&
-                         !item.Content.ToString()!.Contains("Ready", StringComparison.OrdinalIgnoreCase) &&
-                         !item.Content.ToString()!.Contains("No common", StringComparison.OrdinalIgnoreCase);
+                         !IsFormatPlaceholder(item);
 
         ConvertButton.IsEnabled = hasFiles && hasOutput && hasFormat;
-        ConvertButton.Content = "CONVERT";
+        ConvertButton.Tag = "CONVERT";
+        ConvertButton.Content = Loc.T("Loc_Conv_ConvertBtn");
     }
 
     private void UpdateImageOptionVisibility()
@@ -1627,12 +1978,13 @@ public partial class MainWindow : Window
             _formatWasEnabledBeforeConversion = FormatComboBox.IsEnabled;
             ConversionOverlay.Visibility = Visibility.Visible;
             ConversionOverlayCancelButton.IsEnabled = true;
-            UpdateConversionProgressUi("Preparing conversion...", 0, _activeConversionTotalFiles);
+            UpdateConversionProgressUi(Loc.T("Loc_Status_Preparing"), 0, _activeConversionTotalFiles);
         }
 
         _isConverting = isConverting;
         ConvertButton.IsEnabled = true;
-        ConvertButton.Content = isConverting ? "CANCEL" : "CONVERT";
+        ConvertButton.Tag = isConverting ? "CANCEL" : "CONVERT";
+        ConvertButton.Content = Loc.T(isConverting ? "Loc_Conv_CancelBtn" : "Loc_Conv_ConvertBtn");
         BrowseButton.IsEnabled = !isConverting;
         BackBtn.IsEnabled = !isConverting;
         DropZone.IsHitTestVisible = !isConverting;
@@ -1672,8 +2024,8 @@ public partial class MainWindow : Window
         ConversionOverlayMessageText.Text = message;
         ConversionOverlayPercentText.Text = $"{percent:0}%";
         ConversionOverlayDetailText.Text = _activeConversionTotalFiles > 0
-            ? $"{_activeConversionCompletedFiles}/{_activeConversionTotalFiles} files - {percent:0}%"
-            : "Preparing files...";
+            ? Loc.F("Loc_Status_FilesProgress", _activeConversionCompletedFiles, _activeConversionTotalFiles, $"{percent:0}")
+            : Loc.T("Loc_Status_PreparingFiles");
     }
 
     private void RequestConversionCancel()
@@ -1681,8 +2033,8 @@ public partial class MainWindow : Window
         _cancellationTokenSource?.Cancel();
         ConvertButton.IsEnabled = false;
         ConversionOverlayCancelButton.IsEnabled = false;
-        UpdateConversionProgressUi("Cancelling...", _activeConversionCompletedFiles, _activeConversionTotalFiles);
-        ConversionOverlayDetailText.Text = "Stopping after the current file...";
+        UpdateConversionProgressUi(Loc.T("Loc_Status_Cancelling"), _activeConversionCompletedFiles, _activeConversionTotalFiles);
+        ConversionOverlayDetailText.Text = Loc.T("Loc_Status_StoppingCurrent");
     }
 
     private void CancelConversion_Click(object sender, RoutedEventArgs e)
@@ -1698,59 +2050,62 @@ public partial class MainWindow : Window
         string name = System.IO.Path.GetFileName(filePath);
         string target = targetFormat.ToUpperInvariant();
 
-        if (message == CortexFX.Core.Services.Documents.EmptyDocumentException.UserMessage ||
-            message.StartsWith("PDF conversion failed:", StringComparison.OrdinalIgnoreCase) ||
-            message.StartsWith("Microsoft ", StringComparison.OrdinalIgnoreCase) && message.Contains("required", StringComparison.OrdinalIgnoreCase))
+        if (message == CortexFX.Core.Services.Documents.EmptyDocumentException.UserMessage)
+            return $"{name}: {Loc.T("Loc_Err_EmptyDoc")}";
+
+        if (message.StartsWith("PDF conversion failed:", StringComparison.OrdinalIgnoreCase) ||
+            (message.StartsWith("Microsoft ", StringComparison.OrdinalIgnoreCase) && message.Contains("required", StringComparison.OrdinalIgnoreCase)))
             return $"{name}: {message}";
 
         if (message.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("Executable", StringComparison.OrdinalIgnoreCase))
         {
-            return $"{name}: a required local tool is missing. Open Settings > Tool status to see which feature needs setup.";
+            return Loc.F("Loc_Err_MissingTool", name);
         }
 
         if (message.Contains("invalid conversion", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("invalid argument", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("exit code -22", StringComparison.OrdinalIgnoreCase))
         {
-            return $"Conversion failed: {name} could not be converted to {target}. The conversion arguments were invalid for this file.";
+            return Loc.F("Loc_Err_InvalidArgs", name, target);
         }
 
         if (message.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("magick", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("exit code", StringComparison.OrdinalIgnoreCase))
         {
-            return $"Conversion failed: {name} could not be converted to {target}. See the log for technical details.";
+            return Loc.F("Loc_Err_EngineFailed", name, target);
         }
 
         if (message.Contains("Microsoft Office is required", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("COM", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("RPC", StringComparison.OrdinalIgnoreCase))
         {
-            return $"{name}: Microsoft Office could not complete this conversion. Make sure Office is installed, activated, and able to open the file.";
+            return Loc.F("Loc_Err_Office", name);
         }
 
         if (message.Contains("No engine found", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("not supported", StringComparison.OrdinalIgnoreCase))
         {
-            return $"Conversion failed: {name} could not be converted to {target}. This conversion route is not supported yet.";
+            return Loc.F("Loc_Err_UnsupportedRoute", name, target);
         }
 
         if (message.Contains("cancel", StringComparison.OrdinalIgnoreCase))
         {
-            return $"{name}: conversion was cancelled.";
+            return Loc.F("Loc_Err_CancelledFile", name);
         }
 
-        return $"Conversion failed: {name} could not be converted to {target}.";
+        return Loc.F("Loc_Err_Generic", name, target);
     }
 
     private void ShowConversionSummary(int successCount, int errorCount, int totalCount, string? details = null)
     {
         bool hadErrors = errorCount > 0;
-        SuccessTitleText.Text = hadErrors ? "Finished with warnings" : "All Tasks Finished!";
+        SuccessTitleText.Text = hadErrors ? Loc.T("Loc_Overlay_WarningsTitle") : Loc.T("Loc_Overlay_SuccessTitle");
+        SuccessMessageText.FlowDirection = Loc.TextFlowDirection;
         SuccessMessageText.Text = details ?? (hadErrors
-            ? $"Converted {successCount}/{totalCount} files. {errorCount} failed. See the log for details."
-            : $"Successfully converted {successCount}/{totalCount} files.");
+            ? Loc.F("Loc_Alert_ConvPartialDetail", successCount, totalCount, string.Empty, string.Empty).Trim()
+            : Loc.F("Loc_Alert_ConvSuccessDetail", successCount, totalCount, string.Empty, _lastOutputFolder ?? string.Empty).Trim());
         OpenLogsButton.Visibility = hadErrors ? Visibility.Visible : Visibility.Collapsed;
         SuccessOverlay.Visibility = Visibility.Visible;
     }
@@ -1777,27 +2132,27 @@ public partial class MainWindow : Window
 
         if (_filesToConvert.Count == 0)
         {
-            AppDialog.ShowInfo(this, "No Files", "Add at least one file before converting.");
+            AppDialog.ShowInfo(this, Loc.T("Loc_Alert_NoFilesTitle"), Loc.T("Loc_Alert_NoFilesMsg"));
             UpdateConvertButtonAvailability();
             return;
         }
 
         if (_filesToConvert.Count > MaxBatchFiles)
         {
-            AppDialog.ShowWarning(this, "Batch Too Large", $"Reduce the batch to {MaxBatchFiles} files or fewer.");
+            AppDialog.ShowWarning(this, Loc.T("Loc_Alert_BatchLargeTitle"), Loc.F("Loc_Alert_BatchLargeMsg", MaxBatchFiles));
             return;
         }
 
         if (FormatComboBox.SelectedItem is not ComboBoxItem selectedItem || selectedItem.Content == null)
             return;
 
-        string targetFormat = selectedItem.Content.ToString()!.ToLowerInvariant();
-        if (targetFormat.Contains("ready", StringComparison.OrdinalIgnoreCase) ||
-            targetFormat.Contains("no common", StringComparison.OrdinalIgnoreCase))
+        if (IsFormatPlaceholder(selectedItem))
         {
-            AppDialog.ShowInfo(this, "Output Format Needed", "Choose a valid output format for the selected files.");
+            AppDialog.ShowInfo(this, Loc.T("Loc_Alert_FormatNeededTitle"), Loc.T("Loc_Alert_FormatNeededMsg"));
             return;
         }
+
+        string targetFormat = selectedItem.Content.ToString()!.ToLowerInvariant();
 
         string outputDir = OutputPathBox.Text.Trim();
         try
@@ -1807,7 +2162,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ConsoleLogger.Error("Conversion", $"Output folder unavailable: {ex.Message}");
-            AppDialog.ShowWarning(this, "Output Folder Unavailable", $"Cortex FX could not use this output folder:\n{outputDir}\n\nChoose another folder and try again.");
+            AppDialog.ShowWarning(this, Loc.T("Loc_Alert_OutputUnavailTitle"), Loc.F("Loc_Alert_OutputUnavailMsg", outputDir));
             return;
         }
 
@@ -1846,7 +2201,7 @@ public partial class MainWindow : Window
         _activeConversionTotalFiles = files.Count;
         ConversionProgress.Value = 0;
         ConversionProgress.Maximum = files.Count * 100;
-        UpdateConversionProgressUi("Preparing conversion...", 0, files.Count);
+        UpdateConversionProgressUi(Loc.T("Loc_Status_Preparing"), 0, files.Count);
         ConsoleLogger.Info("Conversion", $"Starting batch: {_filesToConvert.Count} file(s) -> {targetFormat.ToUpperInvariant()}.");
         SetConversionUiState(true);
 
@@ -1857,7 +2212,7 @@ public partial class MainWindow : Window
 
             if (filePaths.Count > 1 && areAllImages && targetFormat == "pdf" && isMergeChecked)
             {
-                UpdateConversionProgressUi("Merging all images...", 0, files.Count);
+                UpdateConversionProgressUi(Loc.T("Loc_Status_Merging"), 0, files.Count);
                 ConsoleLogger.Info("Conversion", $"Merging {filePaths.Count} image(s) -> PDF.");
 
                 string outputFolder = _lastOutputFolder ?? outputDir;
@@ -1866,19 +2221,19 @@ public partial class MainWindow : Window
 
                 foreach (var f in files)
                 {
-                    UpdateFileStatus(f, "Merging...", "#F59E0B");
+                    UpdateFileStatus(f, Loc.T("Loc_Status_FileMerging"), "#F59E0B");
                 }
 
                 await _magickService.MergeImagesToPdfAsync(filePaths, finalPath, token);
                 foreach (var f in files)
                 {
-                    UpdateFileStatus(f, "Merged", "#E11D2E");
+                    UpdateFileStatus(f, Loc.T("Loc_Status_FileMerged"), "#34D399");
                 }
 
                 ConversionProgress.Value = ConversionProgress.Maximum;
-                UpdateConversionProgressUi("Merge complete.", files.Count, files.Count, 100);
+                UpdateConversionProgressUi(Loc.T("Loc_Status_MergeComplete"), files.Count, files.Count, 100);
                 ConsoleLogger.Success("Conversion", $"Merged images -> {ConsoleLogger.ShortPath(finalPath)}.");
-                ShowConversionSummary(files.Count, 0, files.Count, $"Merged {files.Count} images into:\n{finalPath}");
+                ShowConversionSummary(files.Count, 0, files.Count, Loc.F("Loc_Alert_MergedInto", files.Count, finalPath));
                 return;
             }
 
@@ -1895,18 +2250,18 @@ public partial class MainWindow : Window
                 string file = fileItem.FullPath;
                 if (!File.Exists(file))
                 {
-                    UpdateFileStatus(fileItem, "Missing", "#FF4D5E");
+                    UpdateFileStatus(fileItem, Loc.T("Loc_Status_FileMissing"), "#FF4D5E");
                     errorCount++;
-                    failedMessages.Add($"{fileItem.FileName}: file was moved or deleted before conversion.");
+                    failedMessages.Add(Loc.F("Loc_Alert_FileMoved", fileItem.FileName));
                     processedFiles++;
                     ConversionProgress.Value = processedFiles * 100;
-                    UpdateConversionProgressUi($"Skipped missing file: {fileItem.FileName}", processedFiles, files.Count);
+                    UpdateConversionProgressUi(Loc.F("Loc_Status_SkippedMissing", fileItem.FileName), processedFiles, files.Count);
                     continue;
                 }
 
                 ConsoleLogger.Info("Conversion", $"Converting {ConsoleLogger.ShortPath(file)} -> {targetFormat.ToUpperInvariant()}.");
-                UpdateFileStatus(fileItem, "Processing...", "#E11D2E");
-                string currentFileMessage = $"Converting {System.IO.Path.GetFileName(file)}...";
+                UpdateFileStatus(fileItem, Loc.T("Loc_Status_FileProcessing"), "#E11D2E");
+                string currentFileMessage = Loc.F("Loc_Status_ConvertingFile", System.IO.Path.GetFileName(file));
                 UpdateConversionProgressUi(currentFileMessage, processedFiles, files.Count);
 
                 try
@@ -1948,63 +2303,62 @@ public partial class MainWindow : Window
                         }
                     }
 
-                    UpdateFileStatus(fileItem, "Done", "#E11D2E");
+                    UpdateFileStatus(fileItem, Loc.T("Loc_Status_FileDone"), "#34D399");
                     successCount++;
                     ConsoleLogger.Success("Conversion", $"Done {ConsoleLogger.ShortPath(file)}.");
                 }
                 catch (OperationCanceledException)
                 {
-                    UpdateFileStatus(fileItem, "Cancelled", "#AAAAAA");
+                    UpdateFileStatus(fileItem, Loc.T("Loc_Status_FileCancelled"), "#AAAAAA");
                     throw;
                 }
                 catch (CortexFX.Core.Services.Documents.EmptyDocumentException ex)
                 {
-                    UpdateFileStatus(fileItem, "الملف فارغ", "#D6A54D");
+                    UpdateFileStatus(fileItem, Loc.T("Loc_Status_FileEmpty"), "#F59E0B");
                     errorCount++;
                     failedMessages.Add(FriendlyErrorMessage(file, targetFormat, ex.Message));
                     ConsoleLogger.Warning("Conversion", $"Empty document skipped: {ConsoleLogger.ShortPath(file)}");
                 }
                 catch (Exception ex)
                 {
-                    UpdateFileStatus(fileItem, "Error", "#FF4D5E");
+                    UpdateFileStatus(fileItem, Loc.T("Loc_Status_FileError"), "#FF4D5E");
                     errorCount++;
                     string friendly = FriendlyErrorMessage(file, targetFormat, ex.Message);
                     failedMessages.Add(friendly);
                     ConsoleLogger.Error("Conversion", $"Failed {ConsoleLogger.ShortPath(file)}: {ex}");
-                    UpdateConversionProgressUi($"Error: {System.IO.Path.GetFileName(file)}", processedFiles, files.Count);
+                    UpdateConversionProgressUi(Loc.F("Loc_Status_ErrorFile", System.IO.Path.GetFileName(file)), processedFiles, files.Count);
                 }
 
                 processedFiles++;
                 ConversionProgress.Value = processedFiles * 100;
-                UpdateConversionProgressUi($"{processedFiles}/{files.Count} files processed.", processedFiles, files.Count, 0);
+                UpdateConversionProgressUi(Loc.F("Loc_Status_ProcessedCount", processedFiles, files.Count), processedFiles, files.Count, 0);
             }
 
-            UpdateConversionProgressUi(errorCount > 0 ? "Finished with warnings." : "Conversion complete.", files.Count, files.Count, 100);
+            UpdateConversionProgressUi(Loc.T(errorCount > 0 ? "Loc_Status_FinishedWarnings" : "Loc_Status_ConversionComplete"), files.Count, files.Count, 100);
             ConsoleLogger.Success("Conversion", $"Batch complete: {successCount} succeeded, {errorCount} failed.");
 
             string sizeLine = totalOutputBytes > 0
-                ? $"\n{(successCount == 1 ? "Output size" : "Total output size")}: {FormatBytesReadable(totalOutputBytes)}"
+                ? $"\n{(successCount == 1 ? Loc.T("Loc_Alert_OutputSize") : Loc.T("Loc_Alert_TotalOutputSize"))}: {FormatBytesReadable(totalOutputBytes)}"
                 : string.Empty;
             string? detail = failedMessages.Count > 0
-                ? $"Converted {successCount}/{files.Count} files.{sizeLine}\n\n{string.Join("\n", failedMessages.Take(3))}" +
-                  (failedMessages.Count > 3 ? $"\n...and {failedMessages.Count - 3} more. See logs for details." : "")
-                : $"Successfully converted {successCount}/{files.Count} files.{sizeLine}\nSaved to: {_lastOutputFolder ?? outputDir}";
+                ? Loc.F("Loc_Alert_ConvPartialDetail", successCount, files.Count, sizeLine, string.Join("\n", failedMessages.Take(3))) +
+                  (failedMessages.Count > 3 ? Loc.F("Loc_Alert_MoreErrors", failedMessages.Count - 3) : "")
+                : Loc.F("Loc_Alert_ConvSuccessDetail", successCount, files.Count, sizeLine, _lastOutputFolder ?? outputDir);
             ShowConversionSummary(successCount, errorCount, files.Count, detail);
         }
         catch (OperationCanceledException)
         {
-            UpdateConversionProgressUi("Conversion cancelled.", _activeConversionCompletedFiles, files.Count);
+            UpdateConversionProgressUi(Loc.T("Loc_Status_ConversionCancelled"), _activeConversionCompletedFiles, files.Count);
             ConsoleLogger.Warning("Conversion", "Batch cancelled by user.");
-            ShowConversionSummary(0, files.Count, files.Count, "Conversion was cancelled. Partial output files may exist in the output folder.");
+            ShowConversionSummary(0, files.Count, files.Count, Loc.T("Loc_Alert_CancelledSummary"));
         }
         catch (Exception ex)
         {
             ConsoleLogger.Error("Conversion", $"Critical error: {ex}");
             AppDialog.ShowError(
                 this,
-                "Conversion Failed",
-                "Cortex FX could not complete the batch.\n\n" +
-                $"Details were written to:\n{ConsoleLogger.LogFilePath}");
+                Loc.T("Loc_Alert_ConvFailedTitle"),
+                Loc.F("Loc_Alert_ConvFailedMsg", ConsoleLogger.LogFilePath));
         }
         finally
         {

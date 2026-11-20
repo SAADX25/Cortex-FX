@@ -7,7 +7,7 @@
 **A powerful local file conversion desktop app for Windows.**  
 Convert images, videos, audio, documents, archives, and e-books — entirely offline, on your machine.
 
-[![Version](https://img.shields.io/badge/version-1.8.5-blue?style=for-the-badge)](https://github.com/SAADX25/Cortex-FX/releases)
+[![Version](https://img.shields.io/badge/version-1.9.5-blue?style=for-the-badge)](https://github.com/SAADX25/Cortex-FX/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%20%7C%2010%20LTSC-0078d4?style=for-the-badge&logo=windows)](https://github.com/SAADX25/Cortex-FX)
 [![Framework](https://img.shields.io/badge/.NET-10.0--windows-512bd4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
 [![UI](https://img.shields.io/badge/UI-WPF-68217a?style=for-the-badge&logo=microsoft)](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/)
@@ -287,10 +287,11 @@ Resources/
 
 ## Quick Start
 
-1. Download the latest release from [GitHub Releases](https://github.com/SAADX25/Cortex-FX/releases).
-2. Run the installer (`CortexFX_Setup_v1.8.5.exe`) **or** extract the portable ZIP.
-3. Ensure the `Resources` folder is present beside `CortexFX.exe` (portable only).
-4. Open Cortex FX, pick a tool from the dashboard, add files, choose an output folder, and click **Convert**.
+1. Install the free [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) if not already installed on Windows (the installer automatically checks and offers the official download link).
+2. Download the latest release from [GitHub Releases](https://github.com/SAADX25/Cortex-FX/releases).
+3. Run the installer (`CortexFX_Setup_v1.9.5.exe`) **or** extract the portable ZIP.
+4. Ensure the `Resources` folder is present beside `CortexFX.exe` (portable only).
+5. Open Cortex FX, pick a tool from the dashboard, add files, choose an output folder, and click **Convert**.
 
 Installed users can open **Settings → Check for updates**. Cortex FX checks the latest stable GitHub release, downloads its Windows installer, verifies the download, then closes and starts Setup. Setup uses the same application ID to upgrade the existing installation. Portable ZIP users can continue updating by replacing their extracted files manually.
 
@@ -329,14 +330,16 @@ dotnet run --project .\CortexFX.csproj
 ### Manual Publish
 
 ```powershell
-dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained true -o .\Publish\CortexFX_v1.8.5\app
+# Lightweight framework-dependent publish (recommended — requires .NET 10 Desktop Runtime x64):
+dotnet publish .\CortexFX.csproj -c Release -r win-x64 --self-contained false -p:PublishReadyToRun=false -p:DebugType=none -p:DebugSymbols=false -o .\Publish\CortexFX_v1.9.5\app
 ```
 
 ### Using the Build Script
 
 | Command | Description |
 |---|---|
-| `.\build.ps1` | Lightweight app with optional in-app AI downloads -> build installer |
+| `.\build.ps1` | Lightweight framework-dependent app (`.NET 10 Desktop Runtime` downloaded separately) -> build ultra-compressed installer |
+| `.\build.ps1 -SelfContained $true` | Offline self-contained build bundling the `.NET 10` runtime inside the installer |
 | `.\build.ps1 -BundleAudioAi` | Offline distribution including CPU and GPU AI resources |
 | `.\build.ps1 -CreatePortableZip` | Also creates a portable ZIP alongside the installer |
 | `.\build.ps1 -CpuOnly -SkipInstaller -CreatePortableZip` | Offline CPU portable distribution |
@@ -364,8 +367,8 @@ Before tagging a release:
 
 | Artifact | Description |
 |---|---|
-| `Publish\CortexFX_v1.8.5\CortexFX_Setup_v1.8.5.exe` | Windows installer |
-| `Publish\CortexFX_v1.8.5\CortexFX_Portable_v1.8.5-win-x64.zip` | Self-contained portable build |
+| `Publish\CortexFX_v1.9.5\CortexFX_Setup_v1.9.5.exe` | Lightweight Windows installer (checks for .NET 10 Desktop Runtime x64) |
+| `Publish\CortexFX_v1.9.5\CortexFX_Portable_v1.9.5-win-x64.zip` | Lightweight portable build |
 
 ---
 

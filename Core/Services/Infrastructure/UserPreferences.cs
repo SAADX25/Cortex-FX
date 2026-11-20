@@ -27,6 +27,9 @@ public sealed class UserPreferences
     /// <summary>Audio Cutter volume preference (0–2). Applied to preview and export.</summary>
     public double AudioVolume { get; set; } = 1.0;
 
+    /// <summary>UI display language ("en" or "ar"). File formats always remain in English.</summary>
+    public string Language { get; set; } = "en";
+
     public void Save()
     {
         lock (Sync)
@@ -34,6 +37,7 @@ public sealed class UserPreferences
             try
             {
                 AudioVolume = Math.Clamp(AudioVolume, 0, 2);
+                Language = string.Equals(Language, "ar", StringComparison.OrdinalIgnoreCase) ? "ar" : "en";
                 string path = GetPrefsPath();
                 string? dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir))
@@ -59,6 +63,7 @@ public sealed class UserPreferences
                 if (prefs != null)
                 {
                     prefs.AudioVolume = Math.Clamp(prefs.AudioVolume, 0, 2);
+                    prefs.Language = string.Equals(prefs.Language, "ar", StringComparison.OrdinalIgnoreCase) ? "ar" : "en";
                     return prefs;
                 }
             }

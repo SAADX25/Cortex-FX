@@ -285,7 +285,7 @@ public partial class VideoCutterView
 
         if (binCount == 0 && clipCount == 0)
         {
-            FileNameText.Text = "No media loaded";
+            FileNameText.Text = CortexFX.Core.Services.Infrastructure.Loc.T("Loc_VC_NoMedia", "No media loaded");
             SegmentsSummaryText.Text = "0 · 00:00.0";
             MonitorMediaHudText.Text = string.Empty;
             if (TrackHeaderFpsText != null) TrackHeaderFpsText.Text = "FPS";
@@ -293,9 +293,18 @@ public partial class VideoCutterView
             return;
         }
 
-        FileNameText.Text = clipCount > 0
+        string stats = clipCount > 0
             ? $"{binCount} media · {clipCount} clip{(clipCount == 1 ? "" : "s")} · {MontageProject.FormatShort(total)}"
             : $"{binCount} media in Project Bin · Drag onto Timeline";
+        if (!string.IsNullOrWhiteSpace(_currentProjectName))
+        {
+            string dirtyMarker = _hasUnsavedChanges ? " •" : "";
+            FileNameText.Text = $"{_currentProjectName}{dirtyMarker} · {stats}";
+        }
+        else
+        {
+            FileNameText.Text = stats;
+        }
 
         SegmentsSummaryText.Text = $"{binCount} · {MontageProject.FormatShort(total)}";
 
@@ -388,6 +397,8 @@ public partial class VideoCutterView
         if (!IsInitialized) return;
         UpdateExportSummaryHint();
         UpdateAspectOverlay();
+        if (!_suppressDirtyTracking && EditorPanel.Visibility == Visibility.Visible)
+            MarkProjectDirty(scheduleAutoSave: true);
     }
 
     private (string Format, VideoResolutionPreset Resolution, VideoAspectFitMode AspectFit, VideoCutMode CutMode) ReadExportSettings()
@@ -622,6 +633,7 @@ public partial class VideoCutterView
         {
             _outputFolderOverride = dlg.FolderName;
             OutputPathText.Text = _outputFolderOverride;
+            MarkProjectDirty(scheduleAutoSave: true);
         }
     }
 
@@ -636,6 +648,17 @@ public partial class VideoCutterView
                 confirmText: "Cancel & Clear",
                 cancelText: "Keep Exporting",
                 tone: DialogTone.Danger);
+            if (!confirm) return;
+        }
+        else if (_hasUnsavedChanges && (HasAnyTimelineClips() || _project.MediaBin.Count > 0))
+        {
+            bool confirm = AppDialog.Confirm(
+                this,
+                "Unsaved editing progress",
+                "You have unsaved changes in this montage. Clear the project without saving?",
+                confirmText: "Discard & Clear",
+                cancelText: "Keep Editing",
+                tone: DialogTone.Warning);
             if (!confirm) return;
         }
 
@@ -732,6 +755,7 @@ public partial class VideoCutterView
 
         ShowExportModalStage(ExportStage.Progress);
 
+        _exportCts?.Dispose();
         _exportCts = new CancellationTokenSource();
         CancellationToken token = _exportCts.Token;
         var progress = new Progress<double>(p =>
@@ -757,50 +781,71 @@ public partial class VideoCutterView
             try
             {
                 await service.ExportMontageAsync(request, token, progress);
-                await Dispatcher.InvokeAsync(() =>
+                if (!Dispatcher.HasShutdownStarted)
                 {
-                    if (token.IsCancellationRequested)
+                    await Dispatcher.InvokeAsync(() =>
                     {
-                        try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
-                        ExportModalOverlay.Visibility = Visibility.Collapsed;
-                        ShowTimelineToast("Export cancelled");
-                    }
-                    else
-                    {
-                        ShowResult(outPath, totalClipCount, fmt);
-                    }
-                });
+                        if (token.IsCancellationRequested)
+                        {
+                            try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
+                            ExportModalOverlay.Visibility = Visibility.Collapsed;
+                            ShowTimelineToast("Export cancelled");
+                        }
+                        else
+                        {
+                            ShowResult(outPath, totalClipCount, fmt);
+                        }
+                    });
+                }
             }
             catch (OperationCanceledException)
             {
-                await Dispatcher.InvokeAsync(() =>
+                try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
+                if (!Dispatcher.HasShutdownStarted)
                 {
-                    try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
-                    ExportModalOverlay.Visibility = Visibility.Collapsed;
-                    ShowTimelineToast("Export cancelled");
-                });
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        ExportModalOverlay.Visibility = Visibility.Collapsed;
+                        ShowTimelineToast("Export cancelled");
+                    });
+                }
             }
             catch (Exception ex)
             {
-                await Dispatcher.InvokeAsync(() =>
+                if (!Dispatcher.HasShutdownStarted)
                 {
-                    ExportModalOverlay.Visibility = Visibility.Collapsed;
-                    AppDialog.ShowError(this, "Export Error", $"Export failed:\n{ex.Message}");
-                });
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        ExportModalOverlay.Visibility = Visibility.Collapsed;
+                        AppDialog.ShowError(this, "Export Error", $"Export failed:\n{ex.Message}");
+                    });
+                }
             }
             finally
             {
-                await Dispatcher.InvokeAsync(() =>
+                if (!Dispatcher.HasShutdownStarted)
                 {
-                    ExportButton.IsEnabled = true;
-                    CancelButton.IsEnabled = true;
-                    BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        ExportButton.IsEnabled = true;
+                        CancelButton.IsEnabled = true;
+                        BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                        _exportTask = null;
+                        _exportCts?.Dispose();
+                        _exportCts = null;
+                    });
+                }
+                else
+                {
                     _exportTask = null;
-                });
+                    try { _exportCts?.Dispose(); } catch { }
+                    _exportCts = null;
+                }
             }
         }, token);
 
-        await _exportTask;
+        try { await _exportTask; }
+        catch (OperationCanceledException) { }
     }
 
     private void CancelExport_Click(object sender, RoutedEventArgs e)
@@ -832,13 +877,19 @@ public partial class VideoCutterView
     private void PlayOutput_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(_lastOutputPath) && File.Exists(_lastOutputPath))
-            Process.Start(new ProcessStartInfo(_lastOutputPath) { UseShellExecute = true });
+        {
+            try { Process.Start(new ProcessStartInfo(_lastOutputPath) { UseShellExecute = true }); }
+            catch (Exception ex) { AppDialog.ShowError(this, "Open Failed", $"Could not open video:\n{ex.Message}"); }
+        }
     }
 
     private void OpenOutputFolder_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(_lastOutputPath) && File.Exists(_lastOutputPath))
-            Process.Start("explorer.exe", $"/select,\"{_lastOutputPath}\"");
+        {
+            try { Process.Start("explorer.exe", $"/select,\"{_lastOutputPath}\""); }
+            catch (Exception ex) { AppDialog.ShowError(this, "Open Folder Failed", $"Could not open folder:\n{ex.Message}"); }
+        }
     }
 
     private async void CutAnother_Click(object sender, RoutedEventArgs e) => await ResetViewAsync(cancelExport: true);
@@ -847,7 +898,18 @@ public partial class VideoCutterView
 
     private async void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (EditorPanel.Visibility != Visibility.Visible) return;
+        bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+        bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+
+        if (EditorPanel.Visibility != Visibility.Visible)
+        {
+            if (e.Key == Key.O && ctrl)
+            {
+                await OpenProjectFromFileDialogAsync();
+                e.Handled = true;
+            }
+            return;
+        }
         if (ExportModalOverlay.Visibility == Visibility.Visible)
         {
             if (e.Key == Key.Escape && !IsExporting)
@@ -859,9 +921,6 @@ public partial class VideoCutterView
             return;
         }
         if (e.OriginalSource is ComboBox || e.OriginalSource is ComboBoxItem) return;
-
-        bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
-        bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
 
         switch (e.Key)
         {
@@ -949,7 +1008,19 @@ public partial class VideoCutterView
                 await ExecuteHistoryAsync(undo: false);
                 e.Handled = true;
                 break;
-            case Key.S:
+            case Key.S when ctrl && shift:
+                await SaveProjectToFileDialogAsync();
+                e.Handled = true;
+                break;
+            case Key.S when ctrl:
+                await SaveProjectProgressAsync(showToast: true);
+                e.Handled = true;
+                break;
+            case Key.O when ctrl:
+                await OpenProjectFromFileDialogAsync();
+                e.Handled = true;
+                break;
+            case Key.S when !ctrl:
             case Key.B when ctrl:
                 await SplitAtPlayheadAsync();
                 e.Handled = true;

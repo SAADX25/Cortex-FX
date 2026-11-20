@@ -28,7 +28,7 @@ public partial class ResourceStatusDialog : Window
         SummaryPanel.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ready ? "#355144" : "#6A4B35"));
         SummaryCount.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ready ? "#B2E5C7" : "#FFD2B2"));
         OpenToolsButton.IsEnabled = Report.Core.ResourcesDirectoryExists && Directory.Exists(Report.Core.ResourcesDirectory);
-        CopyDetailsButton.Content = "Copy details";
+        CopyDetailsButton.Content = Loc.T("Loc_Dlg_CopyDetails", "Copy details");
     }
     private void Recheck_Click(object sender, RoutedEventArgs e) => RefreshStatus();
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
@@ -36,13 +36,13 @@ public partial class ResourceStatusDialog : Window
     { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not System.Windows.Controls.Button) DragMove(); }
     private void CopyDetails_Click(object sender, RoutedEventArgs e)
     {
-        try { Clipboard.SetText(Report.Details); CopyDetailsButton.Content = "Copied"; }
-        catch { CopyDetailsButton.Content = "Try again"; }
+        try { Clipboard.SetText(Report.Details); CopyDetailsButton.Content = Loc.T("Loc_Dlg_Copied", "Copied"); }
+        catch { CopyDetailsButton.Content = Loc.T("Loc_Dlg_TryAgain", "Try again"); }
     }
     private void OpenTools_Click(object sender, RoutedEventArgs e)
     {
         if (!Directory.Exists(Report.Core.ResourcesDirectory)) { RefreshStatus(); return; }
         try { Process.Start(new ProcessStartInfo(Report.Core.ResourcesDirectory) { UseShellExecute = true }); }
-        catch (Exception ex) { ConsoleLogger.Warning("Resources", ex.Message); OpenToolsButton.Content = "Could not open folder"; }
+        catch (Exception ex) { ConsoleLogger.Warning("Resources", ex.Message); OpenToolsButton.Content = Loc.T("Loc_Res_OpenFailed", "Could not open folder"); }
     }
 }

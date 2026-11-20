@@ -33,6 +33,22 @@ public static class AppDialog
         return dialog.ShowDialog() == true && dialog.Confirmed;
     }
 
+    public static string? PromptText(
+        DependencyObject? owner,
+        string title,
+        string message,
+        string initialValue = "",
+        string confirmText = "Save",
+        string cancelText = "Cancel")
+    {
+        Window? ownerWindow = ResolveOwnerWindow(owner);
+        var dialog = new ModernInputDialog(title, message, initialValue, confirmText, cancelText);
+        ConfigureOwnership(dialog, ownerWindow);
+        return dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.InputText)
+            ? dialog.InputText
+            : null;
+    }
+
     private static void ShowAlert(
         DependencyObject? owner,
         string title,

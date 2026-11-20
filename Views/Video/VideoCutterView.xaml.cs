@@ -208,7 +208,7 @@ public partial class VideoCutterView : UserControl
         SyncAllDynamicTrackRows(animate: false);
         InitializeDockSystem();
         ClipsList.ItemsSource = _project.MediaBin;
-        _project.HistoryChanged += (_, _) => UpdateUndoRedoUi();
+        InitializePersistence();
 
         _uiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _uiTimer.Tick += UiTimer_Tick;
@@ -233,6 +233,10 @@ public partial class VideoCutterView : UserControl
                     foreach (SourceMediaAsset asset in _project.Assets.Values)
                         StartAssetVisualExtraction(asset);
                 }
+                else
+                {
+                    RefreshSavedProjectsList();
+                }
                 Focus();
             }
             else
@@ -242,6 +246,7 @@ public partial class VideoCutterView : UserControl
         };
 
         Unloaded += (_, _) => CancelAllAssetExtractions();
+        _project.HistoryChanged += (_, _) => UpdateUndoRedoUi();
         UpdateExportSummaryHint();
         UpdateUndoRedoUi();
     }
@@ -251,6 +256,25 @@ public partial class VideoCutterView : UserControl
         _ffmpegPath = ffmpegPath;
         _ffmpegService = App.Services?.GetService<IFFmpegService>();
         _ = RefreshEncoderStatusAsync();
+    }
+
+    public void Shutdown()
+    {
+        FlushAutoSaveSync();
+        CancelExportIfRunning();
+        CancelAllAssetExtractions();
+
+        _uiTimer.Stop();
+        _toastTimer?.Stop();
+        _timelineSettleTimer?.Stop();
+        _viewportRefineTimer?.Stop();
+        _autoSaveTimer?.Stop();
+
+        try { _ = PreviewMedia.Close(); } catch { }
+        for (int layer = 1; layer <= 2; layer++)
+            try { if (GetVideoOverlayMediaElement(layer) is { } m) _ = m.Close(); } catch { }
+        for (int a = 0; a < MontageProject.MaxAudioTracks; a++)
+            try { if (GetAudioMediaElement(a) is { } m) _ = m.Close(); } catch { }
     }
 
     private IFFmpegService? ResolveFfmpegService()
@@ -291,13 +315,18 @@ public partial class VideoCutterView : UserControl
             WorkspaceLayoutButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         PreviewFocusButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         HeaderAddClipButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        if (SaveProgressContainer != null)
+            SaveProgressContainer.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         HeaderClearButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         if (HeaderActionDivider != null)
             HeaderActionDivider.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         if (ExportButton != null)
             ExportButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        if (HeaderOpenProjectButton != null)
+            HeaderOpenProjectButton.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
         HeaderReadyPill.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
         BackgroundJobBadge.Visibility = IsExporting ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSaveButtonUi();
 
         if (IsExporting)
         {
@@ -377,7 +406,10 @@ public partial class VideoCutterView : UserControl
         ProjectTileWidth = Math.Clamp(e.NewValue, 88.0, 220.0);
     }
 
-    private async Task ResetViewAsync(bool cancelExport)
+    private Task ResetViewAsync(bool cancelExport) =>
+        ResetViewCoreAsync(cancelExport, clearAutoSave: true, returnToEmptyState: true);
+
+    private async Task ResetViewCoreAsync(bool cancelExport, bool clearAutoSave, bool returnToEmptyState)
     {
         CancelAllAssetExtractions();
         if (cancelExport)
@@ -398,6 +430,12 @@ public partial class VideoCutterView : UserControl
         foreach (OverlayChannelState ch in _videoOverlayChannels.Concat(_audioChannels))
             ch.Reset();
 
+        Array.Clear(_isVideoTrackMuted);
+        Array.Clear(_isAudioTrackMuted);
+        if (TrackV2MuteButton != null) TrackV2MuteButton.IsChecked = false;
+        if (TrackV3MuteButton != null) TrackV3MuteButton.IsChecked = false;
+        SyncMuteUi();
+
         PreviewMedia.Visibility = Visibility.Visible;
         if (V2TransformHost != null) V2TransformHost.Visibility = Visibility.Collapsed;
         if (V3TransformHost != null) V3TransformHost.Visibility = Visibility.Collapsed;
@@ -410,26 +448,44 @@ public partial class VideoCutterView : UserControl
         SetAudioTrackExpanded(false);
         SetActiveTool(TimelineToolMode.Select);
         _pendingEntranceClipIds.Clear();
-        _project.Clear();
+
+        _suppressDirtyTracking = true;
+        try
+        {
+            _project.Clear();
+            ResetPersistenceTracking(clearAutoSave: clearAutoSave);
+        }
+        finally
+        {
+            _suppressDirtyTracking = false;
+        }
         ClearAllDropReveals(animate: false);
 
-        EmptyStatePanel.Visibility = Visibility.Visible;
-        EditorPanel.Visibility = Visibility.Collapsed;
-        ExportModalOverlay.Visibility = Visibility.Collapsed;
-        _previewFocused = false;
-        ApplyPreviewFocusState();
-        BackgroundJobBadge.Visibility = Visibility.Collapsed;
-        ExportButton.IsEnabled = true;
-        PreviewPlaceholder.Visibility = Visibility.Visible;
-        PreviewPlaceholder.Text = "Loading preview...";
-        OutputPathText.Text = string.Empty;
-        ExportProgress.Value = 0;
+        if (returnToEmptyState)
+        {
+            _speedRatio = 1.0;
+            if (SpeedButton != null) SpeedButton.Content = "1.0×";
+            if (LoopToggle != null) LoopToggle.IsChecked = false;
 
-        RefreshSessionChrome();
-        UpdateProjectHeaderAndHud();
-        UpdateTimeLabels();
-        UpdateAspectOverlay();
-        RenderTimeline();
+            EmptyStatePanel.Visibility = Visibility.Visible;
+            EditorPanel.Visibility = Visibility.Collapsed;
+            ExportModalOverlay.Visibility = Visibility.Collapsed;
+            _previewFocused = false;
+            ApplyPreviewFocusState();
+            BackgroundJobBadge.Visibility = Visibility.Collapsed;
+            ExportButton.IsEnabled = true;
+            PreviewPlaceholder.Visibility = Visibility.Visible;
+            PreviewPlaceholder.Text = "Loading preview...";
+            OutputPathText.Text = string.Empty;
+            ExportProgress.Value = 0;
+
+            RefreshSessionChrome();
+            RefreshSavedProjectsList();
+            UpdateProjectHeaderAndHud();
+            UpdateTimeLabels();
+            UpdateAspectOverlay();
+            RenderTimeline();
+        }
     }
 
     // Helpers

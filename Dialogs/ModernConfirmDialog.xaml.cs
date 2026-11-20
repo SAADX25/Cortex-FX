@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using CortexFX.Core.Services.Infrastructure;
 
 namespace CortexFX.Dialogs;
 
@@ -21,11 +22,13 @@ public partial class ModernConfirmDialog : Window
         DialogTone tone = DialogTone.Question)
     {
         InitializeComponent();
-        Title = string.IsNullOrWhiteSpace(title) ? "Confirm" : title;
+        Title = string.IsNullOrWhiteSpace(title) ? Loc.T("Loc_Dlg_Confirm", "Confirm") : title;
         TitleText.Text = Title;
+        TitleText.FlowDirection = Loc.TextFlowDirection;
         MessageText.Text = message ?? string.Empty;
-        BtnYes.Content = string.IsNullOrWhiteSpace(confirmText) ? "Confirm" : confirmText;
-        BtnNo.Content = string.IsNullOrWhiteSpace(cancelText) ? "Cancel" : cancelText;
+        MessageText.FlowDirection = Loc.TextFlowDirection;
+        BtnYes.Content = Loc.TranslateDialogButton(string.IsNullOrWhiteSpace(confirmText) ? "Confirm" : confirmText);
+        BtnNo.Content = Loc.TranslateDialogButton(string.IsNullOrWhiteSpace(cancelText) ? "Cancel" : cancelText);
         ApplyTone(tone);
     }
 

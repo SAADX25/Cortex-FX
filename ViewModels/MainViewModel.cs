@@ -26,7 +26,7 @@ public partial class MainViewModel : ObservableObject
     private string _currentToolTitle = "Select Tool";
 
     [ObservableProperty]
-    private string _versionText = "v1.8.5";
+    private string _versionText = "v1.9.5";
 
     [ObservableProperty]
     private bool _isTopNavVisible;

@@ -42,18 +42,18 @@ public partial class App : Application
         });
 
         ConsoleLogger.Initialize();
+        Loc.Initialize();
         DispatcherUnhandledException += (_, args) =>
         {
             ConsoleLogger.Error("Unhandled", args.Exception.ToString());
-            string msg = "Cortex FX hit an unexpected problem. Your files were not deleted or uploaded.\n\n" +
-                         $"A diagnostic log was saved here:\n{ConsoleLogger.LogFilePath}";
+            string msg = Loc.F("Loc_Alert_UnexpectedMsg", ConsoleLogger.LogFilePath);
             try
             {
-                AppDialog.ShowError(null, "Unexpected Error", msg);
+                AppDialog.ShowError(null, Loc.T("Loc_Alert_UnexpectedTitle"), msg);
             }
             catch
             {
-                MessageBox.Show(msg, "Unexpected Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(msg, Loc.T("Loc_Alert_UnexpectedTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
             args.Handled = true;
         };
@@ -73,7 +73,7 @@ public partial class App : Application
         Version? version = typeof(App).Assembly.GetName().Version;
         string versionText = version != null
             ? $"v{version.Major}.{version.Minor}.{version.Build}"
-            : "v1.8.5";
+            : "v1.9.5";
 
         ConsoleLogger.Info("App", $"Cortex FX {versionText} starting...");
 
@@ -111,6 +111,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _mainWindow?.FlushSessionStateOnExit();
         _mainWindow?.DisposeRadialWheel();
         ConsoleLogger.Info("App", "Shutting down...");
         _singleInstance?.Dispose();

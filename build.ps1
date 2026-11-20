@@ -3,7 +3,7 @@
 param(
     [ValidateSet('Debug','Release')][string]$Configuration = 'Release',
     [ValidateSet('win-x64')][string]$Runtime = 'win-x64',
-    [bool]$SelfContained = $true,
+    [bool]$SelfContained = $false,
     [switch]$CpuOnly,
     [switch]$BundleAudioAi,
     [switch]$SkipInstaller,
@@ -57,7 +57,7 @@ Assert-Child $ReleaseRoot $PublishRoot
 Assert-Child $PublishDir $ReleaseRoot
 $StagingCreatedByBuild = $false
 
-$coreResources = @('ffmpeg.exe','magick.exe','pdftocairo.exe','ffmpeg_libs\avcodec-58.dll',
+$coreResources = @('ffmpeg.exe','ffmpeg_libs\avcodec-58.dll',
     'ffmpeg_libs\avformat-58.dll','ffmpeg_libs\avutil-56.dll','ffmpeg_libs\swresample-3.dll','ffmpeg_libs\swscale-5.dll')
 foreach ($relative in $coreResources) { Assert-Exists (Join-Path $ProjectRoot ('Resources\' + $relative)) }
 Assert-Exists (Join-Path $ProjectRoot 'Assets\logo.ico')
@@ -76,7 +76,8 @@ if (!$CpuOnly -and $includeAi) {
     foreach ($license in $audioLock.gpuLicenses) { Assert-Exists (Join-Path $audioResources $license) }
 }
 
-Write-Step "Building Cortex FX $Version ($Runtime$profile)"
+$runtimeMode = if ($SelfContained) { 'self-contained' } else { 'framework-dependent (.NET 10 Desktop Runtime)' }
+Write-Step "Building Cortex FX $Version ($Runtime$profile, $runtimeMode)"
 # Each invocation owns a new directory. Existing publish folders and artifacts are preserved.
 $null = New-Item -ItemType Directory -Force -Path $ReleaseRoot
 $null = New-Item -ItemType Directory -Path $PublishDir
@@ -84,12 +85,24 @@ $StagingCreatedByBuild = $true
 $gpuProperty = '-p:IncludeAudioGpu=' + ($includeAi -and !$CpuOnly).ToString().ToLowerInvariant()
 $aiProperty = '-p:IncludeAudioAi=' + $includeAi.ToString().ToLowerInvariant()
 Invoke-Dotnet -CommandArguments @('restore',$ProjectFile,'-r',$Runtime)
-# dotnet publish builds the RID-specific app; avoid a second full copy of native/GPU resources.
+# Framework-dependent publish omits the ~160 MB .NET 10 runtime; ReadyToRun & PDBs stay disabled for lean size.
 Invoke-Dotnet -CommandArguments @('publish',$ProjectFile,'-c',$Configuration,'-r',$Runtime,'--self-contained',
-    $SelfContained.ToString().ToLowerInvariant(),'-o',$PublishDir,'-p:PublishSingleFile=false','-p:PublishReadyToRun=true',$gpuProperty,$aiProperty)
+    $SelfContained.ToString().ToLowerInvariant(),'-o',$PublishDir,'-p:PublishSingleFile=false','-p:PublishReadyToRun=false',
+    '-p:DebugType=none','-p:DebugSymbols=false','-p:SatelliteResourceLanguages=en',$gpuProperty,$aiProperty)
+
+# Remove any stray debug symbols or NuGet IntelliSense XML docs from publish output
+Get-ChildItem -LiteralPath $PublishDir -Recurse -File -Include *.pdb,*.xml |
+    Where-Object { $_.FullName -notlike (Join-Path $PublishDir 'Resources\*') } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
 
 Assert-Exists (Join-Path $PublishDir 'CortexFX.exe')
 foreach ($relative in $coreResources) { Assert-Exists (Join-Path $PublishDir ('Resources\' + $relative)) }
+$hasMagickNative = (Test-Path -LiteralPath (Join-Path $PublishDir 'Magick.Native-Q8-x64.dll')) -or
+    (Test-Path -LiteralPath (Join-Path $PublishDir 'runtimes\win-x64\native\Magick.Native-Q8-x64.dll'))
+if (!$hasMagickNative) { throw 'Required ImageMagick native library missing: Magick.Native-Q8-x64.dll' }
+$hasPdfium = (Test-Path -LiteralPath (Join-Path $PublishDir 'x64\pdfium.dll')) -or
+    (Test-Path -LiteralPath (Join-Path $PublishDir 'pdfium.dll'))
+if (!$hasPdfium) { throw 'Required PDFium native library missing: pdfium.dll' }
 foreach ($package in $audioLock.packages) {
     if (!$includeAi) { continue }
     if ($package.gpu -and $CpuOnly) { continue }
@@ -97,21 +110,27 @@ foreach ($package in $audioLock.packages) {
 }
 if ((!$includeAi -or $CpuOnly) -and (Test-Path -LiteralPath (Join-Path $PublishDir 'Resources\AudioSeparation\Gpu\onnxruntime_providers_cuda.dll'))) { throw 'Lightweight publish unexpectedly contains the GPU engine.' }
 
+$appSizeMb = [math]::Round(((Get-ChildItem -LiteralPath $PublishDir -Recurse -File | Measure-Object Length -Sum).Sum / 1MB), 2)
+Write-Host "Published app size: $appSizeMb MB" -ForegroundColor Yellow
+
 if ($CreatePortableZip) {
     Write-Step 'Creating portable ZIP'
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::CreateFromDirectory($PublishDir,$ZipPath,[IO.Compression.CompressionLevel]::Optimal,$false)
-    Write-Host "Portable ZIP: $ZipPath" -ForegroundColor Green
+    $zipSizeMb = [math]::Round(((Get-Item -LiteralPath $ZipPath).Length / 1MB), 2)
+    Write-Host "Portable ZIP: $ZipPath ($zipSizeMb MB)" -ForegroundColor Green
 }
 if ($SkipInstaller) { Write-Host 'Installer step skipped.'; Remove-OwnedStaging; return }
-$innoLocations = @(${env:ProgramFiles(x86)},$env:ProgramFiles) | Where-Object { $_ }
+$innoLocations = @(${env:ProgramFiles(x86)},$env:ProgramFiles,(Join-Path $env:LOCALAPPDATA 'Programs')) | Where-Object { $_ }
 $inno = @($innoLocations | ForEach-Object { Join-Path $_ 'Inno Setup 6\ISCC.exe' } | Where-Object { Test-Path -LiteralPath $_ })
 if (!$inno.Count) { Write-Warning "Inno Setup 6 was not found. App folder kept: $PublishDir"; return }
 $installerScript = Join-Path $ProjectRoot 'setup.iss'
 Assert-Exists $installerScript
 Write-Step 'Building installer'
-& $inno[0] "/DMyAppVersion=$Version" "/DMyBuildPath=$PublishDir" "/DMyOutputDir=$ReleaseRoot" $installerScript
+$selfContainedFlag = if ($SelfContained) { '1' } else { '0' }
+& $inno[0] "/DMyAppVersion=$Version" "/DMySelfContained=$selfContainedFlag" "/DMyBuildPath=$PublishDir" "/DMyOutputDir=$ReleaseRoot" $installerScript
 if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed with exit code $LASTEXITCODE." }
 Assert-Exists $InstallerPath
+$installerSizeMb = [math]::Round(((Get-Item -LiteralPath $InstallerPath).Length / 1MB), 2)
 Remove-OwnedStaging
-Write-Host "Installer: $InstallerPath" -ForegroundColor Green
+Write-Host "Installer: $InstallerPath ($installerSizeMb MB)" -ForegroundColor Green

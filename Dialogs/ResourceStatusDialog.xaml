@@ -28,26 +28,26 @@
    <Grid Margin="0,0,0,17">
     <Grid.ColumnDefinitions><ColumnDefinition Width="46"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <Border Width="36" Height="36" Background="#22372F" CornerRadius="10" VerticalAlignment="Center" HorizontalAlignment="Left"><TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" Foreground="#89D8B0" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-    <StackPanel Grid.Column="1" MouseLeftButtonDown="Header_MouseLeftButtonDown"><TextBlock Text="Tool status" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="See which features are available on this computer." Foreground="#A6AEBD" FontSize="12" Margin="0,5,0,0"/></StackPanel>
-    <Button Grid.Column="2" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SettingsButton}" Width="30" Height="30" MinHeight="30" Padding="0" VerticalAlignment="Top" Click="Close_Click" ToolTip="Close" AutomationProperties.Name="Close tool status"/>
+    <StackPanel Grid.Column="1" MouseLeftButtonDown="Header_MouseLeftButtonDown"><TextBlock Text="{DynamicResource Loc_Res_Title}" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource Loc_Res_Subtitle}" Foreground="#A6AEBD" FontSize="12" Margin="0,5,0,0"/></StackPanel>
+    <Button Grid.Column="2" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource SettingsButton}" Width="30" Height="30" MinHeight="30" Padding="0" VerticalAlignment="Top" Click="Close_Click" ToolTip="{DynamicResource Loc_Dlg_Close}" AutomationProperties.Name="Close tool status"/>
    </Grid>
    <Border x:Name="SummaryPanel" Grid.Row="1" Background="#1C3029" BorderBrush="#355144" BorderThickness="1" CornerRadius="11" Padding="14" Margin="0,0,0,17">
     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Margin="0,0,16,0"><TextBlock x:Name="SummaryHeading" Text="{Binding Heading}" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="{Binding Description}" Foreground="#B3C8BE" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" LineHeight="16"/></StackPanel><TextBlock x:Name="SummaryCount" Grid.Column="1" Text="{Binding Count}" Foreground="#B2E5C7" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/></Grid>
    </Border>
    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,9,0">
     <StackPanel>
-     <TextBlock Text="INCLUDED TOOLS" Foreground="#919CAB" FontSize="10" FontWeight="SemiBold" Margin="1,0,0,10"/>
+     <TextBlock Text="{DynamicResource Loc_Res_Included}" Foreground="#919CAB" FontSize="10" FontWeight="SemiBold" Margin="1,0,0,10"/>
      <ItemsControl x:Name="CoreToolList" ItemsSource="{Binding CoreTools}" ItemTemplate="{StaticResource ToolRow}"/>
-     <Expander x:Name="AdditionalFeatures" Header="Additional features" Foreground="#ADB6C5" FontSize="12" Margin="0,4,0,0"><ItemsControl x:Name="OptionalToolList" ItemsSource="{Binding OptionalTools}" ItemTemplate="{StaticResource ToolRow}" Margin="0,8,0,0"/></Expander>
-     <Expander x:Name="TechnicalDetails" Header="Technical details" Foreground="#ADB6C5" FontSize="12" Margin="0,10,0,8">
-      <StackPanel Margin="0,10,0,0"><TextBox Text="{Binding Details, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="170" VerticalScrollBarVisibility="Auto" Background="#191D26" Foreground="#B4BDCC" BorderBrush="#323A48" Padding="10" FontSize="11"/><Button x:Name="CopyDetailsButton" Content="Copy details" Click="CopyDetails_Click" Style="{StaticResource SettingsButton}" HorizontalAlignment="Left" Margin="0,9,0,0"/></StackPanel>
+     <Expander x:Name="AdditionalFeatures" Header="{DynamicResource Loc_Res_Additional}" Foreground="#ADB6C5" FontSize="12" Margin="0,4,0,0"><ItemsControl x:Name="OptionalToolList" ItemsSource="{Binding OptionalTools}" ItemTemplate="{StaticResource ToolRow}" Margin="0,8,0,0"/></Expander>
+     <Expander x:Name="TechnicalDetails" Header="{DynamicResource Loc_Res_TechDetails}" Foreground="#ADB6C5" FontSize="12" Margin="0,10,0,8">
+      <StackPanel Margin="0,10,0,0"><TextBox Text="{Binding Details, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="170" VerticalScrollBarVisibility="Auto" Background="#191D26" Foreground="#B4BDCC" BorderBrush="#323A48" Padding="10" FontSize="11"/><Button x:Name="CopyDetailsButton" Content="{DynamicResource Loc_Dlg_CopyDetails}" Click="CopyDetails_Click" Style="{StaticResource SettingsButton}" HorizontalAlignment="Left" Margin="0,9,0,0"/></StackPanel>
      </Expander>
     </StackPanel>
    </ScrollViewer>
    <Grid Grid.Row="3" Margin="0,17,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <Button Content="Recheck" Click="Recheck_Click" Style="{StaticResource SettingsButton}"/>
-    <Button x:Name="OpenToolsButton" Grid.Column="1" Content="Open tools folder" Click="OpenTools_Click" Style="{StaticResource SettingsButton}" Margin="8,0,0,0"/>
-    <Button Grid.Column="3" Content="Done" Click="Close_Click" IsCancel="True" IsDefault="True" Style="{StaticResource SettingsPrimaryButton}" MinWidth="86"/>
+    <Button Content="{DynamicResource Loc_Res_Recheck}" Click="Recheck_Click" Style="{StaticResource SettingsButton}"/>
+    <Button x:Name="OpenToolsButton" Grid.Column="1" Content="{DynamicResource Loc_Res_OpenTools}" Click="OpenTools_Click" Style="{StaticResource SettingsButton}" Margin="8,0,0,0"/>
+    <Button Grid.Column="3" Content="{DynamicResource Loc_Dlg_Done}" Click="Close_Click" IsCancel="True" IsDefault="True" Style="{StaticResource SettingsPrimaryButton}" MinWidth="86"/>
    </Grid>
   </Grid>
  </Border>

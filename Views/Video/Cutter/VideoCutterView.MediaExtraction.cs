@@ -413,6 +413,7 @@ public partial class VideoCutterView
 
             using var ms = new MemoryStream();
             Task<string> errTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            _ = errTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
             await process.StandardOutput.BaseStream.CopyToAsync(ms, timeout.Token).ConfigureAwait(false);
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
             _ = await errTask.ConfigureAwait(false);
@@ -525,6 +526,7 @@ public partial class VideoCutterView
 
             using var ms = new MemoryStream();
             Task<string> stderrTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            _ = stderrTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
             await process.StandardOutput.BaseStream.CopyToAsync(ms, timeout.Token).ConfigureAwait(false);
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
             _ = await stderrTask.ConfigureAwait(false);
@@ -643,6 +645,7 @@ public partial class VideoCutterView
 
             using var ms = new MemoryStream();
             Task<string> errTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            _ = errTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
             await process.StandardOutput.BaseStream.CopyToAsync(ms, timeout.Token).ConfigureAwait(false);
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
             _ = await errTask;

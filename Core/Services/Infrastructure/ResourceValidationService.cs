@@ -25,17 +25,25 @@ public sealed class ResourceValidationService : IResourceValidationService
                 MissingFFmpegDlls: Array.Empty<string>());
         }
 
-        var requiredTools = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["ffmpeg.exe"] = _config.FFmpegPath,
-            ["magick.exe"] = _config.MagickPath,
-            ["pdftocairo.exe"] = _config.PdfToCairoPath
-        };
+        var missing = new List<string>();
 
-        var missing = requiredTools
-            .Where(tool => !File.Exists(tool.Value))
-            .Select(tool => tool.Key)
-            .ToList();
+        if (!File.Exists(_config.FFmpegPath))
+            missing.Add("ffmpeg.exe");
+
+        string baseDir = AppContext.BaseDirectory;
+        bool hasMagickEngine =
+            File.Exists(Path.Combine(baseDir, "Magick.Native-Q8-x64.dll")) ||
+            File.Exists(Path.Combine(baseDir, "runtimes", "win-x64", "native", "Magick.Native-Q8-x64.dll")) ||
+            File.Exists(_config.MagickPath);
+        if (!hasMagickEngine)
+            missing.Add("Magick.Native-Q8-x64.dll");
+
+        bool hasPdfEngine =
+            File.Exists(Path.Combine(baseDir, "x64", "pdfium.dll")) ||
+            File.Exists(Path.Combine(baseDir, "pdfium.dll")) ||
+            File.Exists(_config.PdfToCairoPath);
+        if (!hasPdfEngine)
+            missing.Add("pdfium.dll");
 
         string[] requiredFfmpegDlls =
         [

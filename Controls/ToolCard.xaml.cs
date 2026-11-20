@@ -108,14 +108,22 @@ namespace CortexFX.Controls
         {
             bool pressed = IsEnabled && (_mousePressed || _activationKey != Key.None);
             bool hover = IsEnabled && IsMouseOver;
-            double scale = pressed ? 0.985 : hover ? 1.01 : 1;
-            double lift = pressed ? 0 : hover ? -2 : 0;
+            double scale = pressed ? 0.975 : hover ? 1.02 : 1;
+            double lift = pressed ? 0 : hover ? -3.5 : 0;
+            double iconScale = pressed ? 0.96 : hover ? 1.08 : 1;
+            double hoverOpacity = hover ? 1 : 0;
+
             Animate(CardScale, ScaleTransform.ScaleXProperty, scale);
             Animate(CardScale, ScaleTransform.ScaleYProperty, scale);
             Animate(CardTranslation, TranslateTransform.YProperty, lift);
+            Animate(IconScale, ScaleTransform.ScaleXProperty, iconScale, 210);
+            Animate(IconScale, ScaleTransform.ScaleYProperty, iconScale, 210);
+            Animate(HoverGlowOverlay, UIElement.OpacityProperty, hoverOpacity, 200);
+            Animate(HoverBorderOverlay, UIElement.OpacityProperty, hoverOpacity, 180);
         }
 
-        private static void Animate(Animatable target, DependencyProperty property, double value)
+        private static void Animate<T>(T target, DependencyProperty property, double value, double durationMs = 190)
+            where T : DependencyObject, IAnimatable
         {
             if (!SystemParameters.ClientAreaAnimation)
             {
@@ -124,9 +132,9 @@ namespace CortexFX.Controls
                 return;
             }
 
-            target.BeginAnimation(property, new DoubleAnimation(value, TimeSpan.FromMilliseconds(180))
+            target.BeginAnimation(property, new DoubleAnimation(value, TimeSpan.FromMilliseconds(durationMs))
             {
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             }, HandoffBehavior.SnapshotAndReplace);
         }
 
@@ -185,6 +193,24 @@ namespace CortexFX.Controls
         {
             get { return (Brush)GetValue(IconBackgroundProperty); }
             set { SetValue(IconBackgroundProperty, value); }
+        }
+
+        public static readonly DependencyProperty BadgeTextProperty =
+            DependencyProperty.Register("BadgeText", typeof(string), typeof(ToolCard), new PropertyMetadata(string.Empty));
+
+        public string BadgeText
+        {
+            get { return (string)GetValue(BadgeTextProperty); }
+            set { SetValue(BadgeTextProperty, value); }
+        }
+
+        public static readonly DependencyProperty IsFeaturedProperty =
+            DependencyProperty.Register("IsFeatured", typeof(bool), typeof(ToolCard), new PropertyMetadata(false));
+
+        public bool IsFeatured
+        {
+            get { return (bool)GetValue(IsFeaturedProperty); }
+            set { SetValue(IsFeaturedProperty, value); }
         }
     }
 }

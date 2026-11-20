@@ -12,6 +12,8 @@ public sealed class TrayIconService : IDisposable
 {
     private readonly Window _window;
     private TaskbarIcon? _tray;
+    private MenuItem? _openItem;
+    private MenuItem? _exitItem;
     private bool _disposed;
     private bool _forceExit;
 
@@ -25,16 +27,16 @@ public sealed class TrayIconService : IDisposable
         if (_tray != null)
             return;
 
-        var openItem = new MenuItem { Header = "Open Cortex FX" };
-        openItem.Click += (_, _) => RestoreFromTray();
+        _openItem = new MenuItem { Header = Loc.T("Loc_Tray_Open", "Open Cortex FX") };
+        _openItem.Click += (_, _) => RestoreFromTray();
 
-        var exitItem = new MenuItem { Header = "Exit" };
-        exitItem.Click += (_, _) => ExitApp();
+        _exitItem = new MenuItem { Header = Loc.T("Loc_Tray_Exit", "Exit") };
+        _exitItem.Click += (_, _) => ExitApp();
 
         var menu = new ContextMenu();
-        menu.Items.Add(openItem);
+        menu.Items.Add(_openItem);
         menu.Items.Add(new Separator());
-        menu.Items.Add(exitItem);
+        menu.Items.Add(_exitItem);
 
         _tray = new TaskbarIcon
         {
@@ -47,6 +49,14 @@ public sealed class TrayIconService : IDisposable
         _tray.TrayLeftMouseUp += (_, _) => RestoreFromTray();
 
         _window.Closing += Window_Closing;
+        Loc.LanguageChanged += RefreshLocalizedLabels;
+    }
+
+    private void RefreshLocalizedLabels()
+    {
+        if (_disposed) return;
+        if (_openItem != null) _openItem.Header = Loc.T("Loc_Tray_Open", "Open Cortex FX");
+        if (_exitItem != null) _exitItem.Header = Loc.T("Loc_Tray_Exit", "Exit");
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -79,7 +89,7 @@ public sealed class TrayIconService : IDisposable
         _tray.Visibility = Visibility.Visible;
         _tray.ShowBalloonTip(
             "Cortex FX",
-            "Still running next to the clock. Click the icon to open, or right-click → Exit to quit.",
+            Loc.T("Loc_Tray_HiddenMsg", "Still running next to the clock. Click the icon to open, or right-click → Exit to quit."),
             BalloonIcon.Info);
     }
 
@@ -148,6 +158,7 @@ public sealed class TrayIconService : IDisposable
             return;
 
         _disposed = true;
+        Loc.LanguageChanged -= RefreshLocalizedLabels;
         _window.Closing -= Window_Closing;
 
         if (_tray != null)

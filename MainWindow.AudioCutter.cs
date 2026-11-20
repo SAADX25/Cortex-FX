@@ -14,6 +14,7 @@ using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using CortexFX.Core.Audio;
 using CortexFX.Core.Constants;
+using CortexFX.Core.Services.Infrastructure;
 using CortexFX.Dialogs;
 using CortexFX.Models;
 
@@ -934,7 +935,7 @@ public partial class MainWindow
         TimeSpan selectedDuration = _selectionEnd - _selectionStart;
         if (selectedDuration.TotalMilliseconds <= 0)
         {
-            AppDialog.ShowInfo(this, "No Selection", "Select a valid audio range before saving.");
+            AppDialog.ShowInfo(this, Loc.T("Loc_AC_NoSelTitle"), Loc.T("Loc_AC_NoSelMsg"));
             return;
         }
 
@@ -956,7 +957,7 @@ public partial class MainWindow
         string preferredExt = string.IsNullOrWhiteSpace(ext) ? ".mp3" : ext.ToLowerInvariant();
         var saveDialog = new Microsoft.Win32.SaveFileDialog
         {
-            Title = "Save Trimmed Audio",
+            Title = Loc.T("Loc_AC_SaveDialogTitle"),
             FileName = $"{name}_Trimmed{preferredExt}",
             DefaultExt = preferredExt,
             Filter =
@@ -990,13 +991,13 @@ public partial class MainWindow
 
             if (string.Equals(outputFile, _currentAudioFile, StringComparison.OrdinalIgnoreCase))
             {
-                AppDialog.ShowWarning(this, "File Locked", "Cannot overwrite the source file while it is open. Please choose a different name.");
+                AppDialog.ShowWarning(this, Loc.T("Loc_AC_FileLockedTitle"), Loc.T("Loc_AC_FileLockedMsg"));
                 return;
             }
 
             if (!File.Exists(_config.FFmpegPath))
             {
-                AppDialog.ShowError(this, "Error", $"FFmpeg not found.\nExpected location:\n{_config.FFmpegPath}");
+                AppDialog.ShowError(this, Loc.T("Loc_Status_FileError"), $"FFmpeg not found.\n{_config.FFmpegPath}");
                 return;
             }
 
@@ -1008,16 +1009,16 @@ public partial class MainWindow
             {
                 _isSavingAudioSelection = true;
                 SaveSelectionBtn.IsEnabled = false;
-                SaveSelectionBtn.Content = "Saving...";
+                SaveSelectionBtn.Content = Loc.T("Loc_AC_Saving");
 
                 await _processManager.RunAsync(_config.FFmpegPath, args);
 
                 _lastOutputFolder = System.IO.Path.GetDirectoryName(outputFile);
-                SaveSelectionBtn.Content = "Export cut";
+                SaveSelectionBtn.Content = Loc.T("Loc_AC_ExportCut");
 
                 var success = new ModernSuccessDialog(
-                    "Export complete",
-                    "Your trimmed audio is ready at its original volume.",
+                    Loc.T("Loc_Dlg_ExportComplete"),
+                    Loc.T("Loc_Dlg_TrimmedReady"),
                     outputFile)
                 {
                     Owner = this
@@ -1026,17 +1027,17 @@ public partial class MainWindow
             }
             catch (OperationCanceledException)
             {
-                AppDialog.ShowInfo(this, "Cancelled", "Audio save was cancelled.");
+                AppDialog.ShowInfo(this, Loc.T("Loc_AC_CancelledTitle"), Loc.T("Loc_AC_CancelledMsg"));
             }
             catch (Exception ex)
             {
-                AppDialog.ShowError(this, "Save Error", $"Save Error: {ex.Message}");
+                AppDialog.ShowError(this, Loc.T("Loc_AC_SaveErrTitle"), ex.Message);
             }
             finally
             {
                 _isSavingAudioSelection = false;
                 SaveSelectionBtn.IsEnabled = true;
-                SaveSelectionBtn.Content = "Export cut";
+                SaveSelectionBtn.Content = Loc.T("Loc_AC_ExportCut");
             }
         }
     }

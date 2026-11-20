@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using CortexFX.Core.Services.Infrastructure;
 
 namespace CortexFX.Dialogs;
 
@@ -20,8 +21,11 @@ public partial class ModernMessageDialog : Window
         _rawMessage = message ?? string.Empty;
         Title = string.IsNullOrWhiteSpace(title) ? "Cortex FX" : title;
         TitleText.Text = Title;
+        TitleText.FlowDirection = Loc.TextFlowDirection;
         MessageText.Text = _rawMessage;
-        BtnOk.Content = string.IsNullOrWhiteSpace(buttonText) ? "OK" : buttonText;
+        MessageText.FlowDirection = Loc.TextFlowDirection;
+        BtnOk.Content = Loc.TranslateDialogButton(string.IsNullOrWhiteSpace(buttonText) ? "OK" : buttonText);
+        BtnCopy.Content = Loc.T("Loc_Dlg_CopyDetails", "Copy details");
         BtnCopy.Visibility = showCopyButton || tone == DialogTone.Danger || _rawMessage.Contains('\n')
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -85,7 +89,7 @@ public partial class ModernMessageDialog : Window
         try
         {
             Clipboard.SetText($"{TitleText.Text}\n\n{_rawMessage}");
-            BtnCopy.Content = "Copied";
+            BtnCopy.Content = Loc.T("Loc_Dlg_Copied", "Copied");
         }
         catch { }
     }

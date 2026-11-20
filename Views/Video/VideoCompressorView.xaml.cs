@@ -408,7 +408,7 @@ public partial class VideoCompressorView : UserControl
         _activeEncoderLabel = encoderLabel;
 
         string scaleFilter = GetScaleFilter();
-        string args = $"-hide_banner -y -i \"{_inputFilePath}\" {qualityArgs}";
+        string args = $"-hide_banner -nostdin -y -i \"{_inputFilePath}\" {qualityArgs}";
         if (!string.IsNullOrEmpty(scaleFilter))
             args += $" -vf \"{scaleFilter}\"";
         args += $" -c:a aac -b:a 128k -movflags +faststart \"{outPath}\"";
@@ -424,6 +424,7 @@ public partial class VideoCompressorView : UserControl
         ProgressStatusText.Text = "Starting...";
         ProgressDetailText.Text = $"Encoder: {encoderLabel}";
 
+        _cts?.Dispose();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
@@ -443,59 +444,79 @@ public partial class VideoCompressorView : UserControl
                     encoder = swEncoder;
                     encoderLabel = swLabel;
                     _activeEncoderLabel = swLabel;
-                    string swArgs = $"-hide_banner -y -i \"{_inputFilePath}\" {swQualityArgs}";
+                    string swArgs = $"-hide_banner -nostdin -y -i \"{_inputFilePath}\" {swQualityArgs}";
                     if (!string.IsNullOrEmpty(scaleFilter))
                         swArgs += $" -vf \"{scaleFilter}\"";
                     swArgs += $" -c:a aac -b:a 128k -movflags +faststart \"{outPath}\"";
 
-                    await Dispatcher.InvokeAsync(() =>
+                    if (!Dispatcher.HasShutdownStarted)
                     {
-                        ProgressDetailText.Text = $"Encoder: {swLabel} (GPU fallback)";
-                        ProgressStatusText.Text = "Retrying with CPU...";
-                    });
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            ProgressDetailText.Text = $"Encoder: {swLabel} (GPU fallback)";
+                            ProgressStatusText.Text = "Retrying with CPU...";
+                        });
+                    }
 
                     await RunFFmpegAsync(swArgs, token);
                 }
 
-                await Dispatcher.InvokeAsync(() =>
+                if (!Dispatcher.HasShutdownStarted)
                 {
-                    if (token.IsCancellationRequested)
+                    await Dispatcher.InvokeAsync(() =>
                     {
-                        ShowCancelledState(outPath);
-                    }
-                    else
-                    {
-                        ShowResult(outPath);
-                    }
-                });
+                        if (token.IsCancellationRequested)
+                        {
+                            ShowCancelledState(outPath);
+                        }
+                        else
+                        {
+                            ShowResult(outPath);
+                        }
+                    });
+                }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
-                await Dispatcher.InvokeAsync(() => ShowCancelledState(outPath));
+                if (!Dispatcher.HasShutdownStarted)
+                    await Dispatcher.InvokeAsync(() => ShowCancelledState(outPath));
+                else
+                    try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
             }
             catch (Exception ex)
             {
-                await Dispatcher.InvokeAsync(() =>
+                if (!Dispatcher.HasShutdownStarted)
                 {
-                    AppDialog.ShowError(this, "Compression Failed", $"Compression failed:\n{ex.Message}");
-                    ProgressStatusText.Text = "Failed";
-                    ProgressDetailText.Text = encoderLabel;
-                    BackgroundJobBadge.Visibility = Visibility.Collapsed;
-                });
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        AppDialog.ShowError(this, "Compression Failed", $"Compression failed:\n{ex.Message}");
+                        ProgressStatusText.Text = "Failed";
+                        ProgressDetailText.Text = encoderLabel;
+                        BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                    });
+                }
             }
             finally
             {
-                await Dispatcher.InvokeAsync(() =>
+                if (!Dispatcher.HasShutdownStarted)
                 {
-                    CompressButton.IsEnabled = true;
-                    SetEditingEnabled(true);
-                    BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        CompressButton.IsEnabled = true;
+                        SetEditingEnabled(true);
+                        BackgroundJobBadge.Visibility = Visibility.Collapsed;
+                        _compressTask = null;
+                    });
+                }
+                else
+                {
                     _compressTask = null;
-                });
+                }
             }
         });
 
-        await _compressTask;
+        try { await _compressTask; }
+        catch (OperationCanceledException) { }
     }
 
     private void CancelCompress_Click(object sender, RoutedEventArgs e)
@@ -512,6 +533,13 @@ public partial class VideoCompressorView : UserControl
         BackgroundJobBadge.Visibility = Visibility.Collapsed;
         CancelButton.IsEnabled = false;
         try { if (File.Exists(outputPath)) File.Delete(outputPath); } catch { }
+    }
+
+    public void Shutdown()
+    {
+        CancelCompressIfRunning();
+        try { _cts?.Dispose(); } catch { }
+        _cts = null;
     }
 
     private void CancelCompressIfRunning()
@@ -584,7 +612,7 @@ public partial class VideoCompressorView : UserControl
             var psi = new ProcessStartInfo
             {
                 FileName = _ffmpegPath,
-                Arguments = "-hide_banner -encoders",
+                Arguments = "-hide_banner -nostdin -encoders",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
@@ -594,11 +622,22 @@ public partial class VideoCompressorView : UserControl
             using var proc = Process.Start(psi);
             if (proc == null) return;
 
-            string stdout = await proc.StandardOutput.ReadToEndAsync();
-            string stderr = await proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task<string> stdoutTask = proc.StandardOutput.ReadToEndAsync(timeout.Token);
+            Task<string> stderrTask = proc.StandardError.ReadToEndAsync(timeout.Token);
+            _ = stdoutTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            _ = stderrTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            try
+            {
+                await proc.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+                return;
+            }
 
-            string output = stdout + stderr;
+            string output = (await stdoutTask) + (await stderrTask);
             _hwCaps = new HardwareCaps
             {
                 HasNvenc = output.Contains("h264_nvenc", StringComparison.OrdinalIgnoreCase),
@@ -614,7 +653,8 @@ public partial class VideoCompressorView : UserControl
             _hwCaps = new HardwareCaps();
         }
 
-        await Dispatcher.InvokeAsync(UpdateEncoderCapabilityText);
+        if (!Dispatcher.HasShutdownStarted)
+            await Dispatcher.InvokeAsync(UpdateEncoderCapabilityText);
     }
 
     private void UpdateEncoderCapabilityText()
@@ -645,7 +685,7 @@ public partial class VideoCompressorView : UserControl
         ct.ThrowIfCancellationRequested();
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _ffmpegProcess = new Process
+        var proc = new Process
         {
             StartInfo = new ProcessStartInfo
             {
@@ -654,12 +694,13 @@ public partial class VideoCompressorView : UserControl
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardError = true,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = false
             },
             EnableRaisingEvents = true
         };
+        _ffmpegProcess = proc;
 
-        _ffmpegProcess.ErrorDataReceived += (_, e) =>
+        proc.ErrorDataReceived += (_, e) =>
         {
             if (string.IsNullOrEmpty(e.Data)) return;
 
@@ -674,7 +715,7 @@ public partial class VideoCompressorView : UserControl
             }
 
             var timeMatch = Regex.Match(e.Data, @"time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})");
-            if (timeMatch.Success && _totalDuration.TotalSeconds > 0)
+            if (timeMatch.Success && _totalDuration.TotalSeconds > 0 && !Dispatcher.HasShutdownStarted)
             {
                 var current = new TimeSpan(0,
                     int.Parse(timeMatch.Groups[1].Value),
@@ -702,42 +743,53 @@ public partial class VideoCompressorView : UserControl
             }
         };
 
-        _ffmpegProcess.Exited += (_, _) =>
+        CancellationTokenRegistration ctReg = default;
+        proc.Exited += (_, _) =>
         {
             int code = -1;
-            try { code = _ffmpegProcess.ExitCode; } catch { }
+            try { code = proc.ExitCode; } catch { }
+            try { ctReg.Dispose(); } catch { }
+            if (ReferenceEquals(_ffmpegProcess, proc))
+                _ffmpegProcess = null;
+            try { proc.Dispose(); } catch { }
 
-            Dispatcher.BeginInvoke(() =>
+            if (!Dispatcher.HasShutdownStarted)
             {
-                if (code == 0 && !ct.IsCancellationRequested)
+                Dispatcher.BeginInvoke(() =>
                 {
-                    CompressionProgress.Value = 100;
-                    ProgressPercentText.Text = "100%";
-                    ProgressStatusText.Text = "Done";
-                }
-            });
+                    if (code == 0 && !ct.IsCancellationRequested)
+                    {
+                        CompressionProgress.Value = 100;
+                        ProgressPercentText.Text = "100%";
+                        ProgressStatusText.Text = "Done";
+                    }
+                });
+            }
 
             if (ct.IsCancellationRequested)
-                tcs.TrySetResult(true); // treat cancel as completed; caller checks token
+                tcs.TrySetResult(true);
             else if (code != 0)
                 tcs.TrySetException(new InvalidOperationException($"FFmpeg exited with code {code}."));
             else
                 tcs.TrySetResult(true);
         };
 
-        if (!_ffmpegProcess.Start())
+        if (!proc.Start())
         {
+            if (ReferenceEquals(_ffmpegProcess, proc))
+                _ffmpegProcess = null;
+            proc.Dispose();
             tcs.TrySetException(new InvalidOperationException("Failed to start FFmpeg."));
             return tcs.Task;
         }
 
-        _ffmpegProcess.BeginErrorReadLine();
-        ct.Register(() =>
+        proc.BeginErrorReadLine();
+        ctReg = ct.Register(() =>
         {
             try
             {
-                if (_ffmpegProcess is { HasExited: false })
-                    _ffmpegProcess.Kill(entireProcessTree: true);
+                if (!proc.HasExited)
+                    proc.Kill(entireProcessTree: true);
             }
             catch { }
         });
@@ -784,7 +836,10 @@ public partial class VideoCompressorView : UserControl
     private void OpenOutputFolder_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(_lastOutputPath) && File.Exists(_lastOutputPath))
-            Process.Start("explorer.exe", $"/select,\"{_lastOutputPath}\"");
+        {
+            try { Process.Start("explorer.exe", $"/select,\"{_lastOutputPath}\""); }
+            catch (Exception ex) { AppDialog.ShowError(this, "Open Folder Failed", $"Could not open folder:\n{ex.Message}"); }
+        }
     }
 
     private void CompressAnother_Click(object sender, RoutedEventArgs e)
@@ -801,7 +856,7 @@ public partial class VideoCompressorView : UserControl
         string ffprobePath = Path.Combine(Path.GetDirectoryName(_ffmpegPath)!, "ffprobe.exe");
         string probeTool = File.Exists(ffprobePath) ? ffprobePath : _ffmpegPath;
         string probeArgs = probeTool == _ffmpegPath
-            ? $"-i \"{path}\" -hide_banner"
+            ? $"-hide_banner -nostdin -i \"{path}\""
             : $"-v error -show_entries format=duration -show_entries stream=width,height -of csv=p=0 \"{path}\"";
 
         try
@@ -816,14 +871,25 @@ public partial class VideoCompressorView : UserControl
                 RedirectStandardOutput = true
             };
 
-            var proc = Process.Start(psi);
+            using var proc = Process.Start(psi);
             if (proc == null) return;
 
-            string stderr = await proc.StandardError.ReadToEndAsync();
-            string stdout = await proc.StandardOutput.ReadToEndAsync();
-            await proc.WaitForExitAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            Task<string> stderrTask = proc.StandardError.ReadToEndAsync(timeout.Token);
+            Task<string> stdoutTask = proc.StandardOutput.ReadToEndAsync(timeout.Token);
+            _ = stderrTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            _ = stdoutTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            try
+            {
+                await proc.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+                return;
+            }
 
-            string combined = stderr + "\n" + stdout;
+            string combined = (await stderrTask) + "\n" + (await stdoutTask);
 
             var durMatch = Regex.Match(combined, @"Duration:\s*(\d{2}:\d{2}:\d{2}\.\d{2})");
             if (durMatch.Success &&
@@ -844,10 +910,14 @@ public partial class VideoCompressorView : UserControl
     {
         if (string.IsNullOrEmpty(_ffmpegPath) || !File.Exists(_ffmpegPath)) return;
 
+        string tempThumb = Path.Combine(Path.GetTempPath(), $"cortexfx_thumb_{Guid.NewGuid():N}.jpg");
         try
         {
-            string tempThumb = Path.Combine(Path.GetTempPath(), $"cortexfx_thumb_{Guid.NewGuid():N}.jpg");
-            string args = $"-i \"{path}\" -ss 00:00:02 -vframes 1 -q:v 5 -y \"{tempThumb}\"";
+            double seekSec = _totalDuration > TimeSpan.Zero && _totalDuration < TimeSpan.FromSeconds(2.5)
+                ? Math.Max(0, _totalDuration.TotalSeconds * 0.25)
+                : 2.0;
+            string ss = seekSec.ToString("0.###", CultureInfo.InvariantCulture);
+            string args = $"-hide_banner -loglevel error -nostdin -ss {ss} -i \"{path}\" -vframes 1 -q:v 5 -y \"{tempThumb}\"";
 
             var psi = new ProcessStartInfo
             {
@@ -858,9 +928,22 @@ public partial class VideoCompressorView : UserControl
                 RedirectStandardError = true
             };
 
-            var proc = Process.Start(psi);
+            using var proc = Process.Start(psi);
             if (proc == null) return;
-            await proc.WaitForExitAsync();
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            Task<string> stderrTask = proc.StandardError.ReadToEndAsync(timeout.Token);
+            _ = stderrTask.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            try
+            {
+                await proc.WaitForExitAsync(timeout.Token);
+                _ = await stderrTask;
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+                return;
+            }
 
             if (File.Exists(tempThumb))
             {
@@ -872,10 +955,13 @@ public partial class VideoCompressorView : UserControl
                 bmp.EndInit();
                 bmp.Freeze();
                 VideoThumbnail.Source = bmp;
-                try { File.Delete(tempThumb); } catch { }
             }
         }
         catch { }
+        finally
+        {
+            try { if (File.Exists(tempThumb)) File.Delete(tempThumb); } catch { }
+        }
     }
 
     // Helpers
@@ -907,8 +993,18 @@ public partial class VideoCompressorView : UserControl
         UpdateOutputSummary();
     }
 
-    private static SolidColorBrush BrushFrom(string hex) =>
-        new((Color)ColorConverter.ConvertFromString(hex));
+    private static readonly Dictionary<string, SolidColorBrush> FrozenBrushCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static SolidColorBrush BrushFrom(string hex)
+    {
+        if (FrozenBrushCache.TryGetValue(hex, out SolidColorBrush? cached))
+            return cached;
+
+        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        brush.Freeze();
+        FrozenBrushCache[hex] = brush;
+        return brush;
+    }
 
     private static string FormatBytes(long bytes)
     {

@@ -1,4 +1,5 @@
 using CortexFX.Core.Interfaces;
+using CortexFX.Core.Services.Infrastructure;
 
 namespace CortexFX.ViewModels;
 
@@ -14,11 +15,11 @@ public sealed record ResourceToolStatus(string Name, string Description, string 
 public sealed record ResourceStatusReport(ResourceValidationResult Core, IReadOnlyList<ResourceToolStatus> CoreTools,
     IReadOnlyList<ResourceToolStatus> OptionalTools)
 {
-    public string Heading => Core.IsReady ? "Core tools are ready" : "Some tools need attention";
+    public string Heading => Core.IsReady ? Loc.T("Loc_Res_HeadingReady") : Loc.T("Loc_Res_HeadingMissing");
     public string Description => Core.IsReady
-        ? "The tools included with Cortex FX were found on this computer."
-        : "Some included files are missing. Reinstall the latest Cortex FX package to restore them.";
-    public string Count => $"{CoreTools.Count(tool => tool.State == ResourceToolState.Ready)} of {CoreTools.Count} ready";
+        ? Loc.T("Loc_Res_DescReady")
+        : Loc.T("Loc_Res_DescMissing");
+    public string Count => Loc.F("Loc_Res_Count", CoreTools.Count(tool => tool.State == ResourceToolState.Ready), CoreTools.Count);
     public string Details => $"Tools folder:\n{Core.ResourcesDirectory}\n\nPlayback libraries:\n{Core.FFmpegLibsDirectory}\n\n" +
         (!Core.ResourcesDirectoryExists ? "The tools folder is missing.\n" : "") +
         (Core.MissingTools.Count > 0 ? "Missing conversion files:\n" + string.Join("\n", Core.MissingTools) + "\n\n" : "") +
@@ -28,22 +29,25 @@ public sealed record ResourceStatusReport(ResourceValidationResult Core, IReadOn
     {
         bool Found(string tool) => core.ResourcesDirectoryExists && !core.MissingTools.Contains(tool, StringComparer.OrdinalIgnoreCase);
         ResourceToolStatus Required(string name, string description, bool found) => new(name, description,
-            found ? "Ready" : "Missing files", found ? ResourceToolState.Ready : ResourceToolState.Missing);
+            found ? Loc.T("Loc_Res_StateReady") : Loc.T("Loc_Res_StateMissing"),
+            found ? ResourceToolState.Ready : ResourceToolState.Missing);
         ResourceToolStatus Document(string name, string app, bool found) => new(name,
-            found ? "A compatible desktop converter was detected." : $"Requires desktop {app} or LibreOffice.",
-            found ? "Detected" : "Not installed", found ? ResourceToolState.Ready : ResourceToolState.Optional);
+            found ? Loc.T("Loc_Res_DocDetected") : Loc.F("Loc_Res_DocRequires", app),
+            found ? Loc.T("Loc_Res_StateDetected") : Loc.T("Loc_Res_StateNotInstalled"),
+            found ? ResourceToolState.Ready : ResourceToolState.Optional);
         return new(core,
         [
-            Required("Video & audio", "Convert, cut and compress your media files.", Found("ffmpeg.exe")),
-            Required("Video preview", "Play videos inside the editors.", core.ResourcesDirectoryExists && core.MissingFFmpegDlls.Count == 0),
-            Required("Image tools", "Convert and edit image files.", Found("magick.exe")),
-            Required("PDF to images", "Export PDF pages as image files.", Found("pdftocairo.exe"))
+            Required(Loc.T("Loc_Res_ToolVideoAudio"), Loc.T("Loc_Res_ToolVideoAudioDesc"), Found("ffmpeg.exe")),
+            Required(Loc.T("Loc_Res_ToolPreview"), Loc.T("Loc_Res_ToolPreviewDesc"), core.ResourcesDirectoryExists && core.MissingFFmpegDlls.Count == 0),
+            Required(Loc.T("Loc_Res_ToolImage"), Loc.T("Loc_Res_ToolImageDesc"), Found("Magick.Native-Q8-x64.dll") && Found("magick.exe")),
+            Required(Loc.T("Loc_Res_ToolPdfImg"), Loc.T("Loc_Res_ToolPdfImgDesc"), Found("pdfium.dll") && Found("pdftocairo.exe"))
         ],
         [
-            Document("Word to PDF", "Microsoft Word", wordPdf),
-            Document("PowerPoint to PDF", "Microsoft PowerPoint", powerPointPdf),
-            new("AI audio separation", audioAi ? "The local vocals and music engine is installed." : "Set up the optional engine in AI Audio Separator.",
-                audioAi ? "Installed" : "Optional setup", audioAi ? ResourceToolState.Ready : ResourceToolState.Optional)
+            Document(Loc.T("Loc_Tool_WordToPdf"), "Microsoft Word", wordPdf),
+            Document(Loc.T("Loc_Tool_PptToPdf"), "Microsoft PowerPoint", powerPointPdf),
+            new(Loc.T("Loc_Res_ToolAi"), audioAi ? Loc.T("Loc_Res_ToolAiInstalled") : Loc.T("Loc_Res_ToolAiOptional"),
+                audioAi ? Loc.T("Loc_Res_StateInstalled") : Loc.T("Loc_Res_StateOptional"),
+                audioAi ? ResourceToolState.Ready : ResourceToolState.Optional)
         ]);
     }
 }

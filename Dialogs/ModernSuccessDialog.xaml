@@ -115,7 +115,7 @@
                         </Border>
 
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="SAVED FILE" FontSize="10" FontWeight="SemiBold"
+                            <TextBlock Text="{DynamicResource Loc_Dlg_SavedFile}" FontSize="10" FontWeight="SemiBold"
                                        Foreground="#94A3B8" Margin="0,0,0,4"/>
                             <TextBlock x:Name="FileNameText" Text="file.mp3"
                                        FontSize="14" FontWeight="SemiBold" Foreground="#E2E8F0"

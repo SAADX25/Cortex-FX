@@ -2,6 +2,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using CortexFX.Core.Interfaces;
 using CortexFX.Core.Video;
 using CortexFX.Dialogs;
@@ -16,28 +18,97 @@ public partial class VideoCutterView
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy;
-            DropZoneBorder.BorderBrush = BrushFrom("#2D8CFF");
+            SetLandingDropDragActive(true);
         }
         e.Handled = true;
     }
 
     private void DropZone_DragLeave(object sender, DragEventArgs e)
     {
-        DropZoneBorder.BorderBrush = BrushFrom("#363636");
+        SetLandingDropDragActive(false);
         e.Handled = true;
     }
+
+    private void SetLandingDropDragActive(bool active)
+    {
+        if (DropZoneDashedRect != null)
+            DropZoneDashedRect.Stroke = BrushFrom(active ? "#E11D2E" : "#332735");
+
+        double targetOverlay = active ? 1.0 : 0.0;
+        double targetScale = active ? 1.14 : 1.0;
+        double targetLift = active ? -6.0 : 0.0;
+
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            if (DropZoneHoverBorder != null)
+            {
+                DropZoneHoverBorder.BeginAnimation(UIElement.OpacityProperty, null);
+                DropZoneHoverBorder.Opacity = targetOverlay;
+            }
+            if (DropZoneIconScale != null)
+            {
+                DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                DropZoneIconScale.ScaleX = targetScale;
+                DropZoneIconScale.ScaleY = targetScale;
+            }
+            if (DropZoneIconTranslate != null)
+            {
+                DropZoneIconTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+                DropZoneIconTranslate.Y = targetLift;
+            }
+            return;
+        }
+
+        var duration = TimeSpan.FromMilliseconds(active ? 180 : 210);
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+        DropZoneHoverBorder?.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(targetOverlay, duration) { EasingFunction = easing },
+            HandoffBehavior.SnapshotAndReplace);
+
+        if (DropZoneIconScale != null)
+        {
+            DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                new DoubleAnimation(targetScale, duration) { EasingFunction = easing },
+                HandoffBehavior.SnapshotAndReplace);
+            DropZoneIconScale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(targetScale, duration) { EasingFunction = easing },
+                HandoffBehavior.SnapshotAndReplace);
+        }
+
+        DropZoneIconTranslate?.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(targetLift, duration) { EasingFunction = easing },
+            HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private static string? FindDroppedProjectFile(string[] files) =>
+        files.FirstOrDefault(f =>
+            !string.IsNullOrWhiteSpace(f) &&
+            File.Exists(f) &&
+            string.Equals(Path.GetExtension(f), MontageProjectStorage.FileExtension, StringComparison.OrdinalIgnoreCase));
 
     private void DropZone_Drop(object sender, DragEventArgs e)
     {
         DropZone_DragLeave(sender, e);
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
-            _ = LoadOrAppendFilesAsync(files, append: false, addToTimeline: true);
+        {
+            if (FindDroppedProjectFile(files) is { } projectFile)
+                _ = LoadProjectFromFileAsync(projectFile);
+            else
+                _ = LoadOrAppendFilesAsync(files, append: false, addToTimeline: true);
+        }
     }
 
     private void EditorPanel_Drop(object sender, DragEventArgs e)
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
-            _ = LoadOrAppendFilesAsync(files, append: true, addToTimeline: true);
+        {
+            if (FindDroppedProjectFile(files) is { } projectFile)
+                _ = LoadProjectFromFileAsync(projectFile);
+            else
+                _ = LoadOrAppendFilesAsync(files, append: true, addToTimeline: true);
+        }
         e.Handled = true;
     }
 
@@ -50,7 +121,12 @@ public partial class VideoCutterView
     private void ProjectPanel_Drop(object sender, DragEventArgs e)
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
-            _ = LoadOrAppendFilesAsync(files, append: true, addToTimeline: true);
+        {
+            if (FindDroppedProjectFile(files) is { } projectFile)
+                _ = LoadProjectFromFileAsync(projectFile);
+            else
+                _ = LoadOrAppendFilesAsync(files, append: true, addToTimeline: true);
+        }
         e.Handled = true;
     }
 
@@ -154,15 +230,24 @@ public partial class VideoCutterView
         bool wasEmpty = _project.MediaBin.Count == 0 && !HasAnyTimelineClips();
         if (!append || wasEmpty)
         {
-            CancelAllAssetExtractions();
-            _project.Clear();
-            _outputFolderOverride = null;
-            _lastOutputPath = null;
-            _montagePosition = TimeSpan.Zero;
-            _zoomFactor = 1.0;
-            SetZoomSliderSilently(0.0);
-            _previewFocused = false;
-            ApplyPreviewFocusState();
+            _suppressDirtyTracking = true;
+            try
+            {
+                CancelAllAssetExtractions();
+                _project.Clear();
+                ResetPersistenceTracking(clearAutoSave: true);
+                _outputFolderOverride = null;
+                _lastOutputPath = null;
+                _montagePosition = TimeSpan.Zero;
+                _zoomFactor = 1.0;
+                SetZoomSliderSilently(0.0);
+                _previewFocused = false;
+                ApplyPreviewFocusState();
+            }
+            finally
+            {
+                _suppressDirtyTracking = false;
+            }
         }
         else if (addToTimeline)
         {
@@ -265,9 +350,21 @@ public partial class VideoCutterView
         }
 
         if (append && !wasEmpty && addToTimeline)
+        {
             _project.CommitUndoStep();
+            MarkProjectDirty(scheduleAutoSave: true);
+        }
+        else if (append && !wasEmpty)
+        {
+            MarkProjectDirty(scheduleAutoSave: true);
+        }
         else if (!append || wasEmpty)
-            _project.ClearHistory();
+        {
+            _suppressDirtyTracking = true;
+            try { _project.ClearHistory(); }
+            finally { _suppressDirtyTracking = false; }
+            UpdateSaveButtonUi();
+        }
 
         if (firstAdded != null)
         {
@@ -447,6 +544,7 @@ public partial class VideoCutterView
         await PausePlaybackAsync();
         CancelAssetExtraction(asset.FilePath);
         _project.RemoveAsset(asset, removeTimelineInstances: true);
+        MarkProjectDirty(scheduleAutoSave: true);
 
         _montagePosition = ClampMontageTime(_montagePosition);
         await SyncPlayerToMontagePositionAsync(_montagePosition, autoPlay: false, forceExactSeek: true);
@@ -607,13 +705,20 @@ public partial class VideoCutterView
 
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
         {
-            _ = LoadOrAppendFilesAsync(
-                files,
-                append: true,
-                addToTimeline: true,
-                insertAtTime: snapped,
-                targetVideoLayer: resolvedVideoLayer,
-                targetAudioLayer: pos.Y >= A1TopY ? resolvedAudioLayer : null);
+            if (FindDroppedProjectFile(files) is { } projectFile)
+            {
+                _ = LoadProjectFromFileAsync(projectFile);
+            }
+            else
+            {
+                _ = LoadOrAppendFilesAsync(
+                    files,
+                    append: true,
+                    addToTimeline: true,
+                    insertAtTime: snapped,
+                    targetVideoLayer: resolvedVideoLayer,
+                    targetAudioLayer: pos.Y >= A1TopY ? resolvedAudioLayer : null);
+            }
             e.Handled = true;
         }
         else

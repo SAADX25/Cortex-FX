@@ -7,8 +7,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
+    <!-- Strip unused 3rd-party NuGet satellite culture DLLs (app Arabic/English UI uses embedded XAML). -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <!-- NetOffice/PdfiumViewer ship as .NET Framework assets; expected on modern TFMs. -->
     <NoWarn>$(NoWarn);NU1701;NU1510</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,15 +44,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="Resources\magick.exe" Condition="Exists('Resources\magick.exe')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Include="Resources\pdftocairo.exe" Condition="Exists('Resources\pdftocairo.exe')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Include="Resources\*.dll">
+    <Content Include="Resources\msvcp140*.dll;Resources\vcruntime140*.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
@@ -88,8 +88,8 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <Version>1.8.5</Version>
-    <FileVersion>1.8.5.0</FileVersion>
-    <AssemblyVersion>1.8.5.0</AssemblyVersion>
+    <Version>1.9.5</Version>
+    <FileVersion>1.9.5.0</FileVersion>
+    <AssemblyVersion>1.9.5.0</AssemblyVersion>
   </PropertyGroup>
 </Project>

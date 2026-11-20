@@ -5,7 +5,7 @@ namespace CortexFX.Core.Video;
 
 public sealed partial class MontageProject
 {
-    public SourceMediaAsset RegisterAsset(VideoMediaInfo info)
+    public SourceMediaAsset RegisterAsset(VideoMediaInfo info, string? preferredColorHex = null)
     {
         if (_assets.TryGetValue(info.FilePath, out SourceMediaAsset? existing))
         {
@@ -13,7 +13,9 @@ public sealed partial class MontageProject
             return existing;
         }
 
-        string color = AssetPalette[_assets.Count % AssetPalette.Length];
+        string color = !string.IsNullOrWhiteSpace(preferredColorHex)
+            ? preferredColorHex
+            : AssetPalette[_assets.Count % AssetPalette.Length];
         var asset = new SourceMediaAsset(info, color);
         _assets[info.FilePath] = asset;
         MediaBin.Add(asset);
